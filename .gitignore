@@ -1,2 +1,6 @@
-Traffic_Signs_Templates/
-
+Traffic_Signs_Templates/2_Processed_Images/
+Traffic_Signs_Templates/3_Damaged_Images/
+Traffic_Signs_Templates/4_Transformed_Images/
+SGTSD/
+Traffic_Signs_Exposure_Manipulation/
+Traffic_Signs_Fade_Manipulation/
