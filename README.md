@@ -17,18 +17,15 @@ Git is required to download and install the repo. You can open Terminal (for Lin
 ```sh
 $ sudo apt-get update
 $ sudo apt-get install git
-$ git clone https://github.com/alexandrosstergiou/The-Drivers-Assistant-Traffic-Sign-Recognition
+$ git clone https://github.com/BunningsWarehouseOfficial/Traffic-Sign-Recognition-basd-on-Synthesised-Training-Data.git
 ```
 
-Note that the synthetic dataset SGTSD will need aprox. 10Gb and the sample set used for training will be close to 1Gb.
+Note that the synthetic dataset SGTSD will need aprox. 10GB and the sample set used for training will be close to 1GB.
 Please allow sufficient storing space when running the generator on a system.
 
 ## License
 MIT
 
 ## Contact
-Alexandros Stergiou
-
-a.g.stergiou at uu.nl
-
-Any queries or suggestions are much appreciated!
+Kristian Rados
+Seana Dale (seana.dale@student.curtin.edu.au)
