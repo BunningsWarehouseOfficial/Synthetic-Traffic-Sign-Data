@@ -8,10 +8,9 @@
 
 We have modified Stergiou's code to create synthetic data placed over a full background image to provide holistic data that can be used to train a detection model directly rather than training for simple classification. Furthermore, we have implemented various kinds of synthetic damage that are applied to the signs. This damage is quantified by using the percentage of the sign that has been changed or obscured. The purpose of this is to train a detection model to not only detect each class of sign, but to also detect the class and severity of damage that is present on the sign, if any.
  
- ![damaged_examples](https://github.com/alexandrosstergiou/The-Drivers-Assistant-Traffic-Sign-Recognition/blob/master/figures/Damaged_examples.png "Templates")
+ ![damaged_examples](https://github.com/BunningsWarehouseOfficial/Traffic-Sign-Damage-Detection-using-Synthesised-Training-Data/blob/master/figures/Damaged_examples.png "Templates")
  
- 
-The first row shows the generated examples while the second are real-world signs !!!!!!!!!!
+The above shows some close-up examples of damage applied to signs.
 
 ## Installation
 Git is required to download and install the repo. You can open Terminal (for Linux and Mac) or cmd (for Windows) and follow these commands:
