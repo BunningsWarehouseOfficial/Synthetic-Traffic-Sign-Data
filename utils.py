@@ -1,4 +1,4 @@
-"""Utility functions for manipulating images"""
+"""Utility functions for manipulating images."""
 
 import numpy as np
 import cv2
@@ -16,7 +16,7 @@ def match_width(img, new_width):
     return img
 
 def resize(img1, img2):
-    """Resize img1 if it is larger than img2"""
+    """Resize img1 to ensure it is not larger than img2."""
     # Retrieve dimentions of both images
     height1, width1, _ = img1.shape  # Discard channel
     height2, width2, _ = img2.shape
@@ -33,10 +33,10 @@ def resize(img1, img2):
 
 
 def overlay(fg, bg, x1=-1, y1=-1):
-    """Overlays foreground image on background image, keeping transparency
+    """Overlay foreground image on background image, keeping transparency.
        :param x1, y1: top-left coordinates to place foreground image \n
-       Foreground image will be centred on background if x1 or y1 is omitted \n
-       Images may be RGB or RGBA
+       Foreground image will be centred on background if x1 or y1 is omitted. \n
+       Images may be RGB or RGBA.
     """
     # If the background doesn't have an alpha channel, add one
     if len(cv2.split(bg)) == 3:
@@ -81,7 +81,7 @@ def overlay(fg, bg, x1=-1, y1=-1):
 
 
 def count_pixels(img):
-    """Returns the number of non-transparent pixels in the imported image"""
+    """Return the number of non-transparent pixels in the imported image."""
     sum = 0  # Initialise to 0 in case there is no alpha channel
     split = cv2.split(img)
     if len(split) is 4:  # Only proceed if the image has an alpha channel
@@ -93,19 +93,24 @@ def count_pixels(img):
     return sum
 
 def calc_ratio(fg, bg):
-    """Calculates the ratio of obscurity in first image compared to second image
+    """Calculate the ratio of obscurity in first image compared to second image.
+       :param fg: the foreground (if overlaying) or smaller image
+       :param bg: the background or larger image
        :returns: the ratio, a number between 0 and 1"""
     # Compare the number of non-transparent pixels in the two images
     fg_pixels = count_pixels(fg)
     bg_pixels = count_pixels(bg)
     ratio = fg_pixels / bg_pixels
+    # If bg had less pixels than fg, flip the fraction to ensure ratio is 0-1
+    if ratio > 1:
+        ratio = 1 / ratio
 
     return ratio
 
 
 def count_diff_pixels(new, original):
-    """Counts how many opaque pixels are different between the two imported images \n
-    Based on count_pixels()"""
+    """Count how many opaque pixels are different between the two imported images. \n
+    Based on count_pixels()."""
     count = 0
     split = cv2.split(original)
     if len(split) is 4:
@@ -118,7 +123,7 @@ def count_diff_pixels(new, original):
     return count
 
 def calc_quadrant_diff(new, original):
-    """Calculates the ratio of changed opaque pixels between two versions of the same image for each quadrant"""
+    """Calculate the ratio of changed opaque pixels between two versions of the same image for each quadrant."""
     height, width, _ = original.shape
     centre_x = int(round( width / 2 ))
     centre_y = int(round( height / 2 ))
