@@ -37,37 +37,37 @@ def resize_and_save(path,size,directory):
         print "cannot create thumbnail for '%s'" % path
 
 for i in range(1,11):
-    directory = 'val_set_blurred_'+str(i)
-    if (not os.path.exists('val_set_blurred_'+str(i))):
-        for sign in load_paths("Traffic_Signs_Templates/Images"):
+    directory = 'Val_Set_Blurred_'+str(i)
+    if (not os.path.exists('Val_Set_Blurred_'+str(i))):
+        for sign in load_paths("Traffic_Signs_Templates/1_Input_Images"):
             head,tail = sign.split('.')
             name = []
             name = head.split('/')
-            os.makedirs('val_set_blurred_'+str(i)+'/'+name[-1])
+            os.makedirs('Val_Set_Blurred_'+str(i)+'/'+name[-1])
 
 
 
 
-    paths = load_paths("val_set_"+str(i))
+    paths = load_paths("Val_Set_"+str(i))
     for path in paths:
         temp = load_paths(path)
         for p in temp:
             elements = p.split('/')
-            d = 'val_set_blurred_'+str(i)+'/'+elements[-2]+"/"+elements[-1]
+            d = 'Val_Set_Blurred_'+str(i)+'/'+elements[-2]+"/"+elements[-1]
             resize_and_save(p,(48,48), d)
 
 """
 
-directory = 'SGTSD/Images_blurred/'
-if (not os.path.exists('SGTSD/Images_blurred/')):
-    for sign in load_paths("Traffic_Signs_Templates/Images"):
+directory = 'SGTSD/Images_Blurred/'
+if (not os.path.exists('SGTSD/Images_Blurred/')):
+    for sign in load_paths("Traffic_Signs_Templates/1_Input_Images"):
         head,tail = sign.split('.')
         name = []
         name = head.split('/')
-        os.makedirs('SGTSD/Images_blurred/'+name[-1])
+        os.makedirs('SGTSD/Images_Blurred/'+name[-1])
 
 
-paths = load_paths("SGTSD/Images/")
+paths = load_paths("SGTSD/1_Input_Images/")
 classi = 0
 for path in paths:
     print ("Processing class: "+str(float(classi)/len(paths)))
@@ -75,7 +75,7 @@ for path in paths:
     temp = load_paths(path)
     for p in temp:
         elements = p.split('/')
-        d = 'SGTSD/Images_blurred/'+elements[-2]+"/"+elements[-1]
+        d = 'SGTSD/Images_Blurred/'+elements[-2]+"/"+elements[-1]
         resize_and_save(p,(48,48), d)
 
 """
