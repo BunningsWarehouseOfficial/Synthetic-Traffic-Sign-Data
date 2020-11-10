@@ -8,7 +8,7 @@
 
 We have modified Stergiou's code to create synthetic data placed over a full background image to provide holistic data that can be used to train a detection model directly rather than training for simple classification. Furthermore, we have implemented various kinds of synthetic damage that are applied to the signs. This damage is quantified by using the percentage of the sign that has been changed or obscured. The purpose of this is to train a detection model to not only detect each class of sign, but to also detect the class and severity of damage that is present on the sign, if any.
  
- ![damaged_examples](https://github.com/BunningsWarehouseOfficial/Traffic-Sign-Damage-Detection-using-Synthesised-Training-Data/blob/master/Figures/Damaged_examples.png "Templates")
+ ![damaged_examples](https://github.com/BunningsWarehouseOfficial/Traffic-Sign-Damage-Detection-using-Synthesised-Training-Data/blob/main/Figures/Damaged_examples.png "Templates")
  
 The above shows some close-up examples of damage applied to signs.
 
@@ -21,7 +21,7 @@ $ git clone https://github.com/BunningsWarehouseOfficial/Traffic-Sign-Damage-Det
 ```
 
 [comment]: <> (Note that the synthetic dataset SGTSD will need aprox. 10GB and the sample set used for training will be close to 1GB.)
-Please allow sufficient storing space when running the generator on a system.
+Please allow sufficient storage space when running the dataset generator.
 
 ## License
 MIT
