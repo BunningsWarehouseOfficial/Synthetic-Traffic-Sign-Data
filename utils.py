@@ -3,6 +3,28 @@
 import numpy as np
 import cv2
 
+
+def load_paths(directory):
+    """Returns a list with the paths of all files in the directory"""
+    paths = []
+    for filename in os.listdir(directory): # Retrieve names of files in directory
+        # Concatenate filename with directory path, ignoring hidden files
+        path = os.path.join(directory, filename)
+        if not filename.startswith('.'):
+            paths.append(path)
+    return paths
+
+def load_files(directory):
+    """Returns a list with the paths of all non-directory files in the directory"""
+    paths = []
+    for filename in os.listdir(directory): # Retrieve names of files in directory
+        # Concatenate filename with directory path, ignoring hidden files and directories
+        path = os.path.join(directory, filename)
+        if os.path.isfile(path) and not filename.startswith('.'):
+            paths.append(path)
+    return paths
+
+
 def match_height(img, new_height):
     old_height, old_width, _ = img.shape  # Discard channel
     new_width = int(round( new_height / old_height * old_width ))
