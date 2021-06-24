@@ -136,7 +136,7 @@ def count_diff_pixels(new, original):
     Based on count_pixels()."""
     count = 0
     split = cv2.split(original)
-    if len(split) is 4:
+    if len(split) == 4:
         alpha = split[3]
         for ii in range(0, len(new)):
             for jj in range(0, len(new[0])):
