@@ -2,6 +2,7 @@
 
 import numpy as np
 import cv2
+import os
 
 
 def load_paths(directory):
@@ -106,7 +107,7 @@ def count_pixels(img):
     """Return the number of non-transparent pixels in the imported image."""
     sum = 0  # Initialise to 0 in case there is no alpha channel
     split = cv2.split(img)
-    if len(split) is 4:  # Only proceed if the image has an alpha channel
+    if len(split) == 4:  # Only proceed if the image has an alpha channel
         alpha = split[3]
         # Loop through alpha channel
         for ii in range(0, len(alpha)):

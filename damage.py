@@ -51,13 +51,13 @@ def remove_quadrant(img):
 
     quad_num = rand.randint(1, 4)  # For selecting which quadrant it will be
     # Remove the quadrant: -1 offset is necessary to avoid damaging part of a wrong quadrant
-    if quad_num is 1:         # top-right          centre
+    if quad_num == 1:         # top-right          centre
         cv.rectangle(quadrant, (width, 0), (centre_x, centre_y-1), (0,0,0), -1)
-    elif quad_num is 2:       # top-left           centre
+    elif quad_num == 2:       # top-left           centre
         cv.rectangle(quadrant, (0, 0), (centre_x-1, centre_y-1), (0,0,0), -1)
-    elif quad_num is 3:       # bottom-left        centre
+    elif quad_num == 3:       # bottom-left        centre
         cv.rectangle(quadrant, (0, height), (centre_x-1, centre_y), (0,0,0), -1)
-    elif quad_num is 4:       # bottom-right       centre
+    elif quad_num == 4:       # bottom-right       centre
         cv.rectangle(quadrant, (width, height), (centre_x, centre_y), (0,0,0), -1)
     
     dmg = cv.bitwise_and(img, img, mask=quadrant)
