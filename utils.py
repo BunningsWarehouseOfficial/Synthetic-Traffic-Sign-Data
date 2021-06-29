@@ -1,9 +1,9 @@
 """Utility functions for manipulating images."""
+# Coauthors: Kristian Rados, Seana Dale, Jack Downes
 
 import numpy as np
 import cv2
 import os
-
 
 def load_paths(directory):
     """Returns a list with the paths of all files in the directory"""
@@ -167,3 +167,24 @@ def calc_quadrant_diff(new, original):
     ratio_IV  = count_diff_pixels(new_IV, original_IV) / count_pixels(original_IV)
 
     return [ratio_I, ratio_II, ratio_III, ratio_IV]
+
+
+def append_labels(image_path, axes, class_id, damage, labels_path):
+    """Append the label for an image to the labels/annotations file.
+    
+    Arguments:
+    image_path  -- file path to the image (with extension)
+    axes        -- list of integer bounding box axes [left, right, top, bottom]
+    class_id    -- integer class number
+    damage      -- list of float damage values for each quadrant [I, II, III, IV]
+    labels_path -- file path to labels/annotations file
+    """
+    file = open(labels_path, "a")
+    
+    if True:
+        file.write("{0} {1},{2},{3},{4},{5},{6},{7},{8},{9}\n" \
+            .format(image_path, axes[0],axes[2],axes[1],axes[3], class_id, d0,d1,d2,d3))
+    else:  # TODO: Only standard detection labels if damage info option set to false
+        file.write("{0} {1},{2},{3},{4},{5}\n" \
+            .format(image_path, axes[0],axes[2],axes[1],axes[3], class_id))
+    file.close()
