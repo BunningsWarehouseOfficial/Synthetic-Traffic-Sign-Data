@@ -5,6 +5,8 @@ multiple frames of a scene where the target object is at slightly different dist
 
 OUT_DIR     = "SGTSD_Sequences"
 LABELS_FILE = "labels.txt"
+MIN_SIZE    = 10
+MAX_SIZE    = 200
 import argparse
 import cv2
 from datetime import datetime
@@ -29,16 +31,21 @@ def dir_path(path):
 
 def draw_square(event, x, y, flags, param):
     """Mouse callback function for drawing."""
-    img = param[0]
+    img                = param[0]
+    current_anchor_set = param[1]
+    window_name        = param[2]
 
     # Draw square to indicate selection to user
     if event == cv2.EVENT_LBUTTONDOWN:
-        current_anchor_set = param[1]
         if len(current_anchor_set) <= 1:
-            cv2.drawMarker(img, (x,y), (0,255,0), cv2.MARKER_SQUARE, 40, 2)
-            current_anchor_set.append((x,y))  # Append anchor coordinates to anchors list
+            size = cv2.getTrackbarPos("Size", window_name)
+            cv2.drawMarker(img, (x,y), (0,255,0), cv2.MARKER_SQUARE, size, 2)
+            current_anchor_set.append((x,y,size))  # Append anchor coordinates to anchors list
         else:
             print("Error: you have already selected both anchors. Press [r] to reset the anchors for this image.")
+
+def nothing(x):
+    pass
 
 def select_anchor_points(bg_paths, num_bg):
     """ """  # TODO: Docstring
@@ -50,11 +57,13 @@ def select_anchor_points(bg_paths, num_bg):
 
         img = cv2.imread(bg, cv2.IMREAD_UNCHANGED)
         current_anchor_set = []  # Set of 2 tuples, indicating far anchor and near anchor respectively
-        selecting = True;
+        selecting = True
+        size = (2 * MIN_SIZE + MAX_SIZE) // 3  # Using weighted average to set small default size
 
         # Set up interactive window for user anchor point selection
         cv2.namedWindow(window_name)
-        cv2.setMouseCallback(window_name, draw_square, param=[img, current_anchor_set])
+        cv2.setMouseCallback(window_name, draw_square, param=[img, current_anchor_set, window_name])
+        cv2.createTrackbar("Size", window_name, MIN_SIZE, MAX_SIZE, nothing)
 
         while(selecting):
             cv2.imshow(window_name, img)
@@ -73,7 +82,7 @@ def select_anchor_points(bg_paths, num_bg):
             elif k == ord('r') or k == ord('R'):  # Press 'r' key or 'R' key
                 current_anchor_set = []
                 img = cv2.imread(bg, cv2.IMREAD_UNCHANGED)
-                cv2.setMouseCallback(window_name, draw_square, param=[img, current_anchor_set])
+                cv2.setMouseCallback(window_name, draw_square, param=[img, current_anchor_set, window_name])
 
             # Quit early to 
             elif k == 27:  # ESC key
