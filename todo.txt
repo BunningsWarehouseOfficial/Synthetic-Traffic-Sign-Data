@@ -1,0 +1,14 @@
+Dark colour variant for anchor point further in background (e.g. slightly darker green)
+Light colour variant for anchor point closer in foreground (e.g. slightly lighter green)
+Each anchor point (AP) is a different colour
+
+[ ] print() statement for "Opening anchor point selection interface..."
+[ ] docs: rename repo to DamagedDatasetGenerator
+
+STEPS:
+1. Draw a square for far AP 1
+2. Draw a square for close AP 1
+3. [ Draw a square for far AP 2..n ]
+4. [ Draw a square for close AP 2..n ]
+5. Press backspace at any point to undo last square AP
+6. Press enter to continue to next background
