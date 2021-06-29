@@ -169,21 +169,21 @@ def calc_quadrant_diff(new, original):
     return [ratio_I, ratio_II, ratio_III, ratio_IV]
 
 
-def append_labels(image_path, axes, class_id, damage, labels_path):
+def append_labels(image_path, axes, class_id, dmg, labels_path):
     """Append the label for an image to the labels/annotations file.
     
     Arguments:
     image_path  -- file path to the image (with extension)
     axes        -- list of integer bounding box axes [left, right, top, bottom]
     class_id    -- integer class number
-    damage      -- list of float damage values for each quadrant [I, II, III, IV]
+    dmg         -- list of float damage values for each quadrant [I, II, III, IV]
     labels_path -- file path to labels/annotations file
     """
     file = open(labels_path, "a")
     
     if True:
         file.write("{0} {1},{2},{3},{4},{5},{6},{7},{8},{9}\n" \
-            .format(image_path, axes[0],axes[2],axes[1],axes[3], class_id, d0,d1,d2,d3))
+            .format(image_path, axes[0],axes[2],axes[1],axes[3], class_id, dmg[0],dmg[1],dmg[2],dmg[3]))
     else:  # TODO: Only standard detection labels if damage info option set to false
         file.write("{0} {1},{2},{3},{4},{5}\n" \
             .format(image_path, axes[0],axes[2],axes[1],axes[3], class_id))
