@@ -1,16 +1,22 @@
 """Script for generating sequences of traffic sign detection training data. Imitates how a moving camera would capture
 multiple frames of a scene where the target object is at slightly different distances from the camera in each frame.
-"""
+"""  # TODO: Explain anchor points
 # Author: Kristian Rados
 
-OUT_DIR     = "SGTSD_Sequences"
-LABELS_FILE = "labels.txt"
-MIN_SIZE    = 10
-MAX_SIZE    = 200
+# TODO: Perhaps anchors would be better represented by list of objects?
+# TODO: Progress bar (if needed)
+# FIXME: fg_dir must be preprocessed, i.e. sourced from 2_Processed_Images
+
+OUT_DIR         = "SGTSD_Sequences"
+LABELS_FILE     = "labels.txt"
+MIN_ANCHOR_SIZE = 10
+MAX_ANCHOR_SIZE = 200
+SEQUENCE_LENGTH = 8  # Number of frames in generated sequence
 import argparse
 import cv2
 from datetime import datetime
 import numpy as np
+import ntpath
 import os
 from utils import load_paths, load_files, resize, overlay
 
@@ -19,6 +25,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("bg_dir", type=dir_path, help="path to background image directory")
     parser.add_argument("fg_dir", type=dir_path, help="path to foreground/sign image directory")
+    # TODO: Argument for sequence length
     return parser.parse_args()
 
 def dir_path(path):
@@ -58,12 +65,12 @@ def select_anchor_points(bg_paths, num_bg):
         img = cv2.imread(bg, cv2.IMREAD_UNCHANGED)
         current_anchor_set = []  # Set of 2 tuples, indicating far anchor and near anchor respectively
         selecting = True
-        size = (2 * MIN_SIZE + MAX_SIZE) // 3  # Using weighted average to set small default size
+        size = (2 * MIN_ANCHOR_SIZE + MAX_ANCHOR_SIZE) // 3  # Using weighted average to set small default size
 
         # Set up interactive window for user anchor point selection
         cv2.namedWindow(window_name)
         cv2.setMouseCallback(window_name, draw_square, param=[img, current_anchor_set, window_name])
-        cv2.createTrackbar("Size", window_name, MIN_SIZE, MAX_SIZE, nothing)
+        cv2.createTrackbar("Size", window_name, MIN_ANCHOR_SIZE, MAX_ANCHOR_SIZE, nothing)
 
         while(selecting):
             cv2.imshow(window_name, img)
@@ -114,14 +121,47 @@ def main():
         out_dir = OUT_DIR + timestamp
     os.mkdir(out_dir)
 
-    # Get user to indicate anchor points in the image
+    # Get user to select anchor points in each background image
     try:
         anchors = select_anchor_points(bg_paths, num_bg)  # TODO: Extend to allow >1 AP sets per bg image
     except InterruptedError as e:
         print("Error:", str(e))
         return
-    
-    print(anchors) #
+    print("Anchors (x, y, size):\n" + anchors)
+
+    # Generate sequences by overlaying foregrounds over backgrounds according to anchor point data
+    seq_ratio = 1 / (SEQUENCE_LENGTH - 1)
+    count = 0
+    for bg in bg_paths:
+        bg_img = cv2.imread(bg, cv2.IMREAD_UNCHANGED)
+        _, bg_filename = ntpath.split(bg)
+        bg_name, _ = bg_filename.split('.')  # Remove file extension
+        
+        for fg in fg_paths:
+            fg_img = cv2.imread(fg, cv2.IMREAD_UNCHANGED)
+            _, fg_filename = ntpath.split(fg)
+            fg_name, _ = fg_filename.split('.')  # Remove file extension
+            
+            start_size = anchors[count][0][2]
+            size_diff  = anchors[count][1][2] - start_size  # Diff between anchor point sizes
+
+            start_x = anchors[count][0][0]
+            start_y = anchors[count][0][1]
+            x_diff = anchors[count][1][0] - start_x  # Diff between anchor point coordinates
+            y_diff = anchors[count][1][1] - start_y
+
+            for frame in range(SEQUENCE_LENGTH):
+                diff_ratio = frame * seq_ratio
+                size = int(start_size + (diff_ratio * size_diff))
+                x = int(start_x + (diff_ratio * x_diff))
+                y = int(start_y + (diff_ratio * y_diff))
+
+                fg_img_new = cv2.resize(fg_img, (size,size))
+                img_new = overlay(fg_img_new, bg_img, x, y)
+                
+                img_new_path = os.path.join(out_dir, bg_name + "_" + fg_name + "_" + str(frame) + ".jpg")
+                cv2.imwrite(img_new_path, img_new)
+        count += 1
 
 if __name__ == "__main__":
     main()

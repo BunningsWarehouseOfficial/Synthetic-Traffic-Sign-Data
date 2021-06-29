@@ -2,5 +2,6 @@ Traffic_Signs_Templates/*
 Traffic_Signs_Exposure_Manipulation/*
 Traffic_Signs_Fade_Manipulation/*
 SGTSD/*
+SGTSD*
 .vscode/settings.json
 __pycache__/*

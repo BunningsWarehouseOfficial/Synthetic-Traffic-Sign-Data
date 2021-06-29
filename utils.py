@@ -1,8 +1,9 @@
 """Utility functions for manipulating images."""
 # Coauthors: Kristian Rados, Seana Dale, Jack Downes
 
-import numpy as np
+
 import cv2
+import numpy as np
 import os
 
 def load_paths(directory):
@@ -24,6 +25,21 @@ def load_files(directory):
         if os.path.isfile(path) and not filename.startswith('.'):
             paths.append(path)
     return paths
+
+def dir_split(path):
+    """Imitates the functionality of path.split('/') while using os.path.split"""
+    # Source: https://stackoverflow.com/a/3167684/12350950
+    folders = []
+    while True:
+        path, folder = os.path.split(path)
+        if folder != "":
+            folders.append(folder)
+        else:
+            if path != "":
+                folders.append(path)
+            break
+    folders.reverse()
+    return folders
 
 
 def match_height(img, new_height):
