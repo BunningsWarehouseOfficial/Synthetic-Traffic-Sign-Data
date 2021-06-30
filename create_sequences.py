@@ -10,12 +10,15 @@ the user specified sequence length.
 # TODO: Perhaps anchors would be better represented by list of objects?
 # TODO: Progress bar (if needed)
 # FIXME: fg_dir must be preprocessed, i.e. sourced from 2_Processed_Images
+# TODO: Calculate pole length based on size of anchor point and static variable that represents the standard pole length
+#       for the region in question. In GUI draw a line from centre of AP box downwards to show where it will be actually
+#       drawn. Alternatively, have option to switch to mode where you select where to place bottom of sign pole and go
+#       backwards to draw sign AP box based on value in size slider
 
 OUT_DIR         = "SGTSD_Sequences"
 LABELS_FILE     = "labels.txt"
 MIN_ANCHOR_SIZE = 10
 MAX_ANCHOR_SIZE = 200
-SEQUENCE_LENGTH = 8  # Number of frames in generated sequence
 import argparse
 import cv2
 from datetime import datetime
@@ -29,7 +32,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("bg_dir", type=dir_path, help="path to background image directory")
     parser.add_argument("fg_dir", type=dir_path, help="path to foreground/sign image directory")
-    # TODO: Argument for sequence length
+    parser.add_argument("-n", "--num_frames", type=int, help="number of frames generated for each sequence", default=8)
     return parser.parse_args()
 
 def dir_path(path):
@@ -111,6 +114,7 @@ def select_anchor_points(bg_paths, num_bg):
 def main():
     args = parse_arguments()
     labels_path = os.path.join(OUT_DIR, LABELS_FILE)
+    sequence_len = args.num_frames
 
     # Loading argument-specified directories
     bg_paths = load_paths(args.bg_dir)
@@ -140,7 +144,7 @@ def main():
     print("Anchors (x, y, size):\n" + str(anchors))
 
     # Generate sequences by overlaying foregrounds over backgrounds according to anchor point data
-    seq_ratio = 1 / (SEQUENCE_LENGTH - 1)
+    seq_ratio = 1 / (sequence_len - 1)
     count = 0
     for bg in bg_paths:
         bg_img = cv2.imread(bg, cv2.IMREAD_UNCHANGED)
@@ -160,7 +164,7 @@ def main():
             x_diff = anchors[count][1][0] - start_x  # Diff between anchor point coordinates
             y_diff = anchors[count][1][1] - start_y
 
-            for frame in range(SEQUENCE_LENGTH):
+            for frame in range(sequence_len):
                 diff_ratio = frame * seq_ratio
                 size = int(start_size + (diff_ratio * size_diff))
                 x = int(start_x + (diff_ratio * x_diff))
