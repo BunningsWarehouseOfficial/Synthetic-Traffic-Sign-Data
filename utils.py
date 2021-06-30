@@ -73,9 +73,12 @@ def resize(img1, img2):
 
 def overlay(fg, bg, x1=-1, y1=-1):
     """Overlay foreground image on background image, keeping transparency.
-       :param x1, y1: top-left coordinates to place foreground image \n
-       Foreground image will be centred on background if x1 or y1 is omitted. \n
-       Images may be RGB or RGBA.
+
+    Foreground iamge will be centred on background if x1 or y1 are omitted.
+    Images may be RGB or RGBA.
+
+    Arguments:
+    x1, y1 -- top-left coordinates for where to place foreground image
     """
     # If the background doesn't have an alpha channel, add one
     if len(cv2.split(bg)) == 3:
@@ -133,9 +136,14 @@ def count_pixels(img):
 
 def calc_ratio(fg, bg):
     """Calculate the ratio of obscurity in first image compared to second image.
-       :param fg: the foreground (if overlaying) or smaller image
-       :param bg: the background or larger image
-       :returns: the ratio, a number between 0 and 1"""
+
+    Arguments:
+    fg -- the foreground (if overlaying) or smaller image
+    bg -- the background or larger image
+
+    Returns:
+    ratio -- a float between 0 and 1
+    """
     # Compare the number of non-transparent pixels in the two images
     fg_pixels = count_pixels(fg)
     bg_pixels = count_pixels(bg)
@@ -148,8 +156,7 @@ def calc_ratio(fg, bg):
 
 
 def count_diff_pixels(new, original):
-    """Count how many opaque pixels are different between the two imported images. \n
-    Based on count_pixels()."""
+    """Count how many opaque pixels are different between the two imported images. Based on count_pixels()."""
     count = 0
     split = cv2.split(original)
     if len(split) == 4:

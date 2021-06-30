@@ -1,6 +1,10 @@
 """Script for generating sequences of traffic sign detection training data. Imitates how a moving camera would capture
 multiple frames of a scene where the target object is at slightly different distances from the camera in each frame.
-"""  # TODO: Explain anchor points
+
+An interactive window opens where the user selects two anchor points for each background. They represent the position
+and size of the foreground image at the start and end of the sequence, with intermediary frames add between according to
+the user specified sequence length.
+"""
 # Author: Kristian Rados
 
 # TODO: Perhaps anchors would be better represented by list of objects?
@@ -37,7 +41,7 @@ def dir_path(path):
 
 
 def draw_square(event, x, y, flags, param):
-    """Mouse callback function for drawing."""
+    """OpenCV mouse callback function for drawing square markers."""
     img                = param[0]
     current_anchor_set = param[1]
     window_name        = param[2]
@@ -55,7 +59,13 @@ def nothing(x):
     pass
 
 def select_anchor_points(bg_paths, num_bg):
-    """ """  # TODO: Docstring
+    """Interactive GUI that lets the user select two anchor points for each background by marking squares with variable
+    user controlled sizes.
+    
+    Arguments:
+    bg_paths -- list of paths to each background image
+    num_bg   -- integer number of background images that need to have anchor points selected
+    """
     anchors = []
     count = 1
     for bg in bg_paths:
@@ -123,11 +133,11 @@ def main():
 
     # Get user to select anchor points in each background image
     try:
-        anchors = select_anchor_points(bg_paths, num_bg)  # TODO: Extend to allow >1 AP sets per bg image
+        anchors = select_anchor_points(bg_paths, num_bg)
     except InterruptedError as e:
         print("Error:", str(e))
         return
-    print("Anchors (x, y, size):\n" + anchors)
+    print("Anchors (x, y, size):\n" + str(anchors))
 
     # Generate sequences by overlaying foregrounds over backgrounds according to anchor point data
     seq_ratio = 1 / (SEQUENCE_LENGTH - 1)
