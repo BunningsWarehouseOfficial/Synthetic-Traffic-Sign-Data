@@ -1,7 +1,46 @@
 """Utility functions for manipulating images."""
+# Coauthors: Kristian Rados, Seana Dale, Jack Downes
 
-import numpy as np
+
 import cv2
+import numpy as np
+import os
+
+def load_paths(directory):
+    """Returns a list with the paths of all files in the directory"""
+    paths = []
+    for filename in os.listdir(directory): # Retrieve names of files in directory
+        # Concatenate filename with directory path, ignoring hidden files
+        path = os.path.join(directory, filename)
+        if not filename.startswith('.'):
+            paths.append(path)
+    return paths
+
+def load_files(directory):
+    """Returns a list with the paths of all non-directory files in the directory"""
+    paths = []
+    for filename in os.listdir(directory): # Retrieve names of files in directory
+        # Concatenate filename with directory path, ignoring hidden files and directories
+        path = os.path.join(directory, filename)
+        if os.path.isfile(path) and not filename.startswith('.'):
+            paths.append(path)
+    return paths
+
+def dir_split(path):
+    """Imitates the functionality of path.split('/') while using os.path.split"""
+    # Source: https://stackoverflow.com/a/3167684/12350950
+    folders = []
+    while True:
+        path, folder = os.path.split(path)
+        if folder != "":
+            folders.append(folder)
+        else:
+            if path != "":
+                folders.append(path)
+            break
+    folders.reverse()
+    return folders
+
 
 def match_height(img, new_height):
     old_height, old_width, _ = img.shape  # Discard channel
@@ -34,9 +73,12 @@ def resize(img1, img2):
 
 def overlay(fg, bg, x1=-1, y1=-1):
     """Overlay foreground image on background image, keeping transparency.
-       :param x1, y1: top-left coordinates to place foreground image \n
-       Foreground image will be centred on background if x1 or y1 is omitted. \n
-       Images may be RGB or RGBA.
+
+    Foreground iamge will be centred on background if x1 or y1 are omitted.
+    Images may be RGB or RGBA.
+
+    Arguments:
+    x1, y1 -- top-left coordinates for where to place foreground image
     """
     # If the background doesn't have an alpha channel, add one
     if len(cv2.split(bg)) == 3:
@@ -84,7 +126,7 @@ def count_pixels(img):
     """Return the number of non-transparent pixels in the imported image."""
     sum = 0  # Initialise to 0 in case there is no alpha channel
     split = cv2.split(img)
-    if len(split) is 4:  # Only proceed if the image has an alpha channel
+    if len(split) == 4:  # Only proceed if the image has an alpha channel
         alpha = split[3]
         # Loop through alpha channel
         for ii in range(0, len(alpha)):
@@ -94,9 +136,14 @@ def count_pixels(img):
 
 def calc_ratio(fg, bg):
     """Calculate the ratio of obscurity in first image compared to second image.
-       :param fg: the foreground (if overlaying) or smaller image
-       :param bg: the background or larger image
-       :returns: the ratio, a number between 0 and 1"""
+
+    Arguments:
+    fg -- the foreground (if overlaying) or smaller image
+    bg -- the background or larger image
+
+    Returns:
+    ratio -- a float between 0 and 1
+    """
     # Compare the number of non-transparent pixels in the two images
     fg_pixels = count_pixels(fg)
     bg_pixels = count_pixels(bg)
@@ -109,11 +156,10 @@ def calc_ratio(fg, bg):
 
 
 def count_diff_pixels(new, original):
-    """Count how many opaque pixels are different between the two imported images. \n
-    Based on count_pixels()."""
+    """Count how many opaque pixels are different between the two imported images. Based on count_pixels()."""
     count = 0
     split = cv2.split(original)
-    if len(split) is 4:
+    if len(split) == 4:
         alpha = split[3]
         for ii in range(0, len(new)):
             for jj in range(0, len(new[0])):
@@ -144,3 +190,24 @@ def calc_quadrant_diff(new, original):
     ratio_IV  = count_diff_pixels(new_IV, original_IV) / count_pixels(original_IV)
 
     return [ratio_I, ratio_II, ratio_III, ratio_IV]
+
+
+def append_labels(image_path, axes, class_id, dmg, labels_path):
+    """Append the label for an image to the labels/annotations file.
+    
+    Arguments:
+    image_path  -- file path to the image (with extension)
+    axes        -- list of integer bounding box axes [left, right, top, bottom]
+    class_id    -- integer class number
+    dmg         -- list of float damage values for each quadrant [I, II, III, IV]
+    labels_path -- file path to labels/annotations file
+    """
+    file = open(labels_path, "a")
+    
+    if True:
+        file.write("{0} {1},{2},{3},{4},{5},{6},{7},{8},{9}\n" \
+            .format(image_path, axes[0],axes[2],axes[1],axes[3], class_id, dmg[0],dmg[1],dmg[2],dmg[3]))
+    else:  # TODO: Only standard detection labels if damage info option set to false
+        file.write("{0} {1},{2},{3},{4},{5}\n" \
+            .format(image_path, axes[0],axes[2],axes[1],axes[3], class_id))
+    file.close()
