@@ -42,6 +42,85 @@ def dir_split(path):
     return folders
 
 
+def scale_image(image_path):
+    """Rescales and pads the source image with whitespace to be a perfect square of fixed width"""
+    width = 200
+
+    # https://jdhao.github.io/2017/11/06/resize-image-to-square-with-padding/
+    # Resize the image
+    img = Image.open(image_path)
+    old_size = img.size  # old_size is in (width, height) format
+    ratio = float(width) / max(old_size)
+    new_size = tuple([int(x * ratio) for x in old_size])
+    img = img.resize(new_size, Image.ANTIALIAS)
+
+    # Pad the image with whitespace
+    delta_w = width - new_size[0]
+    delta_h = width - new_size[1]
+    padding = (delta_w // 2, delta_h // 2, delta_w - (delta_w // 2), delta_h - (delta_h // 2))
+    new_img = ImageOps.expand(img, padding, (255,255,255))
+    
+    return new_img
+
+def create_alpha(img, alpha_channel):
+    """Returns an alpha channel that matches the white background \n
+    Based on Alexandros Stergiou's find_borders() function"""
+
+    # Read and decode the image contents for pixel access
+    pix = img.load()
+
+    # Note PIL indexes [x,y] while OpenCV indexes [y,x]
+    # alpha_channel must be indexed [y,x] to merge with OpenCV channels later
+
+    min = 200
+    width, height = img.size
+    # Loop through each row of the image
+    for y in range(0, height):
+        # First loop left to right
+        for x in range(0, width, 1):
+            # Retrieve a tuple with RGB values for this pixel
+            rgb = pix[x,y]
+            # Make transparent if the pixel is white (or light enough)
+            if rgb[0] >= min and rgb[1] >= min and rgb[2] >= min:
+                alpha_channel[y,x] = 0
+            # If pixel is not white then we've hit the sign so break out of loop
+            else:
+                break
+
+        # Then loop backwards, right to left
+        for x in range(width-1, -1, -1):
+            rgb = pix[x,y]
+            if rgb[0] >= min and rgb[1] >= min and rgb[2] >= min:
+                alpha_channel[y,x] = 0
+            else:
+                break
+
+    return alpha_channel
+
+def delete_background(image_path, save_path):
+    """Deletes the white background from the original sign
+    Based on Alexandros Stergiou's manipulate_images() function"""
+    # Open the image using PIL (don't read contents yet)
+    img = Image.open(image_path)
+    img = img.convert('RGB')  # Does this have any effect??
+
+    # Open the image again using OpenCV and split into its channels
+    image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+    channels = cv2.split(image)
+
+    # Create a fully opaque alpha channel, same dimentions and dtype as the image
+    # create_alpha() modifies it to make the white background transparent
+    alpha_channel = np.ones(channels[0].shape, dtype=channels[0].dtype) * 255
+    alpha_channel = create_alpha(img, alpha_channel)
+
+    # Merge alpha channel into original image
+    image_RGBA = cv2.merge((channels[0], channels[1], channels[2], alpha_channel))
+
+    cv2.imwrite(save_path, image_RGBA)
+
+    img.close()
+
+
 def match_height(img, new_height):
     old_height, old_width, _ = img.shape  # Discard channel
     new_width = int(round( new_height / old_height * old_width ))
