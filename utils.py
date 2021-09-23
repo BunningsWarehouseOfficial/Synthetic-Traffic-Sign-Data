@@ -1,10 +1,10 @@
 """Utility functions for manipulating images."""
 # Coauthors: Kristian Rados, Seana Dale, Jack Downes
 
-
 import cv2
 import numpy as np
 import os
+from PIL import Image, ImageOps
 
 def load_paths(directory):
     """Returns a list with the paths of all files in the directory"""
@@ -120,6 +120,30 @@ def delete_background(image_path, save_path):
 
     img.close()
 
+def to_png(directory):
+    """Convert all files in 'directory' to PNG images"""
+    for files in load_paths(directory):
+        title, extension = files.split('.')
+        img = Image.open(files).convert('RGBA')
+        if (not extension == "png"):
+            os.remove(files)
+        img.save(title + ".png")
+
+def png_to_jpeg(filepath):
+    sep = os.sep
+
+    dirs = dir_split(filepath)
+    title,extension = dirs[-1].split('.')
+    del dirs[-1]
+    string = sep.join(dirs)
+    string = os.path.join(string, title + ".jpg")
+    png = Image.open(filepath)
+    png.load()  # Required for png.split()
+    background = Image.new("RGB", png.size, (255, 255, 255))
+    background.paste(png, mask=png.split()[3])  # 3 is the alpha channel
+    background.save(string, 'JPEG', quality=100)
+    os.remove(filepath)
+
 
 def match_height(img, new_height):
     old_height, old_width, _ = img.shape  # Discard channel
@@ -148,6 +172,38 @@ def resize(img1, img2):
         img1 = match_width(img1, width2)
     
     return img1, img2
+
+
+def add_pole(filename, color):
+    """Adds a pole to the imported sign"""
+    img = cv.imread(filename, cv.IMREAD_UNCHANGED)
+    # Retrieve image dimentions and calculate the new height
+    height, width, _ = img.shape  # Discard channel
+    new_height = height * 3
+
+    # Create a new blank image with dtype=uint8 (to hold numbers 0-255)
+    # Initialise values to 0 so that the extended image is fully transparent
+    new_img = np.zeros((new_height, width, 4), dtype=np.uint8)
+    # Copy over the original image onto the top portion
+    new_img[0:height, :] = img
+
+    # Calculate coordinates
+    midpt = width // 2
+    offset = width // 40
+    x1, x2 = midpt - offset, midpt + offset
+    y1, y2 = height, new_height
+    # Draw the pole
+    cv.rectangle(new_img, (x1, y1), (x2, y2), color, cv.FILLED)
+
+    # Colour any transparent pixels between the sign and the rectangle
+    lim = 50  # Max alpha value for the pixel to be considered "transparent"
+    margin = int(round( height * 0.9 ))  # Loop over bottom 10% of the sign
+    for y in range(margin, height):
+        for x in range(x1, x2+1):  # Loop to x2 inclusive
+            if new_img[y,x,3] < lim:
+                new_img[y,x] = color
+
+    return new_img
 
 
 def overlay(fg, bg, x1=-1, y1=-1):

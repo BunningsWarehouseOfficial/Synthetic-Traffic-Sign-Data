@@ -1,20 +1,91 @@
 """Module of functions to apply damage to signs."""
-# Co-author: Jack Downes
+# Authors: Kristian Rados, Seana Dale, Jack Downes
 # https://github.com/ai-research-students-at-curtin/sign_augmentation
-# Last modified: 9 November 2020
 
+import os
 import random as rand
 import math
 import numpy as np
 import cv2 as cv
 from skimage import draw
 from utils import overlay, calc_ratio, calc_quadrant_diff
+import ntpath
 
 attributes = {
     "damage" : "None",
     "tag"    : "-1",  # Set of parameters used to generate damage as string 
     "ratio"  : 0,     # Quantity of damage (0 for no damage, 1 for all damage)
     }
+
+labels_dir = "SGTSD/Labels" #TODO: Cmd line parameter?
+
+
+def damage_image(image_path, output_dir):
+    """Applies all the different types of damage to the imported image, saving each one"""
+    img = cv.imread(image_path, cv.IMREAD_UNCHANGED)
+    img = img.astype('uint8')
+    
+    # Create file writing info: filename, class number, output directory, and labels directory
+    _, filename = ntpath.split(image_path)  # Remove parent directories to retrieve the image filename
+    class_num, _ = filename.rsplit('.', 1)  # Remove extension to get the sign/class number
+
+    output_path = os.path.join(output_dir, class_num)
+    # Create the output directory if it doesn't exist already
+    if (not os.path.exists(output_path)):
+        os.makedirs(output_path)
+
+    # Create the labels directory for this sign if it doesn't exist already
+    if (not os.path.exists(os.path.join(labels_dir, class_num))):
+        os.makedirs(os.path.join(labels_dir, class_num))
+    # text_base = os.path.join(labels_dir, class_num, class_num + "_")  # The base filename for the label files
+    # ii = 0  # Class number that is appended to the end of base filename
+
+    # ORIGINAL UNDAMAGED
+    dmg, att = no_damage(img)
+    cv.imwrite(os.path.join(output_path, class_num + ".png"), dmg)
+    
+    # QUADRANT
+    dmg1, att = remove_quadrant(img)
+    cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage"] + ".png"), dmg1)
+    
+    # BIG HOLE
+    dmg2, att = remove_hole(img)
+    cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage"] + ".png"), dmg2)
+    
+    # RANDOMISED BULLET HOLES
+    dmg3, att = bullet_holes(img)
+    cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage"] + ".png"), dmg3)
+    
+    # TINTED YELLOW
+    # yellow = np.zeros((height,width,ch), dtype=np.uint8)
+    # yellow[:,:] = (0,210,210,255)
+    # dmg4 = cv.bitwise_and(img, yellow)
+    # # TODO: Use quadrant pixel difference ratio or some other damage metric for labelling?
+    # cv.imwrite(os.path.join(output_path, class_num + damage_types[4] + ".png"), dmg4)
+    
+    # GRAFFITI
+    dmgs, attrs = graffiti(img, color=(0,0,0))
+    for ii in range(len(dmgs)):
+        cv.imwrite(os.path.join(output_path, class_num + "_" + attrs[ii]["damage"] + "_" + str(attrs[ii]["ratio"]) + ".png"), dmgs[ii])
+    
+    # BEND
+    dmgs, attrs = bend_vertical(img)
+    for ii in range(len(dmgs)):
+        cv.imwrite(os.path.join(output_path, class_num + "_" + attrs[ii]["damage"] + "_" + attrs[ii]["tag"] + ".png"), dmgs[ii])
+    
+    # GREY
+    # dmg7 = cv.cvtColor(img, cv.COLOR_BGRA2GRAY)   # Convert to greyscale
+    # # Threshold the image to get a uniform saturation
+    # _, dmg7 = cv.threshold(dmg7, 100, 255, cv.THRESH_BINARY)
+    # cv.convertScaleAbs(dmg7, dmg7, alpha=1, beta=200)  # No change to contrast, scale brightness
+    # dmg7 = cv.cvtColor(dmg7, cv.COLOR_GRAY2BGRA)   # Convert back to BGRA to add back the alpha channel
+    # dmg7[:,:,3] = alpha_ch
+    # cv.imwrite(os.path.join(output_path, class_num + damage_types[7] + ".png"), dmg7)
+    # TODO: Test with exposure_manipulation()
+    # TODO: Write values to file
+    
+    # TODO: CRACKS (thin crack lines across the sign?)
+    # TODO: MISSING SECTIONS (missing polygon sections on edges of sign?)
 
 
 def validate_sign(img):
@@ -38,7 +109,6 @@ def no_damage(img):
     att["ratio"]  = calc_ratio(dmg, img)  # This should be 0
 
     return dmg, att
-
 
 def remove_quadrant(img):
     """Make one random quandrant transparent."""
@@ -71,7 +141,6 @@ def remove_quadrant(img):
 
     return dmg, att
 
-
 def remove_hole(img):
     """Remove a circle-shaped region from the edge of the sign."""
     dmg = validate_sign(img)
@@ -98,7 +167,6 @@ def remove_hole(img):
     att["ratio"]  = "{:.3f}".format(1 - calc_ratio(dmg, img))
 
     return dmg, att
-
 
 def bullet_holes(img):
     """Create randomised bullet holes of varying sizes."""
