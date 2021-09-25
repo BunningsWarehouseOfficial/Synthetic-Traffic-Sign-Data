@@ -6,8 +6,8 @@ import numpy as np
 import ntpath
 import os
 import math
-from utils import load_paths
-from PIL import Image, ImageStat
+from utils import load_paths, dir_split
+from PIL import Image, ImageStat, ImageEnhance
 
 def img_transform(image_path, output_path):
     """Creates and saves different angles of the imported image
