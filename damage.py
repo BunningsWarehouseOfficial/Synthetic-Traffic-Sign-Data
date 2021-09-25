@@ -265,12 +265,13 @@ def graffiti(img, color=(0,0,0), initial=0.1, final=0.4, step=0.1):
     ratio = 0.0
     x0, y0 = width//2, height//2  # Start drawing in the centre of the image
     # Multiply by 100 to use integers in the for loop
-    initial = int(initial * 100)
-    final = int(final * 100)
-    step = int(step * 100)
+    initial = round(initial, 4)
+    final = round(final, 4)
+    step = round(step, 4)
 
     # Loop for the number of target obscurities
-    for target in range(initial, final+1, step):
+    target = initial
+    while target <= final:
         # Keep drawing bezier curves until the obscurity hits the target
         while ratio < target:
             radius = width // 5  # Radius of max distance to the next point
@@ -279,15 +280,17 @@ def graffiti(img, color=(0,0,0), initial=0.1, final=0.4, step=0.1):
             draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color)
             # Make the end point the starting point for the next curve
             x0, y0 = x2, y2
-            ratio = round( calc_ratio(grft, img) * 100, 1 )
+            ratio = round( calc_ratio(grft, img), 4 )
         # Add a copy to the list and continue layering more graffiti
         grfts.append(grft.copy())
         # Assign labels
         att = attributes
         att["damage"] = "graffiti"
-        att["tag"]    = str(ratio)
-        att["ratio"]  = "{:.3f}".format(ratio / 100)
+        att["tag"]    = str(round(target, 3))
+        att["ratio"]  = "{:.3f}".format(ratio)
         attrs.append(att.copy())
+
+        target += step
     
     k = (int(round( width/20 )) // 2) * 2 + 1  # Kernel size must be odd
     for grft in grfts:
