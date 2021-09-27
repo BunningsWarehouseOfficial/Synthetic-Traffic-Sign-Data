@@ -8,7 +8,7 @@ import math
 import numpy as np
 import cv2 as cv
 from skimage import draw
-from utils import overlay, calc_ratio, calc_quadrant_diff
+from utils import overlay, calc_ratio, count_diff_pixels, count_pixels, calc_quadrant_diff
 import ntpath
 
 attributes = {
@@ -43,19 +43,23 @@ def damage_image(image_path, output_dir):
     # ORIGINAL UNDAMAGED
     dmg, att = no_damage(img)
     cv.imwrite(os.path.join(output_path, class_num + ".png"), dmg)
+    print(output_path, "class="+class_num, att["damage"]+"="+att["tag"], "damage="+att["ratio"]) ##
     
     # QUADRANT
     dmg1, att = remove_quadrant(img)
     cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage"] + ".png"), dmg1)
+    print(output_path, "class="+class_num, att["damage"]+"="+att["tag"], "damage="+att["ratio"]) ##
     
     # BIG HOLE
     dmg2, att = remove_hole(img)
     cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage"] + ".png"), dmg2)
+    print(output_path, "class="+class_num, att["damage"]+"="+att["tag"], "damage="+att["ratio"]) ##
     
     # RANDOMISED BULLET HOLES
     dmg3, att = bullet_holes(img)
     cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage"] + ".png"), dmg3)
-    
+    print(output_path, "class="+class_num, att["damage"]+"="+att["tag"], "damage="+att["ratio"]) ##
+
     # TINTED YELLOW
     # yellow = np.zeros((height,width,ch), dtype=np.uint8)
     # yellow[:,:] = (0,210,210,255)
@@ -64,14 +68,16 @@ def damage_image(image_path, output_dir):
     # cv.imwrite(os.path.join(output_path, class_num + damage_types[4] + ".png"), dmg4)
     
     # GRAFFITI
-    dmgs, attrs = graffiti(img, color=(0,0,0))
+    dmgs, attrs = graffiti(img, color=(0,0,0), initial=0.175, final=0.25, step=0.025)
     for ii in range(len(dmgs)):
         cv.imwrite(os.path.join(output_path, class_num + "_" + attrs[ii]["damage"] + "_" + str(attrs[ii]["ratio"]) + ".png"), dmgs[ii])
+        print(output_path, "class="+class_num, attrs[ii]["damage"]+"="+attrs[ii]["tag"], "damage="+attrs[ii]["ratio"]) ##
     
     # BEND
     dmgs, attrs = bend_vertical(img)
     for ii in range(len(dmgs)):
         cv.imwrite(os.path.join(output_path, class_num + "_" + attrs[ii]["damage"] + "_" + attrs[ii]["tag"] + ".png"), dmgs[ii])
+        print(output_path, "class="+class_num, attrs[ii]["damage"]+"="+attrs[ii]["tag"], "damage="+attrs[ii]["ratio"]) ##
     
     # GREY
     # dmg7 = cv.cvtColor(img, cv.COLOR_BGRA2GRAY)   # Convert to greyscale
@@ -106,7 +112,7 @@ def no_damage(img):
     att = attributes
     att["damage"] = "no_damage"
     att["tag"]    = "-1"
-    att["ratio"]  = calc_ratio(dmg, img)  # This should be 0
+    att["ratio"]  = str(calc_ratio(dmg, img))  # This should be 0
 
     return dmg, att
 
@@ -131,7 +137,7 @@ def remove_quadrant(img):
         cv.rectangle(quadrant, (width, height), (centre_x, centre_y), (0,0,0), -1)
     
     dmg = cv.bitwise_and(img, img, mask=quadrant)
-    ratios = calc_quadrant_diff(dmg, img)
+    ratios = calc_quadrant_diff(dmg, img) #FIXME: Currently redundant
 
     # Assign labels
     att = attributes
@@ -255,6 +261,13 @@ def graffiti(img, color=(0,0,0), initial=0.1, final=0.4, step=0.1):
        :param final: the level of obscurity to stop at (0-1)
        :param step: the step for the next level of obscurity
        :returns: a list containing the damaged images, and a list with the corresponding attributes"""
+    
+    #TODO: The calculated ratio values used for graffiti is the ratio of a *square* image
+    # that would be covered by the graffiti overlay, not the ratio of the *actual sign
+    # itself*, which isn't square, that is covered by the graffiti.
+    # HOWEVER, the original count_pixels weights the transparency, rather than just
+    # counting opaque pixels like count_diff_pixels
+
     validate_sign(img)
     height, width, _ = img.shape
     grft = np.zeros((height, width, 4), dtype=np.uint8)  # New blank image for drawing the graffiti on.
@@ -293,14 +306,22 @@ def graffiti(img, color=(0,0,0), initial=0.1, final=0.4, step=0.1):
         target += step
     
     k = (int(round( width/20 )) // 2) * 2 + 1  # Kernel size must be odd
+    ii = 0 ##
     for grft in grfts:
         # Apply a Gaussian blur to each image, to smooth the edges
         grft = cv.GaussianBlur(grft, (k,k), 0)
-
         # Combine with the original alpha channel to remove anything that spilt over the sign
         grft[:,:,3] = cv.bitwise_and(grft[:,:,3], img[:,:,3])
         dmg = overlay(grft, img)
+        print("ratio =", attrs[ii]["ratio"]) ##
+        print("diff =", (count_diff_pixels(dmg, img) / count_pixels(img))) ##
+        print("count_diff_pixels(dmg, img) / count_pixels(img) =", count_diff_pixels(dmg, img), "/", count_pixels(img))
+        print("count_pixel(grft) / count_pixels(img) =", count_pixels(grft), "/", count_pixels(img))
+        cv.imshow("yeet", dmg) ##
+        cv.waitKey(0) ##
+        cv.destroyAllWindows() ##
         dmgs.append(dmg.copy())
+        ii += 1 ##
 
     return dmgs, attrs
 
