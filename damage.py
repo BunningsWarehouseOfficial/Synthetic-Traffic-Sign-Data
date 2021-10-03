@@ -66,6 +66,7 @@ def damage_image(image_path, output_dir):
     # GRAFFITI
     dmgs, attrs = graffiti(img, color=(0,0,0))
     for ii in range(len(dmgs)):
+        cv.imshow('yote', dmgs[ii])
         cv.imwrite(os.path.join(output_path, class_num + "_" + attrs[ii]["damage"] + "_" + str(attrs[ii]["ratio"]) + ".png"), dmgs[ii])
     
     # BEND
