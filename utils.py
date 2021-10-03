@@ -258,7 +258,8 @@ def overlay(fg, bg, x1=-1, y1=-1):
 
 
 def count_pixels(img):
-    """Return the number of non-transparent pixels in the imported image."""
+    """Return the number of non-transparent pixels in the imported image weighted according
+    to the transparency of each pixel."""
     sum = 0  # Initialise to 0 in case there is no alpha channel
     split = cv2.split(img)
     if len(split) == 4:  # Only proceed if the image has an alpha channel
@@ -270,7 +271,7 @@ def count_pixels(img):
     return sum
 
 def calc_ratio(fg, bg):
-    """Calculate the ratio of obscurity in first image compared to second image.
+    """Calculate the ratio of obscurity in the first image as compared to the second image.
 
     Arguments:
     fg -- the foreground (if overlaying) or smaller image
@@ -287,12 +288,27 @@ def calc_ratio(fg, bg):
     if ratio > 1:
         ratio = 1 / ratio
 
+    ##
+    # copy = fg.copy()
+    # for ii in range(0, len(fg)):
+    #     for jj in range(0, len(fg[0])):
+    #         if (fg[ii][jj][0] != bg[ii][jj][0]) and ((fg[ii][jj][1] != bg[ii][jj][1])) and ((fg[ii][jj][2] != bg[ii][jj][2])):
+    #             copy[ii][jj] = (255,0,0,255)
+    # cv2.imshow("calc_ratio", copy)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    ##
+
     return ratio
 
 
 def count_diff_pixels(new, original):
-    """Count how many opaque pixels are different between the two imported images. Based on count_pixels()."""
-    count = 0
+    #"""Count how many opaque pixels are different between the two imported images. Based on count_pixels()."""
+    """Count how many pixels are different between the two imported images weighted according
+    to the transparency of each pixel. Based on count_pixels().""" ##
+    #count = 0
+    sum = 0 ##
+    copy = new.copy() ##
     split = cv2.split(original)
     if len(split) == 4:
         alpha = split[3]
@@ -300,8 +316,18 @@ def count_diff_pixels(new, original):
             for jj in range(0, len(new[0])):
                 if alpha[ii][jj] > 0:  # The pixel in the original image must have been opaque
                     if np.any(new[ii][jj] != original[ii][jj]):  # Check for any changes in the pixel
-                        count += 1
-    return count
+                        #count += 1
+                        ##
+                        sum += alpha[ii][jj] / 255
+                        differences = [1 - (new[ii][jj][x] / original[ii][jj][x]) for x in range(0,3)]
+                        difference = np.mean(differences)
+                        copy[ii][jj] = (255*difference,0,0,255)
+                        ##
+    cv2.imshow("count_diff_pixels", copy) ##
+    cv2.waitKey(0) ##
+    cv2.destroyAllWindows() ##
+    #return count
+    return sum
 
 def calc_quadrant_diff(new, original):
     """Calculate the ratio of changed opaque pixels between two versions of the same image for each quadrant."""
