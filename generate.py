@@ -2,7 +2,10 @@
 # Authors: Kristian Rados
 
 import os
-from utils import load_paths, dir_split
+from utils import load_paths, dir_split, overlay
+import imutils
+import cv2
+import random
 
 def has_opaque_pixel(line):
     """Checks if a line of pixels contains a pixel above a transparency threshold"""

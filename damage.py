@@ -8,13 +8,13 @@ import math
 import numpy as np
 import cv2 as cv
 from skimage import draw
-from utils import overlay, calc_ratio, count_diff_pixels, count_pixels, calc_quadrant_diff
+from utils import overlay, calc_damage, count_diff_pixels, count_pixels, calc_damage_quadrants, calc_ratio
 import ntpath
 
 attributes = {
-    "damage" : "None",
+    "damage_type" : "None",
     "tag"    : "-1",  # Set of parameters used to generate damage as string 
-    "ratio"  : 0,     # Quantity of damage (0 for no damage, 1 for all damage)
+    "damage_ratio"  : 0,     # Quantity of damage (0 for no damage, 1 for all damage)
     }
 
 labels_dir = "SGTSD/Labels" #TODO: Cmd line parameter?
@@ -43,22 +43,22 @@ def damage_image(image_path, output_dir):
     # ORIGINAL UNDAMAGED
     dmg, att = no_damage(img)
     cv.imwrite(os.path.join(output_path, class_num + ".png"), dmg)
-    print(output_path, "class="+class_num, att["damage"]+"="+att["tag"], "damage="+att["ratio"]) ##
+    print(output_path, "class="+class_num, att["damage_type"]+"="+att["tag"], "damage="+att["damage_ratio"]) ##
     
     # QUADRANT
     dmg1, att = remove_quadrant(img)
-    cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage"] + ".png"), dmg1)
-    print(output_path, "class="+class_num, att["damage"]+"="+att["tag"], "damage="+att["ratio"]) ##
+    cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage_type"] + ".png"), dmg1)
+    print(output_path, "class="+class_num, att["damage_type"]+"="+att["tag"], "damage="+att["damage_ratio"]) ##
     
     # BIG HOLE
     dmg2, att = remove_hole(img)
-    cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage"] + ".png"), dmg2)
-    print(output_path, "class="+class_num, att["damage"]+"="+att["tag"], "damage="+att["ratio"]) ##
+    cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage_type"] + ".png"), dmg2)
+    print(output_path, "class="+class_num, att["damage_type"]+"="+att["tag"], "damage="+att["damage_ratio"]) ##
     
     # RANDOMISED BULLET HOLES
     dmg3, att = bullet_holes(img)
-    cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage"] + ".png"), dmg3)
-    print(output_path, "class="+class_num, att["damage"]+"="+att["tag"], "damage="+att["ratio"]) ##
+    cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage_type"] + ".png"), dmg3)
+    print(output_path, "class="+class_num, att["damage_type"]+"="+att["tag"], "damage="+att["damage_ratio"]) ##
 
     # TINTED YELLOW
     # yellow = np.zeros((height,width,ch), dtype=np.uint8)
@@ -70,15 +70,17 @@ def damage_image(image_path, output_dir):
     # GRAFFITI
     dmgs, attrs = graffiti(img, color=(0,0,0), initial=0.175, final=0.25, step=0.025)
     for ii in range(len(dmgs)):
-        cv.imshow('yote', dmgs[ii])
-        cv.imwrite(os.path.join(output_path, class_num + "_" + attrs[ii]["damage"] + "_" + str(attrs[ii]["ratio"]) + ".png"), dmgs[ii])
-        print(output_path, "class="+class_num, attrs[ii]["damage"]+"="+attrs[ii]["tag"], "damage="+attrs[ii]["ratio"]) ##
+        #cv.imshow('yote', dmgs[ii]) ##
+        cv.imwrite(os.path.join(output_path, class_num + "_" + attrs[ii]["damage_type"] + "_" + str(attrs[ii]["damage_ratio"]) + ".png"), dmgs[ii])
+        print(output_path, "class="+class_num, attrs[ii]["damage_type"]+"="+attrs[ii]["tag"], "damage="+attrs[ii]["damage_ratio"]) ##
     
+    #FIXME: Temporary commented because damage calc is bit weird with this
+    #TODO: Only feed unshaded (and bent) half of sign to damage calc for single bent; for double bent, idk
     # BEND
-    dmgs, attrs = bend_vertical(img)
-    for ii in range(len(dmgs)):
-        cv.imwrite(os.path.join(output_path, class_num + "_" + attrs[ii]["damage"] + "_" + attrs[ii]["tag"] + ".png"), dmgs[ii])
-        print(output_path, "class="+class_num, attrs[ii]["damage"]+"="+attrs[ii]["tag"], "damage="+attrs[ii]["ratio"]) ##
+    # dmgs, attrs = bend_vertical(img)
+    # for ii in range(len(dmgs)):
+    #     cv.imwrite(os.path.join(output_path, class_num + "_" + attrs[ii]["damage_type"] + "_" + attrs[ii]["tag"] + ".png"), dmgs[ii])
+    #     print(output_path, "class="+class_num, attrs[ii]["damage_type"]+"="+attrs[ii]["tag"], "damage="+attrs[ii]["damage_ratio"]) ##
     
     # GREY
     # dmg7 = cv.cvtColor(img, cv.COLOR_BGRA2GRAY)   # Convert to greyscale
@@ -111,13 +113,13 @@ def no_damage(img):
 
     # Assign labels
     att = attributes
-    att["damage"] = "no_damage"
+    att["damage_type"] = "no_damage"
     att["tag"]    = "-1"
-    att["ratio"]  = str(calc_ratio(dmg, img))  # This should be 0
+    att["damage_ratio"]  = str(calc_damage(dmg, img))  # This should be 0
 
     return dmg, att
 
-def remove_quadrant(img):
+def remove_quadrant(img): #TODO: Have quadrant be input parameter, with -1 being random
     """Make one random quandrant transparent."""
     dmg = validate_sign(img)
     quadrant = dmg[:,:,3].copy()
@@ -138,13 +140,12 @@ def remove_quadrant(img):
         cv.rectangle(quadrant, (width, height), (centre_x, centre_y), (0,0,0), -1)
     
     dmg = cv.bitwise_and(img, img, mask=quadrant)
-    ratios = calc_quadrant_diff(dmg, img) #FIXME: Currently redundant
 
     # Assign labels
     att = attributes
-    att["damage"] = "quadrant"
+    att["damage_type"] = "quadrant"
     att["tag"]    = str(quad_num)
-    att["ratio"]  = "{:.3f}".format(1 - calc_ratio(dmg, img))  # This should be around 0.25
+    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))  # This should be around 0.25
 
     return dmg, att
 
@@ -169,9 +170,9 @@ def remove_hole(img):
 
     # Assign labels
     att = attributes
-    att["damage"] = "big_hole"
+    att["damage_type"] = "big_hole"
     att["tag"]    = "_".join((str(angle), str(radius), str(x), str(y)))
-    att["ratio"]  = "{:.3f}".format(1 - calc_ratio(dmg, img))
+    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
 
     return dmg, att
 
@@ -206,9 +207,9 @@ def bullet_holes(img):
 
     # Assign labels
     att = attributes
-    att["damage"] = "bullet_holes"
+    att["damage_type"] = "bullet_holes"
     att["tag"]    = str(num_holes)
-    att["ratio"]  = "{:.3f}".format(1 - calc_ratio(dmg, dmg))
+    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
 
     return dmg, att
 
@@ -272,9 +273,10 @@ def graffiti(img, color=(0,0,0), initial=0.1, final=0.4, step=0.1):
     validate_sign(img)
     height, width, _ = img.shape
     grft = np.zeros((height, width, 4), dtype=np.uint8)  # New blank image for drawing the graffiti on.
-    grfts = []  # To hold the graffiti layers
-    attrs = []  # To hold their corresponding attributes
-    dmgs = []   # To hold the damaged signs
+    grfts = []   # To hold the graffiti layers
+    attrs = []   # To hold their corresponding attributes
+    targets = [] # To hold their corresponding targets
+    dmgs = []    # To hold the damaged signs
 
     ratio = 0.0
     x0, y0 = width//2, height//2  # Start drawing in the centre of the image
@@ -290,40 +292,38 @@ def graffiti(img, color=(0,0,0), initial=0.1, final=0.4, step=0.1):
         while ratio < target:
             radius = width // 5  # Radius of max distance to the next point
             x1, y1, x2, y2 = calc_points(img, x0, y0, radius)
-            thickness = int(round( width // 20 ))
+            thickness = int(round(width // 20))
             draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color)
             # Make the end point the starting point for the next curve
             x0, y0 = x2, y2
-            ratio = round( calc_ratio(grft, img), 4 )
+            ratio = round( calc_ratio(grft, img), 4 ) ##
+            #ratio = round(calc_damage(grft, img), 4)
         # Add a copy to the list and continue layering more graffiti
         grfts.append(grft.copy())
-        # Assign labels
-        att = attributes
-        att["damage"] = "graffiti"
-        att["tag"]    = str(round(target, 3))
-        att["ratio"]  = "{:.3f}".format(ratio)
-        attrs.append(att.copy())
+        targets.append(target)
 
         target += step
     
+    #FIXME: THIS SHIT ISN"T WORKING LKJHSD:OFHAS  WIJSL:D WITH NEW DAMAGE
     k = (int(round( width/20 )) // 2) * 2 + 1  # Kernel size must be odd
-    ii = 0 ##
+    ii = 0
     for grft in grfts:
         # Apply a Gaussian blur to each image, to smooth the edges
         grft = cv.GaussianBlur(grft, (k,k), 0)
         # Combine with the original alpha channel to remove anything that spilt over the sign
         grft[:,:,3] = cv.bitwise_and(grft[:,:,3], img[:,:,3])
         dmg = overlay(grft, img)
-        print("ratio =", attrs[ii]["ratio"]) ##
-        print("diff =", (count_diff_pixels(dmg, img) / count_pixels(img))) ##
-        print("count_diff_pixels(dmg, img) / count_pixels(img) =", count_diff_pixels(dmg, img), "/", count_pixels(img))
-        print("count_pixel(grft) / count_pixels(img) =", count_pixels(grft), "/", count_pixels(img))
-        cv.imshow("yeet", dmg) ##
-        cv.waitKey(0) ##
-        cv.destroyAllWindows() ##
         dmgs.append(dmg.copy())
-        ii += 1 ##
+        
+        # Assign labels
+        att = attributes
+        att["damage_type"] = "graffiti"
+        att["tag"]    = str(round(targets[ii], 3))
+        att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
+        # att["damage_ratio"]  = "{:.3f}".format(ratio)
+        attrs.append(att.copy())
 
+        ii += 1
     return dmgs, attrs
 
 
@@ -376,25 +376,25 @@ def bend_vertical(img):
     dmg = combine(img, right)
     dmgs.append(dmg.copy())
     att = attributes
-    att["damage"] = "bend"
+    att["damage_type"] = "bend"
     att["tag"]    = "0_40"
-    att["ratio"]  = "{:.3f}".format(1 - calc_ratio(dmg, img))
+    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
     attrs.append(att.copy())
 
     # Combine the left tilt with the original forward-facing image
     dmg = combine(left, img)
     dmgs.append(dmg.copy())
-    att["damage"] = "bend"
+    att["damage_type"] = "bend"
     att["tag"]    = "40_0"
-    att["ratio"]  = "{:.3f}".format(1 - calc_ratio(dmg, img))
+    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
     attrs.append(att.copy())
 
     # Combine the left and right tilt
     dmg = combine(left, right)
     dmgs.append(dmg.copy())
-    att["damage"] = "bend"
+    att["damage_type"] = "bend"
     att["tag"]    = "40_40"
-    att["ratio"]  = "{:.3f}".format(1 - calc_ratio(dmg, img))
+    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
     attrs.append(att.copy())
 
     # TILT 2

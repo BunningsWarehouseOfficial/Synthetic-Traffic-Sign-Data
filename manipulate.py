@@ -8,6 +8,7 @@ import os
 import math
 from utils import load_paths, dir_split
 from PIL import Image, ImageStat, ImageEnhance
+import random
 
 def img_transform(image_path, output_path):
     """Creates and saves different angles of the imported image
@@ -330,7 +331,7 @@ def exposure_manipulation(signs_paths, background_paths):
     print("Processed: " + str(100) + " %")
     print("Process was successful")
 
-def fade_manipulation(signs_paths, backgrounds_paths):
+def fade_manipulation(signs_paths, background_paths):
     """Manipulates each image to be gradually faded to several different levels"""
     background_exposures = find_image_exposure(background_paths, 4)
     signs_exposures = find_image_exposure(signs_paths, 4)
@@ -458,7 +459,7 @@ def insert_poisson_noise (image):
     noisy = np.random.poisson(image * vals) / float(vals)
     return noisy
 
-def insert_Gaussian_noise (image):
+def insert_Gaussian_noise(image):
     row,col,ch= image.shape
     mean = 0
     var = 0.5
@@ -468,14 +469,14 @@ def insert_Gaussian_noise (image):
     noisy = image + gauss
     return noisy
 
-def insert_speckle_noise (image):
+def insert_speckle_noise(image):
     row,col,ch = image.shape
     gauss = np.random.randn(row,col,ch)
     gauss = gauss.reshape(row,col,ch)        
     noisy = image + image * gauss
     return noisy
 
-def random_noise_method (image):
+def random_noise_method(image):
     """
     i = random.randint(1, 3)
     if (i == 1):

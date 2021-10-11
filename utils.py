@@ -176,7 +176,7 @@ def resize(img1, img2):
 
 def add_pole(filename, color):
     """Adds a pole to the imported sign"""
-    img = cv.imread(filename, cv.IMREAD_UNCHANGED)
+    img = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
     # Retrieve image dimentions and calculate the new height
     height, width, _ = img.shape  # Discard channel
     new_height = height * 3
@@ -193,7 +193,7 @@ def add_pole(filename, color):
     x1, x2 = midpt - offset, midpt + offset
     y1, y2 = height, new_height
     # Draw the pole
-    cv.rectangle(new_img, (x1, y1), (x2, y2), color, cv.FILLED)
+    cv2.rectangle(new_img, (x1, y1), (x2, y2), color, cv2.FILLED)
 
     # Colour any transparent pixels between the sign and the rectangle
     lim = 50  # Max alpha value for the pixel to be considered "transparent"
@@ -288,27 +288,12 @@ def calc_ratio(fg, bg):
     if ratio > 1:
         ratio = 1 / ratio
 
-    ##
-    # copy = fg.copy()
-    # for ii in range(0, len(fg)):
-    #     for jj in range(0, len(fg[0])):
-    #         if (fg[ii][jj][0] != bg[ii][jj][0]) and ((fg[ii][jj][1] != bg[ii][jj][1])) and ((fg[ii][jj][2] != bg[ii][jj][2])):
-    #             copy[ii][jj] = (255,0,0,255)
-    # cv2.imshow("calc_ratio", copy)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-    ##
-
     return ratio
 
 
 def count_diff_pixels(new, original):
-    #"""Count how many opaque pixels are different between the two imported images. Based on count_pixels()."""
-    """Count how many pixels are different between the two imported images weighted according
-    to the transparency of each pixel. Based on count_pixels().""" ##
-    #count = 0
-    sum = 0 ##
-    copy = new.copy() ##
+    """Count how many opaque pixels have changed in any way between the two imported images. Based on count_pixels()."""
+    count = 0
     split = cv2.split(original)
     if len(split) == 4:
         alpha = split[3]
@@ -316,18 +301,8 @@ def count_diff_pixels(new, original):
             for jj in range(0, len(new[0])):
                 if alpha[ii][jj] > 0:  # The pixel in the original image must have been opaque
                     if np.any(new[ii][jj] != original[ii][jj]):  # Check for any changes in the pixel
-                        #count += 1
-                        ##
-                        sum += alpha[ii][jj] / 255
-                        differences = [1 - (new[ii][jj][x] / original[ii][jj][x]) for x in range(0,3)]
-                        difference = np.mean(differences)
-                        copy[ii][jj] = (255*difference,0,0,255)
-                        ##
-    cv2.imshow("count_diff_pixels", copy) ##
-    cv2.waitKey(0) ##
-    cv2.destroyAllWindows() ##
-    #return count
-    return sum
+                        count += 1
+    return count
 
 def calc_quadrant_diff(new, original):
     """Calculate the ratio of changed opaque pixels between two versions of the same image for each quadrant."""
@@ -349,6 +324,91 @@ def calc_quadrant_diff(new, original):
     ratio_II  = count_diff_pixels(new_II, original_II) / count_pixels(original_II)
     ratio_III = count_diff_pixels(new_III, original_III) / count_pixels(original_III)
     ratio_IV  = count_diff_pixels(new_IV, original_IV) / count_pixels(original_IV)
+
+    return [ratio_I, ratio_II, ratio_III, ratio_IV]
+
+
+def count_damaged_pixels(new, original):
+        #"""Count how many opaque pixels are different between the two imported images. Based on count_pixels()."""
+    """Count how many pixels are different between the two imported images weighted by the transparency difference of
+    each pixel first and the colour difference second. Based on count_pixels().""" ##
+    
+    ## For debug visualisations
+    # copy = new.copy()
+    ##
+
+    split_new = len(cv2.split(new))
+    split_original = len(cv2.split(original))
+    if split_new == 4 and split_original == 4:
+        sum = 0
+        for ii in range(0, len(new)):
+            for jj in range(0, len(new[0])):
+                if original[ii][jj][3] > 0:  # The pixel in the original image must have been opaque
+                    # Colour diff is weighted by alpha diff, as it's more important
+                    alpha_diff_ratio = abs(original[ii][jj][3] - new[ii][jj][3]) / 255
+                    assert alpha_diff_ratio >= 0.0 and alpha_diff_ratio <= 1.0  # Will mostly be either 0.0 or 1.0
+
+                    #FIXME: RuntimeWarning: overflow encountered in ubyte_scalars
+                    colour_diffs = [abs(original[ii][jj][x] - new[ii][jj][x]) for x in range(0,3)]
+                    cumulative_colour_diff = np.sum(colour_diffs)
+                    assert cumulative_colour_diff >= 0 and cumulative_colour_diff <= 255*3
+
+                    # Limited to 255 (somewhat arbitrary choice), otherwise only exact inverse would score as diff 1
+                    colour_diff_max = 255
+                    colour_diff_ratio = min(cumulative_colour_diff, colour_diff_max) / colour_diff_max
+                    assert colour_diff_ratio >= 0.0 and colour_diff_ratio <= 1.0
+
+                    damage_ratio = min(alpha_diff_ratio + colour_diff_ratio, 1.0)
+                    sum += damage_ratio
+
+                    ## For debug visualisations
+                    # if np.any(new[ii][jj] != original[ii][jj]):  # Check for any changes in the pixel
+                    #     copy[ii][jj] = (0,255*damage_ratio,0,255)
+                    ##
+    else:
+        raise TypeError(f"The two images need 4 channels, but original has {split_new} and new has {split_original}")
+    
+    ## For debug visualisations
+    # cv2.imshow("new", new) ##
+    # cv2.waitKey(0) ##for debug visual
+    # cv2.destroyAllWindows() ##for debug visual
+    # cv2.imshow("count_damaged_pixels", copy) ##for debug visual
+    # cv2.waitKey(0) ##for debug visual
+    # cv2.destroyAllWindows() ##for debug visual
+    ##
+
+    return sum
+
+def calc_damage(new, original):
+    """Calculate the ratio of damaged pixels between two versions of the same image."""
+    ## For debug
+    # dmg = count_damaged_pixels(new, original)
+    # total = count_pixels(original)
+    # print(f"damage = count_damaged_pixels / count_pixels = {dmg} / {total} = {dmg / total}")
+    # return dmg / total
+    ##
+    return count_damaged_pixels(new, original) / count_pixels(original)
+
+def calc_damage_quadrants(new, original):
+    """Calculate the ratio of damaged pixels between two versions of the same image for each quadrant."""
+    height, width, _ = original.shape
+    centre_x = int(round( width / 2 ))
+    centre_y = int(round( height / 2 ))
+
+    # Divide both images into quadrants
+    new_I   = new[0:centre_y, centre_x:width]
+    new_II  = new[0:centre_y, 0:centre_x]
+    new_III = new[centre_y:height, 0:centre_x]
+    new_IV  = new[centre_y:height, centre_x:width]
+    original_I   = original[0:centre_y, centre_x:width]
+    original_II  = original[0:centre_y, 0:centre_x]
+    original_III = original[centre_y:height, 0:centre_x]
+    original_IV  = original[centre_y:height, centre_x:width]
+
+    ratio_I   = count_damaged_pixels(new_I, original_I) / count_pixels(original_I)
+    ratio_II  = count_damaged_pixels(new_II, original_II) / count_pixels(original_II)
+    ratio_III = count_damaged_pixels(new_III, original_III) / count_pixels(original_III)
+    ratio_IV  = count_damaged_pixels(new_IV, original_IV) / count_pixels(original_IV)
 
     return [ratio_I, ratio_II, ratio_III, ratio_IV]
 
