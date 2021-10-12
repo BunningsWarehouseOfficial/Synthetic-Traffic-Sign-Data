@@ -42,10 +42,8 @@ def dir_split(path):
     return folders
 
 
-def scale_image(image_path):
+def scale_image(image_path, width):
     """Rescales and pads the source image with whitespace to be a perfect square of fixed width"""
-    width = 200
-
     # https://jdhao.github.io/2017/11/06/resize-image-to-square-with-padding/
     # Resize the image
     img = Image.open(image_path)
@@ -337,7 +335,7 @@ def count_damaged_pixels(new, original):
     # copy = new.copy()
     ##
 
-    split_new = len(cv2.split(new))
+    split_new      = len(cv2.split(new))
     split_original = len(cv2.split(original))
     if split_new == 4 and split_original == 4:
         sum = 0
@@ -349,7 +347,7 @@ def count_damaged_pixels(new, original):
                     assert alpha_diff_ratio >= 0.0 and alpha_diff_ratio <= 1.0  # Will mostly be either 0.0 or 1.0
 
                     #FIXME: RuntimeWarning: overflow encountered in ubyte_scalars
-                    colour_diffs = [abs(original[ii][jj][x] - new[ii][jj][x]) for x in range(0,3)]
+                    colour_diffs = [abs(int(original[ii][jj][x]) - int(new[ii][jj][x])) for x in range(0,3)]
                     cumulative_colour_diff = np.sum(colour_diffs)
                     assert cumulative_colour_diff >= 0 and cumulative_colour_diff <= 255*3
 

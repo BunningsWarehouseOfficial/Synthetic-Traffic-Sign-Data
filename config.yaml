@@ -1,0 +1,18 @@
+# TODO: Some or all of these may be command line parameters in the future
+
+# The width of the square to which sign images will be scaled
+sign_width: 200
+
+# Method of image manipulation: either 'exposure' or 'fade'
+man_method: 'exposure'
+
+reuse_damage: false  # Whether to generate new damage 
+damage_types:
+  - original  # Original undamaged sign
+  - quadrant
+  - big_hole
+  - bullet_holes
+  - graffiti
+  # - bend
+  # - tinted_yellow
+  # - grey

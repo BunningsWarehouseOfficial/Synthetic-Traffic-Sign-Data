@@ -2,3 +2,4 @@ opencv-python
 scikit-image
 pillow
 imutils
+pyyaml

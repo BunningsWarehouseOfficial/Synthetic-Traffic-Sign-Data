@@ -17,10 +17,7 @@ attributes = {
     "damage_ratio"  : 0,     # Quantity of damage (0 for no damage, 1 for all damage)
     }
 
-labels_dir = "SGTSD/Labels" #TODO: Cmd line parameter?
-
-
-def damage_image(image_path, output_dir):
+def damage_image(image_path, output_dir, labels_dir):
     """Applies all the different types of damage to the imported image, saving each one"""
     img = cv.imread(image_path, cv.IMREAD_UNCHANGED)
     img = img.astype('uint8')

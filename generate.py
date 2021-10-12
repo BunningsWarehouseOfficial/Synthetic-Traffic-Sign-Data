@@ -7,7 +7,7 @@ import imutils
 import cv2
 import random
 
-def has_opaque_pixel(line):
+def __has_opaque_pixel(line):
     """Checks if a line of pixels contains a pixel above a transparency threshold"""
     opaque = False
     for pixel in line:
@@ -17,12 +17,12 @@ def has_opaque_pixel(line):
             break  # Stop searching if one is found
     return opaque
 
-def bounding_axes(img):
+def __bounding_axes(img):
     """Returns the bounding axes of an image with a transparent background"""
     # Top axis
     y_top = 0
     for row in img:  # Iterate through each row of pixels, starting at top-left
-        if has_opaque_pixel(row) is False:  # Check if the row has an opaque pixel
+        if __has_opaque_pixel(row) is False:  # Check if the row has an opaque pixel
             y_top += 1  # If not, move to the next row
         else:
             break  # If so, break, leaving y_top as the bounding axis
@@ -31,7 +31,7 @@ def bounding_axes(img):
     height = img.shape[0]
     y_bottom = height - 1
     for row in reversed(img):  # Iterate from the bottom row up
-        if has_opaque_pixel(row) is False:
+        if __has_opaque_pixel(row) is False:
             y_bottom -= 1
         else:
             break
@@ -41,7 +41,7 @@ def bounding_axes(img):
     r_img = imutils.rotate_bound(img, 90)
     x_left = 0
     for column in r_img:
-        if has_opaque_pixel(column) is False:
+        if __has_opaque_pixel(column) is False:
             x_left += 1
         else:
             break
@@ -50,24 +50,26 @@ def bounding_axes(img):
     r_height = r_img.shape[0]
     x_right = r_height - 1
     for column in reversed(r_img):
-        if has_opaque_pixel(column) is False:
+        if __has_opaque_pixel(column) is False:
             x_right -= 1
         else:
             break
 
-    # FOR TESTING
+    ## For debug
     # img[y_top, :] = (255, 0, 0, 255)
     # img[y_bottom, :] = (255, 0, 0, 255)
     # img[:, x_left] = (255, 0, 0, 255)
     # img[:, x_right] = (255, 0, 0, 255)
     # cv2.imwrite(image_dir, img)
+    ##
 
-    # FOR TESTING (outside this function)
+    ##
+    # For debug (place outside this function)
     # for img in load_paths("Traffic_Signs_Templates/4_Transformed_Images/0/0_ORIGINAL"):
-    #     bounding_axes(img)    
+    #     bounding_axes(img)  
+    ##  
 
     return [x_left, x_right, y_top, y_bottom]
-
 
 def new_data(image_dir, bg_dir, label_file, filename, values):
     """Blends synthetic signs with backgrounds"""
@@ -90,7 +92,7 @@ def new_data(image_dir, bg_dir, label_file, filename, values):
     y = random.randint(third, bg_height - third)
 
     # Build label
-    axes = bounding_axes(fg)  # Retrieve bounding axes of the sign image
+    axes = __bounding_axes(fg)  # Retrieve bounding axes of the sign image
     axes[0] += x  # Adjusting bounding axis to make it relative to the whole bg image
     axes[1] += x
     axes[2] += y
@@ -105,8 +107,9 @@ def new_data(image_dir, bg_dir, label_file, filename, values):
     return image
 
 
+#TODO: These two functions should be one function always include background using classes?
 # List of paths for all SGTSD relevant files using exposure_manipulation
-def create_paths_list(imgs_directory, bg_directory):
+def paths_list(imgs_directory, bg_directory):
     directories = []
     for places in load_paths(imgs_directory):  # List of places: originally either UK_rural or UK_urban
         for imgs in load_paths(places):  # Folder for each bg image: eg. IMG_0
@@ -119,7 +122,7 @@ def create_paths_list(imgs_directory, bg_directory):
     return directories  # Directory for every single FILE and it's relevant bg FILE
 
 # List of paths for all SGTSD relevant files using fade_manipulation; backgrounds are assigned to 
-def create_assigned_paths_list(imgs_directory, bg_directory): #TODO: is this the same as above?
+def assigned_paths_list(imgs_directory, bg_directory): #TODO: is this the same as above?
     directories = []
     for places in load_paths(bg_directory):  # Folder for each place: eg. GTSDB
         for imgs in load_paths(places):  # Iterate through each b.g. image: eg. IMG_0
