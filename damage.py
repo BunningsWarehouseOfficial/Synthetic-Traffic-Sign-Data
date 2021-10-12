@@ -10,15 +10,17 @@ import cv2 as cv
 from skimage import draw
 from utils import overlay, calc_damage, count_diff_pixels, count_pixels, calc_damage_quadrants, calc_ratio
 import ntpath
+from synth_image import SynthImage
 
 attributes = {
     "damage_type" : "None",
     "tag"    : "-1",  # Set of parameters used to generate damage as string 
-    "damage_ratio"  : 0,     # Quantity of damage (0 for no damage, 1 for all damage)
+    "damage_ratio"  : 0.0,     # Quantity of damage (0 for no damage, 1 for all damage)
     }
 
-def damage_image(image_path, output_dir, labels_dir):
+def damage_image(image_path, output_dir, types):
     """Applies all the different types of damage to the imported image, saving each one"""
+    damaged_images = []
     img = cv.imread(image_path, cv.IMREAD_UNCHANGED)
     img = img.astype('uint8')
     
@@ -31,31 +33,42 @@ def damage_image(image_path, output_dir, labels_dir):
     if (not os.path.exists(output_path)):
         os.makedirs(output_path)
 
-    # Create the labels directory for this sign if it doesn't exist already
-    if (not os.path.exists(os.path.join(labels_dir, class_num))):
-        os.makedirs(os.path.join(labels_dir, class_num))
-    # text_base = os.path.join(labels_dir, class_num, class_num + "_")  # The base filename for the label files
-    # ii = 0  # Class number that is appended to the end of base filename
+
+    def simple_damage(dmg, att):
+        """Helper function to avoid repetition."""
+        dmg_path = os.path.join(output_path, class_num + "_" + att["damage_type"] + ".png")
+        cv.imwrite(dmg_path, dmg)
+        damaged_images.append(SynthImage(
+            dmg_path, int(class_num), att["damage_type"], att["tag"], float(att["damage_ratio"])))
 
     # ORIGINAL UNDAMAGED
-    dmg, att = no_damage(img)
-    cv.imwrite(os.path.join(output_path, class_num + ".png"), dmg)
-    print(output_path, "class="+class_num, att["damage_type"]+"="+att["tag"], "damage="+att["damage_ratio"]) ##
-    
+    if 'original' in types:
+        dmg, att = no_damage(img)
+        simple_damage(dmg, att)
+
     # QUADRANT
-    dmg1, att = remove_quadrant(img)
-    cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage_type"] + ".png"), dmg1)
-    print(output_path, "class="+class_num, att["damage_type"]+"="+att["tag"], "damage="+att["damage_ratio"]) ##
+    if 'quadrant' in types:
+        dmg, att = remove_quadrant(img)
+        simple_damage(dmg, att)
     
     # BIG HOLE
-    dmg2, att = remove_hole(img)
-    cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage_type"] + ".png"), dmg2)
-    print(output_path, "class="+class_num, att["damage_type"]+"="+att["tag"], "damage="+att["damage_ratio"]) ##
+    if 'big_hole' in types:
+        dmg, att = remove_hole(img)
+        simple_damage(dmg, att)
     
     # RANDOMISED BULLET HOLES
-    dmg3, att = bullet_holes(img)
-    cv.imwrite(os.path.join(output_path, class_num + "_" + att["damage_type"] + ".png"), dmg3)
-    print(output_path, "class="+class_num, att["damage_type"]+"="+att["tag"], "damage="+att["damage_ratio"]) ##
+    if 'bullet_holes' in types:
+        dmg, att = bullet_holes(img)
+        simple_damage(dmg, att)
+
+    # GRAFFITI
+    if 'graffiti' in types:
+        dmgs, attrs = graffiti(img, color=(0,0,0), initial=0.1, final=0.4, step=0.1)
+        for ii in range(len(dmgs)):
+            dmg_path = os.path.join(output_path, class_num + "_" + attrs[ii]["damage_type"] + "_" + str(attrs[ii]["damage_ratio"]) + ".png")
+            cv.imwrite(dmg_path, dmgs[ii])
+            damaged_images.append(SynthImage(
+                dmg_path, int(class_num), attrs[ii]["damage_type"], attrs[ii]["tag"], float(attrs[ii]["damage_ratio"])))
 
     # TINTED YELLOW
     # yellow = np.zeros((height,width,ch), dtype=np.uint8)
@@ -63,13 +76,6 @@ def damage_image(image_path, output_dir, labels_dir):
     # dmg4 = cv.bitwise_and(img, yellow)
     # # TODO: Use quadrant pixel difference ratio or some other damage metric for labelling?
     # cv.imwrite(os.path.join(output_path, class_num + damage_types[4] + ".png"), dmg4)
-    
-    # GRAFFITI
-    dmgs, attrs = graffiti(img, color=(0,0,0), initial=0.175, final=0.25, step=0.025)
-    for ii in range(len(dmgs)):
-        #cv.imshow('yote', dmgs[ii]) ##
-        cv.imwrite(os.path.join(output_path, class_num + "_" + attrs[ii]["damage_type"] + "_" + str(attrs[ii]["damage_ratio"]) + ".png"), dmgs[ii])
-        print(output_path, "class="+class_num, attrs[ii]["damage_type"]+"="+attrs[ii]["tag"], "damage="+attrs[ii]["damage_ratio"]) ##
     
     #FIXME: Temporary commented because damage calc is bit weird with this
     #TODO: Only feed unshaded (and bent) half of sign to damage calc for single bent; for double bent, idk
@@ -92,6 +98,8 @@ def damage_image(image_path, output_dir, labels_dir):
     
     # TODO: CRACKS (thin crack lines across the sign?)
     # TODO: MISSING SECTIONS (missing polygon sections on edges of sign?)
+
+    return damaged_images
 
 
 def validate_sign(img):

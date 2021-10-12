@@ -71,17 +71,19 @@ def __bounding_axes(img):
 
     return [x_left, x_right, y_top, y_bottom]
 
-def new_data(image_dir, bg_dir, label_file, filename, values):
-    """Blends synthetic signs with backgrounds"""
-    bg = cv2.imread(bg_dir, cv2.IMREAD_UNCHANGED)
-    fg = cv2.imread(image_dir, cv2.IMREAD_UNCHANGED)
+def new_data(synth_image, labels_file):
+    """Blends a synthetic sign with its corresponding background."""
+    bg_path = synth_image.bg_path
+    fg_path = synth_image.fg_path
+    bg = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
+    fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
     bg_height, bg_width, _ = bg.shape
     fg_height, fg_width, _ = fg.shape
 
     # Rescaling the sign to correct its size relative to the background
     # NOTE: Assumes background aspect ratio somewhat close to 16:9 (1.778)
-    current_ratio = fg_width / bg_width # Ratio of sign width to the background width
-    target_ratio = random.uniform(0.033, 0.066) # Aiming for between 3.3% and 6.6% of bg width
+    current_ratio = fg_width / bg_width  # Ratio of sign width to the background width
+    target_ratio = random.uniform(0.033, 0.066)  # Aiming for between 3.3% and 6.6% of bg width
     scale_factor = target_ratio / current_ratio
     new_size = int(fg_width * scale_factor)
     fg = cv2.resize(fg, (new_size, new_size))
@@ -91,19 +93,19 @@ def new_data(image_dir, bg_dir, label_file, filename, values):
     third = bg_height // 3
     y = random.randint(third, bg_height - third)
 
-    # Build label
     axes = __bounding_axes(fg)  # Retrieve bounding axes of the sign image
     axes[0] += x  # Adjusting bounding axis to make it relative to the whole bg image
     axes[1] += x
     axes[2] += y
     axes[3] += y
-    bounds = str(axes[0]) + " " + str(axes[1]) + " " + str(axes[2]) + " " + str(axes[3])
+    synth_image.bounding_axes = axes
 
-    # It is assumed that the final .jpg -> .png conversion step is executed
-    label = filename + ".jpg " + bounds + " " + values + "\n"
-    label_file.write(label)
+    
+
+
+    label = synth_image.get_label()
+    labels_file.write(label)
     image = overlay(fg, bg, x, y)
-
     return image
 
 

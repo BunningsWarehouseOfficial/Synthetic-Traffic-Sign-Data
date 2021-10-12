@@ -10,13 +10,15 @@ from utils import load_paths, dir_split
 from PIL import Image, ImageStat, ImageEnhance
 import random
 
-def img_transform(image_path, output_path):
-    """Creates and saves different angles of the imported image
-    Originally authored by Alexandros Stergiou"""
+def img_transform(damaged_image, output_path):
+    """Creates and saves different angles of the imported image.
+    Originally authored by Alexandros Stergiou."""
+    image_path = damaged_image.fg_path
     img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
     height,width,_ = img.shape
 
     dst = []
+
     #0 FORWARD FACING
     dst.append( img )
 
@@ -63,10 +65,10 @@ def img_transform(image_path, output_path):
     dst.append( cv2.warpAffine(img,M,(width,height)) )
     
     #8 FORWARD FACING W/ DISTORTION 2
-    pts15 = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts16 = np.float32( [[width/11,height/10], [width/2.1,height/10], [width*8.5/10,height/1.95]] )
-    M = cv2.getAffineTransform(pts15,pts16)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    # pts15 = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+    # pts16 = np.float32( [[width/11,height/10], [width/2.1,height/10], [width*8.5/10,height/1.95]] )
+    # M = cv2.getAffineTransform(pts15,pts16)
+    # dst.append( cv2.warpAffine(img,M,(width,height)) )
     
     #9 FORWARD FACING W/ DISTORTION 3
     pts17 = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
@@ -81,16 +83,16 @@ def img_transform(image_path, output_path):
     dst.append( cv2.warpAffine(img,M,(width,height)) )
     
     #11 FORWARD FACING W/ DISTORTION 5
-    pts21 = np.float32( [[width*9.5/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts22 = np.float32( [[width*9.65/10,height/9.95], [width/1.95,height/9.95], [width*9.1/10,height/2.02]] )
-    M = cv2.getAffineTransform(pts21,pts22)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    # pts21 = np.float32( [[width*9.5/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+    # pts22 = np.float32( [[width*9.65/10,height/9.95], [width/1.95,height/9.95], [width*9.1/10,height/2.02]] )
+    # M = cv2.getAffineTransform(pts21,pts22)
+    # dst.append( cv2.warpAffine(img,M,(width,height)) )
     
     #12 FORWARD FACING W/ DISTORTION 6
-    pts23 = np.float32( [[width*9.25/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts24 = np.float32( [[width*9.55/10,height/9.85], [width/1.9,height/10], [width*9.3/10,height/2.04]] )
-    M = cv2.getAffineTransform(pts23,pts24)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    # pts23 = np.float32( [[width*9.25/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+    # pts24 = np.float32( [[width*9.55/10,height/9.85], [width/1.9,height/10], [width*9.3/10,height/2.04]] )
+    # M = cv2.getAffineTransform(pts23,pts24)
+    # dst.append( cv2.warpAffine(img,M,(width,height)) )
     
     #13 SHRINK 1
     pts25 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
@@ -123,10 +125,10 @@ def img_transform(image_path, output_path):
     dst.append( cv2.warpAffine(img,M,(width,height)) )
     
     #18 FORWARD FACING W/ DISTORTION 10
-    pts35 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts36 = np.float32( [[width*8.75/10,height/8], [width/1.95,height/8], [width*8.75/10,height/2]] )
-    M = cv2.getAffineTransform(pts35,pts36)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    # pts35 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+    # pts36 = np.float32( [[width*8.75/10,height/8], [width/1.95,height/8], [width*8.75/10,height/2]] )
+    # M = cv2.getAffineTransform(pts35,pts36)
+    # dst.append( cv2.warpAffine(img,M,(width,height)) )
     
     #19 FORWARD FACING W/ DISTORTION 11
     pts37 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
@@ -139,17 +141,26 @@ def img_transform(image_path, output_path):
     title,_ = tail.rsplit('.', 1)      # Discard extension
     
     # Save the transformed images
-    for ii in range(1, len(dst)):
-        save_path = os.path.join(output_path, title)
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-        cv2.imwrite(os.path.join(save_path, str(ii) + ".png"), dst[ii])
-#    plt.show()
+    transformed_images = []
+    for ii in range(0, len(dst)):
+        save_dir = os.path.join(output_path, title)
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        save_path = os.path.join(save_dir, str(ii) + ".png")
+        cv2.imwrite(save_path, dst[ii])
+
+        transformed_image = damaged_image.clone()
+        transformed_image.fg_path = save_path
+        # Use number to represent transform_type, as there is nothing better (currently)
+        transformed_image.set_transformation(ii)
+        transformed_images.append(transformed_image)
+
+    return transformed_images
 
 
 def find_image_exposure(paths, channels):
-    """Determines the level of exposure for each image in the provided paths
-    Originally authored by Alexandros Stergiou"""
+    """Determines the level of exposure for each image in the provided paths.
+    Originally authored by Alexandros Stergiou."""
     exposures = []
     for image_path in paths:
         img_grey = Image.open(image_path).convert('LA')  # Greyscale with alpha
@@ -183,18 +194,23 @@ def find_image_exposure(paths, channels):
 
     return exposures
 
-def exposure_manipulation(signs_paths, background_paths):
-    """Manipulates the exposure of each provided sign to match the exposure of the backgrond image
-    Originally authored by Alexandros Stergiou"""
+def exposure_manipulation(transformed_data, background_paths, exp_dir):
+    """Manipulates the exposure of each provided sign to match the exposure of the backgrond image.
+    Originally authored by Alexandros Stergiou, extended by Kristian Rados."""
     background_exposures = find_image_exposure(background_paths, 4)
-    signs_exposures = find_image_exposure(signs_paths, 4)
+
+    sign_paths = [transformed.fg_path for transformed in transformed_data]
+    signs_exposures = find_image_exposure(sign_paths, 4)
     
-    for ii in range(0,len(background_paths)):
-        print("Processed: " + str(float(ii) / float(len(background_paths)) * 100) + " %")
+    manipulated_images = []
+    for ii in range(0, len(background_paths)):
+        print(f"Manipulating signs: {round(float(ii) / float(len(background_paths)) * 100, 2)} %")
         
         img = Image.open(background_exposures[ii][0])
+        bg_path = background_paths[ii]
 
-        for sign_path in signs_paths:        
+        jj = 0
+        for sign_path in sign_paths:        
             dirc, sub, el = dir_split(background_exposures[ii][0])
             title, extension = el.rsplit('.', 1)
 
@@ -311,39 +327,51 @@ def exposure_manipulation(signs_paths, background_paths):
             stat3 = ImageStat.Stat(rms_bright2)
             rms2 = stat3.rms[0]
             """
-            
-            avrg_bright = avrg_bright.resize((150,150), Image.ANTIALIAS)
+
+
+            avrg_bright = avrg_bright.resize((150,150), Image.ANTIALIAS) #TODO: Shouldn't this be 'sign_width' ?? Check for resizing
             rms_bright = rms_bright.resize((150,150), Image.ANTIALIAS)
             avrg_bright_perceived = avrg_bright_perceived.resize((150,150), Image.ANTIALIAS)
             rms_bright_perceived = rms_bright_perceived.resize((150,150), Image.ANTIALIAS)
             # avrg_bright2 = avrg_bright2.resize((150,150), Image.ANTIALIAS)
             # rms_bright2 = rms_bright2.resize((150,150), Image.ANTIALIAS)
-
             
-            exp_dir = "Traffic_Signs_Exposure_Manipulation"
-            avrg_bright.save(os.path.join(exp_dir,sub,title,"SIGN_"+folder,folder2,head+"_AVERAGE."+tail))
-            rms_bright.save(os.path.join(exp_dir,sub,title,"SIGN_"+folder,folder2,head+"_RMS."+tail))
-            avrg_bright_perceived.save(os.path.join(exp_dir,sub,title,"SIGN_"+folder,folder2,head+"_AVERAGE_PERCEIVED."+tail))
-            rms_bright_perceived.save(os.path.join(exp_dir,sub,title,"SIGN_"+folder,folder2,head+"_RMS_PERCEIVED."+tail))
-            # avrg_bright2.save(os.path.join(exp_dir,sub,title,"SIGN_"+folder,folder2,head+"_AVERAGE2."+tail))
-            # rms_bright2.save(os.path.join(exp_dir,sub,title,"SIGN_"+folder,folder2,head+"_RMS2."+tail))
-    
-    print("Processed: " + str(100) + " %")
-    print("Process was successful")
 
-def fade_manipulation(signs_paths, background_paths):
-    """Manipulates each image to be gradually faded to several different levels"""
+            def save_synth(man_img, man_type, original_synth):
+                save_path = os.path.join(exp_dir,sub,title,"SIGN_"+folder,folder2,head+"_"+man_type+"."+tail)
+                man_img.save(save_path)
+                man_image = original_synth.clone()
+                man_image.fg_path = save_path
+                man_image.set_manipulation(man_type)
+                man_image.bg_path = bg_path
+                return man_image
+
+            original = transformed_data[jj]
+            manipulated_images.append(save_synth(avrg_bright,           'AVERAGE', original))
+            manipulated_images.append(save_synth(rms_bright,            'RMS', original))
+            manipulated_images.append(save_synth(avrg_bright_perceived, 'AVERAGE_PERCEIVED', original))
+            manipulated_images.append(save_synth(rms_bright_perceived,  'RMS_PERCEIVED', original))
+            # manipulated_images.append(save_synth(avrg_bright2,          'AVERAGE2', original))
+            # manipulated_images.append(save_synth(rms_bright2,           'RMS2', original))
+
+            jj += 1
+
+    print("Manipulating signs: 100 %")
+    return manipulated_images
+
+def fade_manipulation(signs_paths, background_paths, fad_dir):
+    """Manipulates each image to be gradually faded to several different levels."""
     background_exposures = find_image_exposure(background_paths, 4)
     signs_exposures = find_image_exposure(signs_paths, 4)
     
-    print("Processed: 0.0 %")
+    print("Manipulating signs: 0.0 %")
     ii = 0
     prev = 0
     for sign_path in signs_paths:
         progress = float(ii) / float(len(signs_paths)) * 100
         if progress >= prev + 5: #Prevent spamming of progress prints
             prev = prev + 5
-            print("Processed: " + str(progress) + " %")
+            print(f"Manipulating signs: {round(progress, 2)} %")
 
         dirc, sub, el = dir_split(background_exposures[0][0])
         title, extension = el.split('.')
@@ -369,13 +397,10 @@ def fade_manipulation(signs_paths, background_paths):
                 dmg6[:, :, 3] = alphaData
 
             dmg6 = cv2.resize(dmg6, (150,150))
-            fad_dir = "Traffic_Signs_Fade_Manipulation"
             cv2.imwrite(os.path.join(fad_dir,"SIGN_"+folder,folder2,head+"_FADE-"+str(jj)+"."+tail), dmg6)
         ii = ii + 1
-    
-    
-    print("Processed: " + str(100) + " %")
-    print("Process was successful")
+
+    print(f"Manipulating signs: 100 %")
 
 
 def avrg_pixel_rgb(image, chanels):
@@ -408,49 +433,61 @@ def find_bw_images(directory):
                 images.append(head)
     return images
 
-def find_useful_signs(directory):
-    """Removes bad signs, such as those which are all white or all black"""
-    bw_images = find_bw_images(os.path.join("Traffic_Signs_Templates", "3_Damaged_Images"))
-    for background_dir in load_paths(directory):
-        for background in load_paths(background_dir):
-            for signs in load_paths(background):
-                for dmgs in load_paths(signs):
-                    temp = []
-                    for imgs in load_paths(dmgs):
-                        temp.append(imgs)
-                    exposures = find_image_exposure(temp,4)
-                    
-                    ii = 0
-                    for images in load_paths(dmgs):
-                        #Find brightness
-                        img = Image.open(images).convert('RGBA')
+def find_useful_signs(manipulated_images, directory, damaged_dir):
+    """Removes bad signs, such as those which are all white or all black."""
+    bw_images = find_bw_images(damaged_dir)
 
-                        rgb = avrg_pixel_rgb(img,4)
-                        rg = abs(rgb[0] - rgb[1])
-                        rb = abs(rgb[0] - rgb[2])
-                        gb = abs(rgb[1] - rgb[2])
+    temp = [man.fg_path for man in manipulated_images]
+    exposures = find_image_exposure(temp, 4)
 
-                        is_bw = False
+    # Compile list of black and white signs to be deleted under differnet metrics below
+    is_bw = []
+    for bw_path in bw_images:  # O(mn), m should be small, so effectively O(n)
+        for exposure in exposures:
+            if bw_path in exposure[0]:
+                is_bw.append(exposure[0])
 
-                        for s in bw_images:
-                            if s in exposures[ii][0]:
-                                is_bw = True
+    ii = 0
+    for manipulated in reversed(manipulated_images):
+        progress = round(float(ii) / float(len(manipulated_images)) * 100, 2)
+        if progress % 1 == 0: #FIXME: % 1 is terrible
+            print(f"Removing useless signs: {progress} %")
 
-                        if (rg <= 16 and rb <= 16 and gb <= 16):
-                            if (not is_bw):
-                                os.remove(images)
-                            #Threshold values for black and white images
-                            elif (rgb[0] < 70 and rgb[1] < 70 and rgb[2] < 70):
-                                os.remove(images)
-                            elif (rgb[0] > 155 and rgb[1] > 155 and rgb[2] > 155):
-                                os.remove(images)
+        image_path = manipulated.fg_path
 
-                        elif (not is_bw):
-                            #Delete light blue images
-                            if(rgb[2] > rgb[0] and rgb[2] >= rgb[1]):
-                                if (gb <= 10):
-                                    os.remove(images)
-                    ii += 1
+        # Find brightness
+        img = Image.open(image_path).convert('RGBA')
+        rgb = avrg_pixel_rgb(img, 4)
+        rg = abs(rgb[0] - rgb[1])
+        rb = abs(rgb[0] - rgb[2])
+        gb = abs(rgb[1] - rgb[2])
+
+        #BUG: Shit delection for white and grey sign 49, leaving plain whites while deleting good ones    
+        #FIXME: len(manipulated_data) in notebook is still same after this
+
+        #def should_delete():
+
+
+        if rg <= 16 and rb <= 16 and gb <= 16:
+            if not manipulated.fg_path in is_bw:
+                os.remove(image_path)
+                #del manipulated  #TODO: Deletes temporarily disabled in place of temp outer solution
+            # Threshold values for black and white images
+            elif rgb[0] < 70 and rgb[1] < 70 and rgb[2] < 70:
+                os.remove(image_path)
+                #del manipulated
+            elif rgb[0] > 155 and rgb[1] > 155 and rgb[2] > 155:
+                os.remove(image_path)
+                #del manipulated
+        elif not manipulated.fg_path in is_bw:
+            # Delete light blue images
+            if rgb[2] > rgb[0] and rgb[2] >= rgb[1]:
+                if gb <= 10:
+                    os.remove(image_path)
+                    #del manipulated
+        ii += 1
+    print(f"Removing useless signs: 100 %")
+
 
 
 def insert_poisson_noise (image):
