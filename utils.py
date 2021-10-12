@@ -346,7 +346,6 @@ def count_damaged_pixels(new, original):
                     alpha_diff_ratio = abs(original[ii][jj][3] - new[ii][jj][3]) / 255
                     assert alpha_diff_ratio >= 0.0 and alpha_diff_ratio <= 1.0  # Will mostly be either 0.0 or 1.0
 
-                    #FIXME: RuntimeWarning: overflow encountered in ubyte_scalars
                     colour_diffs = [abs(int(original[ii][jj][x]) - int(new[ii][jj][x])) for x in range(0,3)]
                     cumulative_colour_diff = np.sum(colour_diffs)
                     assert cumulative_colour_diff >= 0 and cumulative_colour_diff <= 255*3

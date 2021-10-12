@@ -23,6 +23,8 @@ $ git clone https://github.com/BunningsWarehouseOfficial/Traffic-Sign-Damage-Det
 [comment]: <> (Note that the synthetic dataset SGTSD will need aprox. 10GB and the sample set used for training will be close to 1GB.)
 Please allow sufficient storage space when running the dataset generator.
 
+Example traffic sign templates for data generation can be downloaded [here](https://drive.google.com/file/d/1a65EPNK_3gNII8VXBKDZ0N6H_mL6F6P1/view?usp=sharing).
+
 ## License
 MIT
 
