@@ -45,6 +45,7 @@ class SynthImage:
             self.bg_path
         )
 
+    #TODO: Label format could be determined by config.yaml to suit particular models/pipelines
     def get_label(self):
         axes = self.bounding_axes
         bounds = f"{axes[0]} {axes[1]} {axes[2]} {axes[3]}"

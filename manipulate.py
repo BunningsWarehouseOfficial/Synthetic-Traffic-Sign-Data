@@ -447,6 +447,8 @@ def find_useful_signs(manipulated_images, directory, damaged_dir):
             if bw_path in exposure[0]:
                 is_bw.append(exposure[0])
 
+    #TODO: Expand progress bar to include above loop to prevent it looking like
+    #      the program has frozen on terminal
     ii = 0
     for manipulated in reversed(manipulated_images):
         print(f"Removing useless signs: {round(float(ii) / float(len(manipulated_images)) * 100, 2)} %", end='\r')
