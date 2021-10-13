@@ -1,6 +1,6 @@
 Sign_Templates/*
 SGTS_Dataset/*
-SGTSD*
-5_Manipulated/*
+
 .vscode/settings.json
 __pycache__/*
+*.zip
