@@ -204,7 +204,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
     
     manipulated_images = []
     for ii in range(0, len(background_paths)):
-        print(f"Manipulating signs: {round(float(ii) / float(len(background_paths)) * 100, 2)} %")
+        print(f"Manipulating signs: {round(float(ii) / float(len(background_paths)) * 100, 2)} %", end='\r')
         
         img = Image.open(background_exposures[ii][0])
         bg_path = background_paths[ii]
@@ -356,7 +356,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
 
             jj += 1
 
-    print("Manipulating signs: 100 %")
+    print("Manipulating signs: 100.0 %\r\n")
     return manipulated_images
 
 def fade_manipulation(signs_paths, background_paths, fad_dir):
@@ -371,7 +371,7 @@ def fade_manipulation(signs_paths, background_paths, fad_dir):
         progress = float(ii) / float(len(signs_paths)) * 100
         if progress >= prev + 5: #Prevent spamming of progress prints
             prev = prev + 5
-            print(f"Manipulating signs: {round(progress, 2)} %")
+            print(f"Manipulating signs: {round(progress, 2)} %", end='\r')
 
         dirc, sub, el = dir_split(background_exposures[0][0])
         title, extension = el.split('.')
@@ -400,7 +400,7 @@ def fade_manipulation(signs_paths, background_paths, fad_dir):
             cv2.imwrite(os.path.join(fad_dir,"SIGN_"+folder,folder2,head+"_FADE-"+str(jj)+"."+tail), dmg6)
         ii = ii + 1
 
-    print(f"Manipulating signs: 100 %")
+    print(f"Manipulating signs: 100.0 %\r\n")
 
 
 def avrg_pixel_rgb(image, chanels):
@@ -449,9 +449,7 @@ def find_useful_signs(manipulated_images, directory, damaged_dir):
 
     ii = 0
     for manipulated in reversed(manipulated_images):
-        progress = round(float(ii) / float(len(manipulated_images)) * 100, 2)
-        if progress % 1 == 0: #FIXME: % 1 is terrible
-            print(f"Removing useless signs: {progress} %")
+        print(f"Removing useless signs: {round(float(ii) / float(len(manipulated_images)) * 100, 2)} %", end='\r')
 
         image_path = manipulated.fg_path
 
@@ -486,8 +484,7 @@ def find_useful_signs(manipulated_images, directory, damaged_dir):
                     os.remove(image_path)
                     #del manipulated
         ii += 1
-    print(f"Removing useless signs: 100 %")
-
+    print(f"Removing useless signs: 100.0 %\r\n")
 
 
 def insert_poisson_noise (image):
