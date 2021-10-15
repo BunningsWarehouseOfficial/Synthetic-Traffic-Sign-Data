@@ -1,5 +1,5 @@
 Sign_Templates/*
-SGTS_Dataset/*
+SGTS_Dataset*
 
 .vscode/settings.json
 __pycache__/*

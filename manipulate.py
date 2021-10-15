@@ -10,7 +10,7 @@ from utils import load_paths, dir_split
 from PIL import Image, ImageStat, ImageEnhance
 import random
 
-def img_transform(damaged_image, output_path):
+def img_transform(damaged_image, output_path, num_transform):
     """Creates and saves different angles of the imported image.
     Originally authored by Alexandros Stergiou."""
     image_path = damaged_image.fg_path
@@ -19,122 +19,145 @@ def img_transform(damaged_image, output_path):
 
     dst = []
 
-    #0 FORWARD FACING
-    dst.append( img )
+    # Transform fn names are numbered in order of (subjective) significance in visual difference
+    #[0] 0 FORWARD FACING
+    def t0():
+        dst.append( img )
 
-    #1 EAST FACING
-    pts1 = np.float32( [[width/10,height/10], [width/2,height/10], [width/10,height/2]] )
-    pts2 = np.float32( [[width/5,height/5], [width/2,height/8], [width/5,height/1.8]] )
-    M = cv2.getAffineTransform(pts1,pts2)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[3] 1 EAST FACING
+    def t3():
+        pts1 = np.float32( [[width/10,height/10], [width/2,height/10], [width/10,height/2]] )
+        pts2 = np.float32( [[width/5,height/5], [width/2,height/8], [width/5,height/1.8]] )
+        M = cv2.getAffineTransform(pts1,pts2)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #2 NORTH-WEST FACING
-    pts3 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts4 = np.float32( [[width*9/10,height/5], [width/2,height/8], [width*9/10,height/1.8]] )
-    M = cv2.getAffineTransform(pts3,pts4)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[2] 2 NORTH-WEST FACING
+    def t2():
+        pts3 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+        pts4 = np.float32( [[width*9/10,height/5], [width/2,height/8], [width*9/10,height/1.8]] )
+        M = cv2.getAffineTransform(pts3,pts4)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #3 LEFT TILTED FORWARD FACING
-    pts5 = np.float32( [[width/10,height/10], [width/2,height/10], [width/10,height/2]] )
-    pts6 = np.float32( [[width/12,height/6], [width/2.1,height/8], [width/10,height/1.8]] )
-    M = cv2.getAffineTransform(pts5,pts6)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[8] 3 LEFT TILTED FORWARD FACING
+    def t8():
+        pts5 = np.float32( [[width/10,height/10], [width/2,height/10], [width/10,height/2]] )
+        pts6 = np.float32( [[width/12,height/6], [width/2.1,height/8], [width/10,height/1.8]] )
+        M = cv2.getAffineTransform(pts5,pts6)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #4 RIGHT TILTED FORWARD FACING
-    pts7 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts8 = np.float32( [[width*10/12,height/6], [width/2.2,height/8], [width*8.4/10,height/1.8]] )
-    M = cv2.getAffineTransform(pts7,pts8)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #4 RIGHT TILTED FORWARD FACING (disabled: consistently gets cut off)
+    # pts7 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+    # pts8 = np.float32( [[width*10/12,height/6], [width/2.2,height/8], [width*8.4/10,height/1.8]] )
+    # M = cv2.getAffineTransform(pts7,pts8)
+    # dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #5 WEST FACING
-    pts9  = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts10 = np.float32( [[width/9.95,height/10], [width/2.05,height/9.95], [width*9/10,height/2.05]] )
-    M = cv2.getAffineTransform(pts9,pts10)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[7] 5 WEST FACING
+    def t7():
+        pts9  = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+        pts10 = np.float32( [[width/9.95,height/10], [width/2.05,height/9.95], [width*9/10,height/2.05]] )
+        M = cv2.getAffineTransform(pts9,pts10)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #6 RIGHT TILTED FORWARD FACING
-    pts11 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts12 = np.float32( [[width*9/10,height/10], [width/2,height/9], [width*8.95/10,height/2.05]] )
-    M = cv2.getAffineTransform(pts11,pts12)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[12] 6 RIGHT TILTED FORWARD FACING
+    def t12():
+        pts11 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+        pts12 = np.float32( [[width*9/10,height/10], [width/2,height/9], [width*8.95/10,height/2.05]] )
+        M = cv2.getAffineTransform(pts11,pts12)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #7 FORWARD FACING W/ DISTORTION
-    pts13 = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts14 = np.float32( [[width/9.8,height/9.8], [width/2,height/9.8], [width*8.8/10,height/2.05]] )
-    M = cv2.getAffineTransform(pts13,pts14)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[10] 7 FORWARD FACING W/ DISTORTION
+    def t10():
+        pts13 = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+        pts14 = np.float32( [[width/9.8,height/9.8], [width/2,height/9.8], [width*8.8/10,height/2.05]] )
+        M = cv2.getAffineTransform(pts13,pts14)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #8 FORWARD FACING W/ DISTORTION 2
+    #8 FORWARD FACING W/ DISTORTION 2 (disabled: consistently gets cut off)
     # pts15 = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
     # pts16 = np.float32( [[width/11,height/10], [width/2.1,height/10], [width*8.5/10,height/1.95]] )
     # M = cv2.getAffineTransform(pts15,pts16)
     # dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #9 FORWARD FACING W/ DISTORTION 3
-    pts17 = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts18 = np.float32( [[width/11,height/11], [width/2.1,height/10], [width*10/11,height/1.95]] )
-    M = cv2.getAffineTransform(pts17,pts18)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
-    
-    #10 FORWARD FACING W/ DISTORTION 4
-    pts19 = np.float32( [[width*9.5/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts20 = np.float32( [[width*9.35/10,height/9.99], [width/2.05,height/9.95], [width*9.05/10,height/2.03]] )
-    M = cv2.getAffineTransform(pts19,pts20)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
-    
-    #11 FORWARD FACING W/ DISTORTION 5
-    # pts21 = np.float32( [[width*9.5/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    # pts22 = np.float32( [[width*9.65/10,height/9.95], [width/1.95,height/9.95], [width*9.1/10,height/2.02]] )
-    # M = cv2.getAffineTransform(pts21,pts22)
+    #9 FORWARD FACING W/ DISTORTION 3 (disabled: consistently gets cut off)
+    # pts17 = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+    # pts18 = np.float32( [[width/11,height/11], [width/2.1,height/10], [width*10/11,height/1.95]] )
+    # M = cv2.getAffineTransform(pts17,pts18)
     # dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #12 FORWARD FACING W/ DISTORTION 6
+    #[11] 10 FORWARD FACING W/ DISTORTION 4
+    def t11():
+        pts19 = np.float32( [[width*9.5/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+        pts20 = np.float32( [[width*9.35/10,height/9.99], [width/2.05,height/9.95], [width*9.05/10,height/2.03]] )
+        M = cv2.getAffineTransform(pts19,pts20)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
+    
+    #[14] 11 FORWARD FACING W/ DISTORTION 5
+    def t14():
+        pts21 = np.float32( [[width*9.5/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+        pts22 = np.float32( [[width*9.65/10,height/9.95], [width/1.95,height/9.95], [width*9.1/10,height/2.02]] )
+        M = cv2.getAffineTransform(pts21,pts22)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
+    
+    #12 FORWARD FACING W/ DISTORTION 6 (disabled: consistently gets cut off)
     # pts23 = np.float32( [[width*9.25/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
     # pts24 = np.float32( [[width*9.55/10,height/9.85], [width/1.9,height/10], [width*9.3/10,height/2.04]] )
     # M = cv2.getAffineTransform(pts23,pts24)
     # dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #13 SHRINK 1
-    pts25 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts26 = np.float32( [[width*8/10,height/10], [width*1.34/3,height/10.5], [width*8.24/10,height/2.5]] )
-    M = cv2.getAffineTransform(pts25,pts26)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[1] 13 SHRINK 1
+    def t1():
+        pts25 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+        pts26 = np.float32( [[width*8/10,height/10], [width*1.34/3,height/10.5], [width*8.24/10,height/2.5]] )
+        M = cv2.getAffineTransform(pts25,pts26)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #14 SHRINK 2
-    pts27 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts28 = np.float32( [[width*8.5/10,height*3.1/10], [width/2,height*3/10], [width*8.44/10,height*1.55/2.5]] )
-    M = cv2.getAffineTransform(pts27,pts28)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[5] 14 SHRINK 2
+    def t5():
+        pts27 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+        pts28 = np.float32( [[width*8.5/10,height*3.1/10], [width/2,height*3/10], [width*8.44/10,height*1.55/2.5]] )
+        M = cv2.getAffineTransform(pts27,pts28)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #15 FORWARD FACING W/ DISTORTION 7
-    pts29 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts30 = np.float32( [[width*8.85/10,height/9.3], [width/1.9,height/10.5], [width*8.8/10,height/2.11]] )
-    M = cv2.getAffineTransform(pts29,pts30)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[9] 15 FORWARD FACING W/ DISTORTION 7
+    def t9():
+        pts29 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+        pts30 = np.float32( [[width*8.85/10,height/9.3], [width/1.9,height/10.5], [width*8.8/10,height/2.11]] )
+        M = cv2.getAffineTransform(pts29,pts30)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #16 FORWARD FACING W/ DISTORTION 8
-    pts31 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts32 = np.float32( [[width*8.75/10,height/9.1], [width/1.95,height/8], [width*8.5/10,height/2.05]] )
-    M = cv2.getAffineTransform(pts31,pts32)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[6] 16 FORWARD FACING W/ DISTORTION 8
+    def t6():
+        pts31 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+        pts32 = np.float32( [[width*8.75/10,height/9.1], [width/1.95,height/8], [width*8.5/10,height/2.05]] )
+        M = cv2.getAffineTransform(pts31,pts32)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #17 FORWARD FACING W/ DISTORTION 9
-    pts33 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts34 = np.float32( [[width*8.75/10,height/9.1], [width/1.95,height/9], [width*8.5/10,height/2.2]] )
-    M = cv2.getAffineTransform(pts33,pts34)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[4] 17 FORWARD FACING W/ DISTORTION 9
+    def t4():
+        pts33 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+        pts34 = np.float32( [[width*8.75/10,height/9.1], [width/1.95,height/9], [width*8.5/10,height/2.2]] )
+        M = cv2.getAffineTransform(pts33,pts34)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #18 FORWARD FACING W/ DISTORTION 10
-    # pts35 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    # pts36 = np.float32( [[width*8.75/10,height/8], [width/1.95,height/8], [width*8.75/10,height/2]] )
-    # M = cv2.getAffineTransform(pts35,pts36)
-    # dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[13] 18 FORWARD FACING W/ DISTORTION 10
+    def t13():
+        pts35 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+        pts36 = np.float32( [[width*8.75/10,height/8], [width/1.95,height/8], [width*8.75/10,height/2]] )
+        M = cv2.getAffineTransform(pts35,pts36)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #19 FORWARD FACING W/ DISTORTION 11
-    pts37 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-    pts38 = np.float32( [[width*8.8/10,height/7], [width/1.95,height/7], [width*8.8/10,height/2]] )
-    M = cv2.getAffineTransform(pts37,pts38)
-    dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[15] 19 FORWARD FACING W/ DISTORTION 11
+    def t15():
+        pts37 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+        pts38 = np.float32( [[width*8.8/10,height/7], [width/1.95,height/7], [width*8.8/10,height/2]] )
+        M = cv2.getAffineTransform(pts37,pts38)
+        dst.append( cv2.warpAffine(img,M,(width,height)) )
+
+    # Apply the number of transformations desired
+    transformed_images = []
+    transforms = [t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15]
+    for ii in range(0, num_transform + 1):
+        transforms[ii]()
 
     # Retrieve the filename to save as
     _,tail = ntpath.split(image_path)  # Filename of the image, parent directories removed
@@ -151,7 +174,7 @@ def img_transform(damaged_image, output_path):
 
         transformed_image = damaged_image.clone()
         transformed_image.fg_path = save_path
-        # Use number to represent transform_type, as there is nothing better (currently)
+        # Use number to represent transform_type, as there is currently nothing better
         transformed_image.set_transformation(ii)
         transformed_images.append(transformed_image)
 
@@ -248,7 +271,6 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
 
             
             ### IMAGE MANIPULATION MAIN CODE STARTS ###
-
             # MINIMISE MARGIN BASED ON AVERAGE FOR TWO CHANNEL BRIGNESS VARIATION
             margin = abs(avrg - float(background_exposures[ii][1]))
             
@@ -306,6 +328,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             stat3 = ImageStat.Stat(peak2)
             avrg2 = stat3.mean[0]
             rms2 = stat3.rms[0]
+
 
             """
             #FUSION OF THE TWO AVERAGING METHODS

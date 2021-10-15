@@ -3,6 +3,9 @@
 # The width of the square to which sign images will be scaled
 sign_width: 200
 
+# The number of transformations applied to each damaged sign template
+num_transform: 8  # Range: [0,15] | low: [1,5], medium: [6,10], high: [11,15]
+
 # Method of image manipulation: either 'exposure' or 'fade' (not implemented)
 man_method: 'exposure'
 

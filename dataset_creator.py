@@ -22,9 +22,12 @@ def main():
     import generate
     from synth_image import SynthImage
 
+    # Open and validate config file
     import yaml
     with open("config.yaml", "r") as ymlfile:
         config = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+    #TODO: Input validation of config file
 
     # Directory names excluded from config.yaml to make use of .gitignore simpler
     base_dir        = "Sign_Templates"
@@ -98,7 +101,7 @@ def main():
     transformed_data = []
     for damaged in damaged_data:
         save_dir = os.path.join(transformed_dir, str(damaged.class_num))
-        transformed_data.append(manipulate.img_transform(damaged, save_dir))
+        transformed_data.append(manipulate.img_transform(damaged, save_dir, config['num_transform']))
         del damaged  # Clear memory that will no longer be needed as we go
     del damaged_data
     transformed_data = [cell for row in transformed_data for cell in row]  # Flatten the list
@@ -106,8 +109,8 @@ def main():
 
     #TODO: Prevent all progress bars from showing double '%' by enforcing displayed 0s in rounded prints
 
-    #TODO: The number of manipulations should probably be reduced further?
-    #      List manipulations in order of how 'unique' they are, with
+    #TODO: The number of transformations should probably be reduced further?
+    #      List transformations in order of how 'unique' they are, with
     #      the number selected from that list being a config.yaml parameter
 
     ### MANIPULATING EXPOSURE/FADE ###  #TODO: Make progress bar more precise
