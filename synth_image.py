@@ -54,6 +54,7 @@ class SynthImage:
                  f"transform_type={self.transform_type} man_type={self.man_type} "
                  f"bg={self.bg_path}\n")
         return label
+    #TODO: Labels don't include 'tag' key-value pairs
 
 
     def __check_class(self, class_num):

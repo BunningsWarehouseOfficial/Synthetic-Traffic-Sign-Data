@@ -24,6 +24,8 @@ def main():
 
     #TODO: Add an example download link for a dataset of backgrounds that have no real signs on them
 
+    #TODO: Documentation in the dataset readme for what the tag of each damage type means
+
     # Open and validate config file
     import yaml
     with open("config.yaml", "r") as ymlfile:
@@ -122,6 +124,10 @@ def main():
 
 
     ### MANIPULATING EXPOSURE/FADE ###
+    if os.path.exists(manipulated_dir):
+        shutil.rmtree(manipulated_dir)
+    os.mkdir(manipulated_dir)
+
     ImageFile.LOAD_TRUNCATED_IMAGES = True  #TODO: Is this line needed?
     for bg_folders in load_paths(bg_dir):
         to_png(bg_folders)
