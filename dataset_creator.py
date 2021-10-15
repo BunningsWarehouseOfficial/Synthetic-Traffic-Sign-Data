@@ -22,15 +22,26 @@ def main():
     import generate
     from synth_image import SynthImage
 
-    #TODO: Add an example download link for the GTSDB dataset in .png form
+    #TODO: Add an example download link for a dataset of backgrounds that have no real signs on them
 
     # Open and validate config file
     import yaml
     with open("config.yaml", "r") as ymlfile:
         config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
-    #TODO: Input validation of config file
-    #TODO: Add a "Using `config.yaml` configuration file." so that the user is aware of it
+    # Input validation of config file
+    valid_man = ['exposure', 'fade']
+    valid_dmg = ['original', 'quadrant', 'big_hole', 'bullet_holes', 'graffiti', 'bend', 'tinted_yellow', 'grey']
+    if config['sign_width'] <= 0:
+        raise ValueError("Error: 'sign_width' must be > 0.\n")
+    if config['num_transform'] < 0 or config['num_transform'] > 15:
+        raise ValueError("Error: must have 0 <= 'num_transform' <= 15.\n")
+    if not config['man_method'] in valid_man:
+        raise ValueError(f"Error: 'man_method' must be either '{valid_man[0]}' or '{valid_man[1]}'.\n")
+    for dmg in config['damage_types']:
+        if not dmg in valid_dmg:
+            raise ValueError(f"Error: '{dmg}' is an invalid damage type.\n")
+    print("Generating dataset using the 'config.yaml' configuration.\n")
 
     # Directory names excluded from config.yaml to make use of .gitignore simpler
     base_dir        = "Sign_Templates"
