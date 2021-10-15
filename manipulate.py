@@ -181,11 +181,13 @@ def img_transform(damaged_image, output_path, num_transform):
     return transformed_images
 
 
-def find_image_exposure(paths, channels):
+def find_image_exposures(paths, channels, descriptor="sign"):
     """Determines the level of exposure for each image in the provided paths.
     Originally authored by Alexandros Stergiou."""
+    ii = 0
     exposures = []
     for image_path in paths:
+        print(f"Calculating {descriptor} exposures: {float(ii) / float(len(paths)):06.2%}", end='\r')
         img_grey = Image.open(image_path).convert('LA')  # Greyscale with alpha
         img_rgba = Image.open(image_path)
         
@@ -212,28 +214,31 @@ def find_image_exposure(paths, channels):
             # RMS pixels perceived brightness
             r,g,b,a = stat2.rms
             rms_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2)) 
-
         exposures.append( [image_path,avg,rms,avg_perceived,rms_perceived] )
 
+        ii += 1
+
+    print(f"Calculating {descriptor} exposures: 100.0%\r")
     return exposures
 
 def exposure_manipulation(transformed_data, background_paths, exp_dir):
     """Manipulates the exposure of each provided sign to match the exposure of the backgrond image.
     Originally authored by Alexandros Stergiou, extended by Kristian Rados."""
-    background_exposures = find_image_exposure(background_paths, 4)
+    background_exposures = find_image_exposures(background_paths, 4, "background")
 
     sign_paths = [transformed.fg_path for transformed in transformed_data]
-    signs_exposures = find_image_exposure(sign_paths, 4)
+    signs_exposures = find_image_exposures(sign_paths, 4, "transformed sign")
     
+    pr = 0
     manipulated_images = []
     for ii in range(0, len(background_paths)):
-        print(f"Manipulating signs: {round(float(ii) / float(len(background_paths)) * 100, 2)} %", end='\r')
-        
         img = Image.open(background_exposures[ii][0])
         bg_path = background_paths[ii]
 
         jj = 0
-        for sign_path in sign_paths:        
+        for sign_path in sign_paths:
+            print(f"Manipulating signs: {float(pr) / float(len(background_paths) * len(sign_paths)):06.2%}", end='\r')
+
             dirc, sub, el = dir_split(background_exposures[ii][0])
             title, extension = el.rsplit('.', 1)
 
@@ -378,23 +383,20 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             # manipulated_images.append(save_synth(rms_bright2,           'RMS2', original))
 
             jj += 1
+            pr += 1
 
-    print("Manipulating signs: 100.0 %\r\n")
+    print("Manipulating signs: 100.0%\r\n")
     return manipulated_images
 
 def fade_manipulation(signs_paths, background_paths, fad_dir):
     """Manipulates each image to be gradually faded to several different levels."""
-    background_exposures = find_image_exposure(background_paths, 4)
-    signs_exposures = find_image_exposure(signs_paths, 4)
+    #TODO: Remove call to find_image_exposures, it's a waste of CPU time
+    background_exposures = find_image_exposures(background_paths, 4)
     
-    print("Manipulating signs: 0.0 %")
     ii = 0
     prev = 0
     for sign_path in signs_paths:
-        progress = float(ii) / float(len(signs_paths)) * 100
-        if progress >= prev + 5: #Prevent spamming of progress prints
-            prev = prev + 5
-            print(f"Manipulating signs: {round(progress, 2)} %", end='\r')
+        print(f"Manipulating signs: {float(ii) / float(len(signs_paths)):06.2%}", end='\r')
 
         dirc, sub, el = dir_split(background_exposures[0][0])
         title, extension = el.split('.')
@@ -423,7 +425,7 @@ def fade_manipulation(signs_paths, background_paths, fad_dir):
             cv2.imwrite(os.path.join(fad_dir,"SIGN_"+folder,folder2,head+"_FADE-"+str(jj)+"."+tail), dmg6)
         ii = ii + 1
 
-    print(f"Manipulating signs: 100.0 %\r\n")
+    print(f"Manipulating signs: 100.0%\r\n")
 
 
 def avrg_pixel_rgb(image, chanels):
@@ -458,23 +460,31 @@ def find_bw_images(directory):
 
 def find_useful_signs(manipulated_images, directory, damaged_dir):
     """Removes bad signs, such as those which are all white or all black."""
-    bw_images = find_bw_images(damaged_dir)
+    bw_templates = find_bw_images(damaged_dir)
 
-    temp = [man.fg_path for man in manipulated_images]
-    exposures = find_image_exposure(temp, 4)
+    pr = 0
+    pr_total = len(manipulated_images) * 2 + len(bw_templates) * len(manipulated_images)
+
+    temp = []
+    for man in manipulated_images:
+        print(f"Removing useless signs: {float(pr) / float(pr_total):06.2%}", end='\r')
+        temp.append(man.fg_path)
+        pr += 1
+    # temp = [man.fg_path for man in manipulated_images]
+    exposures = find_image_exposures(temp, 4, "manipulated sign")
 
     # Compile list of black and white signs to be deleted under differnet metrics below
     is_bw = []
-    for bw_path in bw_images:  # O(mn), m should be small, so effectively O(n)
+    for bw_path in bw_templates:  # O(mn): m is small, so effectively O(n)
         for exposure in exposures:
-            if bw_path in exposure[0]:
+            if bw_path in exposure[0]:  # Check for a bw template in each path
                 is_bw.append(exposure[0])
+            pr += 1
 
     #TODO: Expand progress bar to include above loop to prevent it looking like
     #      the program has frozen on terminal
-    ii = 0
     for manipulated in reversed(manipulated_images):
-        print(f"Removing useless signs: {round(float(ii) / float(len(manipulated_images)) * 100, 2)} %", end='\r')
+        print(f"Removing useless signs: {float(pr) / float(pr_total):06.2%}", end='\r')
 
         image_path = manipulated.fg_path
 
@@ -508,8 +518,8 @@ def find_useful_signs(manipulated_images, directory, damaged_dir):
                 if gb <= 10:
                     os.remove(image_path)
                     #del manipulated
-        ii += 1
-    print(f"Removing useless signs: 100.0 %\r\n")
+        pr += 1
+    print(f"Removing useless signs: 100.0%\r\n")
 
 
 def insert_poisson_noise (image):

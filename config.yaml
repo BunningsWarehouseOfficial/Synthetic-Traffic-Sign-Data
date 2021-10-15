@@ -12,10 +12,10 @@ man_method: 'exposure'
 # reuse_damage: false  # Whether to generate new damage 
 damage_types:
   - original  # Original undamaged sign
-  # - quadrant
+  - quadrant
   - big_hole
-  # - bullet_holes
-  # - graffiti
+  - bullet_holes
+  - graffiti
   # - bend (not implemented)
   # - tinted_yellow (not implemented)
   # - grey (not implemented)

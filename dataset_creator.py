@@ -22,12 +22,15 @@ def main():
     import generate
     from synth_image import SynthImage
 
+    #TODO: Add an example download link for the GTSDB dataset in .png form
+
     # Open and validate config file
     import yaml
     with open("config.yaml", "r") as ymlfile:
         config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
     #TODO: Input validation of config file
+    #TODO: Add a "Using `config.yaml` configuration file." so that the user is aware of it
 
     # Directory names excluded from config.yaml to make use of .gitignore simpler
     base_dir        = "Sign_Templates"
@@ -84,10 +87,10 @@ def main():
     ii = 0
     processed = load_files(processed_dir)
     for image_path in processed:
-        print(f"Damaging signs: {round(float(ii) / float(len(processed)) * 100, 2)} %", end='\r')
+        print(f"Damaging signs: {float(ii) / float(len(processed)):06.2%}", end='\r')
         damaged_data.append(damage_image(image_path, damaged_dir, config['damage_types']))
         ii += 1
-    print(f"Damaging signs: 100.0 %\r\n")
+    print(f"Damaging signs: 100.0%\r\n")
     damaged_data = [cell for row in damaged_data for cell in row]  # Flatten the list
     # else:
     #     print("Reusing pre-existing damaged signs")
@@ -107,13 +110,7 @@ def main():
     transformed_data = [cell for row in transformed_data for cell in row]  # Flatten the list
 
 
-    #TODO: Prevent all progress bars from showing double '%' by enforcing displayed 0s in rounded prints
-
-    #TODO: The number of transformations should probably be reduced further?
-    #      List transformations in order of how 'unique' they are, with
-    #      the number selected from that list being a config.yaml parameter
-
-    ### MANIPULATING EXPOSURE/FADE ###  #TODO: Make progress bar more precise
+    ### MANIPULATING EXPOSURE/FADE ###
     ImageFile.LOAD_TRUNCATED_IMAGES = True  #TODO: Is this line needed?
     for bg_folders in load_paths(bg_dir):
         to_png(bg_folders)
@@ -153,6 +150,7 @@ def main():
         background_paths += load_paths(subfolder)
 
     #TODO: Can do checks for damage type in below functions to avoid funky results cancelling manipulation for just those types
+    
     if config['man_method'] == 'exposure':
         manipulated_data = manipulate.exposure_manipulation(transformed_data, background_paths, manipulated_dir)
     else:
@@ -183,7 +181,7 @@ def main():
     ii = 0
     with open(labels_path, "w") as labels_file:
         for synth_image in manipulated_data:
-            print(f"Generating files: {round(float(ii) / float(total_gen) * 100, 2)} %", end='\r')
+            print(f"Generating files: {float(ii) / float(total_gen):06.2%}", end='\r')
             
             c_num = synth_image.class_num
             d_type = synth_image.damage_type
@@ -199,19 +197,19 @@ def main():
             image = generate.new_data(synth_image, labels_file)
             cv2.imwrite(temp_fg_path, image)
             ii += 1
-        print(f"Generating files: 100.0 %\r\n")
+        print(f"Generating files: 100.0%\r\n")
 
     #TODO: Is this really necessary? Can't we save to JPEG directly?
     ii = 0
     class_dirs = load_paths(images_dir)
-    for class_dir in class_dirs:  #TODO: Make progress bar precision one level lower
-        print(f"Converting to JPEG: {round(float(ii) / float(len(class_dirs)) * 100, 2)} %", end='\r')
+    for class_dir in class_dirs:
         for damage_dir in load_paths(class_dir):
             for image in load_paths(damage_dir):
+                print(f"Converting to JPEG: {float(ii) / float(total_gen):06.2%}", end='\r')
                 if image.endswith("png"):
                     png_to_jpeg(image)
-        ii += 1
-    print(f"Converting to JPEG: 100.0 %\r\n")
+                ii += 1  
+    print(f"Converting to JPEG: 100.0%\r\n")
 
     string = '''
     -------------------------------------
