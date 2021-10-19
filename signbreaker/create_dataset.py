@@ -43,6 +43,13 @@ def main():
     for dmg in config['damage_types']:
         if not dmg in valid_dmg:
             raise ValueError(f"Error: '{dmg}' is an invalid damage type.\n")
+    g_params = config['graffiti']
+    for g_param in g_params:
+        if g_params[g_param] <= 0.0 or g_params[g_param] > 1.0:
+            raise ValueError(f"Error: must have 0.0 < 'graffiti:{g_param}' <= 1.0.\n")
+    if g_params['initial'] > g_params['final']:
+        raise ValueError("Error: 'graffiti:initial' must be <= graffiti:final.\n")
+
     print("Generating dataset using the 'config.yaml' configuration.\n")
 
     # Directory names excluded from config.yaml to make use of .gitignore simpler

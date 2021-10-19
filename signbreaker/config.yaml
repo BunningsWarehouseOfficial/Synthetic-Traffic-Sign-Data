@@ -20,8 +20,8 @@ damage_types:
   # - tinted_yellow (not implemented)
   # - grey (not implemented)
 
-# Parameters for the graffiti damage type, each in the float range [0,1]
+# Parameters for the graffiti damage type, each in range (0.0,1.0], recommended to be in increments of 0.1
 graffiti:
   initial: 0.2  # First target level of obscurity
   final: 0.4    # Level of obscurity to stop at
-  step: 0.2    # Step for the next level of obscurity
+  step: 0.2     # Step for the next level of obscurity
