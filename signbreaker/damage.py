@@ -299,8 +299,7 @@ def graffiti(img, color=(0,0,0), initial=0.1, final=0.4, step=0.1):
             draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color)
             # Make the end point the starting point for the next curve
             x0, y0 = x2, y2
-            ratio = round( calc_ratio(grft, img), 4 ) ##
-            #ratio = round(calc_damage(grft, img), 4)
+            ratio = round( calc_ratio(grft, img), 4 )
         # Add a copy to the list and continue layering more graffiti
         grfts.append(grft.copy())
         targets.append(target)

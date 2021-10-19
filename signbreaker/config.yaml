@@ -3,8 +3,11 @@
 # The width of the square to which sign images will be scaled
 sign_width: 200
 
+# When to stop the program, in the case that not all of the sequential steps are required
+final_op: 'dataset'  # Either 'process', 'damage', 'transform', 'manipulate', or 'dataset'
+
 # The number of transformations applied to each damaged sign template
-num_transform: 8  # Range: [0,15] | low: [1,5], medium: [6,10], high: [11,15]
+num_transform: 6  # Range: [0,15] | low: [1,5], medium: [6,10], high: [11,15]
 
 # Method of image manipulation: either 'exposure' or 'fade' (not implemented)
 man_method: exposure
@@ -22,6 +25,6 @@ damage_types:
 
 # Parameters for the graffiti damage type, each in range (0.0,1.0], recommended to be in increments of 0.1
 graffiti:
-  initial: 0.2  # First target level of obscurity
-  final: 0.4    # Level of obscurity to stop at
-  step: 0.2     # Step for the next level of obscurity
+  initial: 0.1  # First target level of obscurity
+  final: 0.5    # Level of obscurity to stop at
+  step: 0.1     # Step for the next level of obscurity
