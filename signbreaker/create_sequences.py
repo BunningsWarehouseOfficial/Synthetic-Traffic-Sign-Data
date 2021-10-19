@@ -15,7 +15,7 @@ the user specified sequence length.
 #       drawn. Alternatively, have option to switch to mode where you select where to place bottom of sign pole and go
 #       backwards to draw sign AP box based on value in size slider
 
-OUT_DIR         = "SGTSD_Sequences"
+OUT_DIR         = "SGTS_Sequences"
 LABELS_FILE     = "labels.txt"
 MIN_ANCHOR_SIZE = 10
 MAX_ANCHOR_SIZE = 200
@@ -113,7 +113,7 @@ def select_anchor_points(bg_paths, num_bg):
 
 def main():
     args = parse_arguments()
-    labels_path = os.path.join(OUT_DIR, LABELS_FILE)
+    labels_path = os.path.join(OUT_DIR, LABELS_FILE)  #TODO: labels_path unused
     sequence_len = args.num_frames
 
     # Loading argument-specified directories

@@ -58,11 +58,12 @@ def damage_image(image_path, output_dir, config):
         simple_damage(dmg, att)
     
     # RANDOMISED BULLET HOLES
+    b_conf = config['bullet_holes']
     if 'bullet_holes' in types:
-        dmg, att = bullet_holes(img)
+        dmg, att = bullet_holes(img, b_conf['min_holes'], b_conf['max_holes'], b_conf['target'])
         simple_damage(dmg, att)
 
-    #TODO: Only feed unshaded (and bent) half of sign to damage calc for single bent; for double bent, idk
+    #TODO: Only feed unshaded (and bent) half of sign to damage calc for single bent? Idk about double bent
     # BEND
     if 'bend' in types:
         dmgs, attrs = bend_vertical(img)
@@ -135,8 +136,8 @@ def remove_quadrant(img): #TODO: Have quadrant be input parameter, with -1 being
     quadrant = dmg[:,:,3].copy()
 
     height, width, _ = img.shape
-    centre_x = int(round( width / 2 ))
-    centre_y = int(round( height / 2 ))
+    centre_x = int(round(width / 2))
+    centre_y = int(round(height / 2))
 
     quad_num = rand.randint(1, 4)  # For selecting which quadrant it will be
     # Remove the quadrant: -1 offset is necessary to avoid damaging part of a wrong quadrant
@@ -166,8 +167,8 @@ def remove_hole(img):
     att = attributes
 
     height, width, _ = dmg.shape
-    centre_x = int(round( width / 2 ))
-    centre_y = int(round( height / 2 ))
+    centre_x = int(round(width / 2))
+    centre_y = int(round(height / 2))
 
     angle = rand.randint(0, 359)  # Angle from x-axis, counter-clockwise through quadrant I
     radius = int(2 * height / 5)
@@ -186,7 +187,7 @@ def remove_hole(img):
 
     return dmg, att
 
-def bullet_holes(img):
+def bullet_holes(img, min_holes=7, max_holes=30, target=-1):
     """Create randomised bullet holes of varying sizes."""
     painted = validate_sign(img).copy()
     bullet_holes = painted[:,:,3].copy()
@@ -194,32 +195,65 @@ def bullet_holes(img):
 
     height, width, _ = img.shape
 
-    # Apply damage to 'painted' and 'bullet_holes'
-    num_holes = rand.randint(7, 30)  # Number of holes on sign
-    for x in range(num_holes):
-        x = rand.randint(0, height)  # x and y coordinates
-        y = rand.randint(0, height)
-        min_size, max_size = int(round(width*0.01)), int(round(width*0.03))
-        size = rand.randint(min_size, max_size)  # Size of bullet hole
-        annulus = rand.uniform(1.6, 2.2)  # Multiplication factor to determine size of annulus
-        an = 200  # Colour of damaged 'paint' outer annulus
-        hl = rand.randint(0, 150)  # How dark the hole is if it DIDN'T penetrate
-        
-        # Paint the ring around the bullet hole first
-        cv.circle(painted, (x,y), int(size * annulus), (an,an,an,255), -1)
-        # If the bullet didn't penetrate through the sign, grey out rather than making transparent
-        if (size < 6):
-            cv.circle(painted, (x,y), size, (hl,hl,hl,255), -1)
-        else:
-            cv.circle(bullet_holes, (x,y), size, (0,0,0), -1)
+    min_size, max_size = int(round(width*0.0125)), int(round(width*0.03))
+    an = 200  # Colour of damaged 'paint' outer annulus
+
+    # Apply damage until the target damage threshold is reached
+    ratio = 0
+    if target > 0.0 and target < 1.0:
+        # Loop for the number of target obscurities
+        num_holes = 0
+        while ratio < target:
+            x = rand.randint(0, height - 1)  # x and y coordinates
+            y = rand.randint(0, height - 1)
+            size = rand.randint(min_size, max_size)  # Size of bullet hole
+            annulus = rand.uniform(1.6, 2.2)  # Multiplication factor to determine size of annulus
+            hl = rand.randint(0, 150)  # How dark the hole is if it DIDN'T penetrate
+            
+            # Paint the ring around the bullet hole first
+            cv.circle(painted, (x,y), int(size * annulus), (an,an,an,255), -1)
+            # If the bullet didn't penetrate through the sign, grey out rather than making transparent
+            if (size < 6):  #TODO: Make relative to image width
+                cv.circle(painted, (x,y), size, (hl,hl,hl,255), -1)
+            else:
+                cv.circle(bullet_holes, (x,y), size, (0,0,0), -1)
+                dmg = cv.bitwise_and(painted, painted, mask=bullet_holes)
+            
+            ratio = round(calc_damage(painted, img), 3)
+            num_holes += 1
+    # Apply damage with a random number of holes within the specified min-max range
+    else:
+        num_holes = rand.randint(min_holes, max_holes)  # Number of holes on sign
+        for x in range(num_holes):
+            # If the 'hole' (i.e. the imaginary bullet) misses the sign, get new coordinates
+            alpha = 0
+            while alpha != 255:
+                x = rand.randint(0, width - 1)
+                y = rand.randint(0, height - 1)
+                alpha = bullet_holes[y, x]
+            
+            size = rand.randint(min_size, max_size)  # Size of bullet hole
+            annulus = rand.uniform(1.6, 2.2)  # Multiplication factor to determine size of annulus
+            hl = rand.randint(0, 150)  # How dark the hole is if it DIDN'T penetrate
+            
+            # Paint the ring around the bullet hole first
+            cv.circle(painted, (x,y), int(size * annulus), (an,an,an,255), -1)
+            # If the bullet didn't penetrate through the sign, grey out rather than making transparent
+            if (size < 6):  #TODO: Make relative to image width
+                cv.circle(painted, (x,y), size, (hl,hl,hl,255), -1)
+            else:
+                cv.circle(bullet_holes, (x,y), size, (0,0,0), -1)
+
+        dmg = cv.bitwise_and(painted, painted, mask=bullet_holes)
+        ratio = round(calc_damage(painted, img), 3)
     
-    dmg = cv.bitwise_and(painted, painted, mask=bullet_holes)
+    # dmg = cv.bitwise_and(painted, painted, mask=bullet_holes)
 
     # Assign labels
     att = attributes
     att["damage_type"] = "bullet_holes"
     att["tag"]    = str(num_holes)
-    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
+    att["damage_ratio"]  = "{:.3f}".format(ratio)
 
     return dmg, att
 
@@ -299,7 +333,7 @@ def graffiti(img, color=(0,0,0), initial=0.1, final=0.4, step=0.1):
             draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color)
             # Make the end point the starting point for the next curve
             x0, y0 = x2, y2
-            ratio = round( calc_ratio(grft, img), 4 )
+            ratio = round(calc_ratio(grft, img), 4)
         # Add a copy to the list and continue layering more graffiti
         grfts.append(grft.copy())
         targets.append(target)

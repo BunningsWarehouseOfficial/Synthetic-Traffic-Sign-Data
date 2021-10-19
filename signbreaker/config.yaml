@@ -1,7 +1,7 @@
 # TODO: Some or all of these may be command line parameters in the future
 
 # The width of the square to which sign images will be scaled
-sign_width: 200
+sign_width: 200  # Default: 200
 
 # When to stop the program, in the case that not all of the sequential steps are required
 final_op: 'dataset'  # Either 'process', 'damage', 'transform', 'manipulate', or 'dataset'
@@ -23,8 +23,14 @@ damage_types:
   # - tinted_yellow (not implemented)
   # - grey (not implemented)
 
+# Parameters for the bullet_holes damage type (note: num_holes may include 'holes' that missed the sign)
+bullet_holes:
+  min_holes: 7  # Not relevant if target != -1
+  max_holes: 30  # Not relevant if target != -1
+  target: -1   # The target level of damage, either -1 or in range (0.0,1.0), <= 0.50 is recommended
+
 # Parameters for the graffiti damage type, each in range (0.0,1.0], recommended to be in increments of 0.1
 graffiti:
-  initial: 0.1  # First target level of obscurity
-  final: 0.5    # Level of obscurity to stop at
-  step: 0.1     # Step for the next level of obscurity
+  initial: 0.1  # First target level of damage
+  final: 0.5    # Level of damage to stop at
+  step: 0.1     # Step for the next level of damage

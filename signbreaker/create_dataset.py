@@ -46,12 +46,21 @@ def main():
     for dmg in config['damage_types']:
         if not dmg in valid_dmg:
             raise ValueError(f"Config error: '{dmg}' is an invalid damage type.\n")
+
+    b_params = config['bullet_holes']
+    if b_params['min_holes'] <= 0 or b_params['max_holes'] <= 0:
+        raise ValueError(f"Config error: 'bullet_holes' parameters must be > 0.\n")
+    if b_params['min_holes'] > b_params['max_holes']:
+        raise ValueError(f"Config error: 'bullet_holes:min_holes' must be <= 'bullet_holes:max_holes'.\n")
+    if (b_params['target'] <= 0.0 or b_params['target'] >= 1.0) and b_params['target'] != -1:
+        raise ValueError(f"Config error: 'bullet_holes:target' must be either -1 or in the range (0.0,1.0).\n")
+
     g_params = config['graffiti']
     for g_param in g_params:
         if g_params[g_param] <= 0.0 or g_params[g_param] > 1.0:
             raise ValueError(f"Config error: must have 0.0 < 'graffiti:{g_param}' <= 1.0.\n")
     if g_params['initial'] > g_params['final']:
-        raise ValueError("Config error: 'graffiti:initial' must be <= graffiti:final.\n")
+        raise ValueError("Config error: 'graffiti:initial' must be <= 'graffiti:final'.\n")
 
     print("Generating dataset using the 'config.yaml' configuration.\n")
 
