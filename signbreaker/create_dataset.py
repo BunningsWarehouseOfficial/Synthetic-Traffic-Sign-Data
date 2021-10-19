@@ -101,7 +101,7 @@ def main():
     processed = load_files(processed_dir)
     for image_path in processed:
         print(f"Damaging signs: {float(ii) / float(len(processed)):06.2%}", end='\r')
-        damaged_data.append(damage_image(image_path, damaged_dir, config['damage_types']))
+        damaged_data.append(damage_image(image_path, damaged_dir, config))
         ii += 1
     print(f"Damaging signs: 100.0%\r\n")
     damaged_data = [cell for row in damaged_data for cell in row]  # Flatten the list

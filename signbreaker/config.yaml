@@ -16,6 +16,12 @@ damage_types:
   - big_hole
   - bullet_holes
   - graffiti
-  # - bend (not implemented)
+  - bend
   # - tinted_yellow (not implemented)
   # - grey (not implemented)
+
+# Parameters for the graffiti damage type, each in the float range [0,1]
+graffiti:
+  initial: 0.2  # First target level of obscurity
+  final: 0.4    # Level of obscurity to stop at
+  step: 0.2    # Step for the next level of obscurity

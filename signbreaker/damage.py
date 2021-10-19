@@ -18,7 +18,7 @@ attributes = {
     "damage_ratio"  : 0.0,     # Quantity of damage (0 for no damage, 1 for all damage)
     }
 
-def damage_image(image_path, output_dir, types):
+def damage_image(image_path, output_dir, config):
     """Applies all the different types of damage to the imported image, saving each one"""
     damaged_images = []
     img = cv.imread(image_path, cv.IMREAD_UNCHANGED)
@@ -33,6 +33,7 @@ def damage_image(image_path, output_dir, types):
     if (not os.path.exists(output_path)):
         os.makedirs(output_path)
 
+    types = config['damage_types']
 
     def simple_damage(dmg, att):
         """Helper function to avoid repetition."""
@@ -72,8 +73,10 @@ def damage_image(image_path, output_dir, types):
                 dmg_path, int(class_num), attrs[ii]["damage_type"], attrs[ii]["tag"], float(attrs[ii]["damage_ratio"])))
 
     # GRAFFITI
+    g_conf = config['graffiti']
     if 'graffiti' in types:
-        dmgs, attrs = graffiti(img, color=(0,0,0), initial=0.1, final=0.4, step=0.1)
+        dmgs, attrs = graffiti(img, color=(0,0,0),
+                               initial=g_conf['initial'], final=g_conf['final'], step=g_conf['step'])
         for ii in range(len(dmgs)):
             dmg_path = os.path.join(output_path, class_num + "_" + attrs[ii]["damage_type"] + "_" + str(attrs[ii]["damage_ratio"]) + ".png")
             cv.imwrite(dmg_path, dmgs[ii])
@@ -347,7 +350,6 @@ def combine(img1, img2, beta_diff=-20):
 
     return result
 
-#TODO: Function has redundant code, could be shortened
 def bend_vertical(img):
     """Apply perspective warp to tilt images and combine to produce bent signs.
        :returns: a list of bent signs and a list of corresponding attributes"""
