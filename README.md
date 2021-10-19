@@ -34,7 +34,7 @@ $ python create_dataset.py
 ```
 The generator can be configured with by modifying the `config.yaml` file.
 
-Please allow for sufficient storage space when running the dataset generator.
+Please allow for sufficient storage space when running the dataset generator. With the default config values and the below example inputs, have 50GB available to be on the safe side.
 
 **Example traffic sign templates** for data generation can be downloaded [here](https://drive.google.com/file/d/1a65EPNK_3gNII8VXBKDZ0N6H_mL6F6P1/view?usp=sharing).
 
