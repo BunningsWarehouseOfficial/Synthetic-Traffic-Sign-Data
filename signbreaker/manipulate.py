@@ -19,7 +19,7 @@ def img_transform(damaged_image, output_path, num_transform):
 
     dst = []
 
-    # Transform fn names are numbered in order of (subjective) significance in visual difference
+    # Transform fn names are numbered in order of (my subjective) significance in visual difference
     #[0] 0 FORWARD FACING
     def t0():
         dst.append( img )

@@ -100,9 +100,6 @@ def new_data(synth_image, labels_file):
     axes[3] += y
     synth_image.bounding_axes = axes
 
-    
-
-
     label = synth_image.get_label()
     labels_file.write(label)
     image = overlay(fg, bg, x, y)

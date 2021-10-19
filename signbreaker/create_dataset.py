@@ -26,6 +26,10 @@ def main():
 
     #TODO: Documentation in the dataset readme for what the tag of each damage type means
 
+    #TODO: Add randomisation factor somehwere so that, if desired, a new image won't be generated for every
+    #      single class+damage+transformation+(manipulation+background) combination, with the factor being
+    #      introduced somewhere within the brackets
+
     # Open and validate config file
     import yaml
     with open("config.yaml", "r") as ymlfile:
@@ -89,7 +93,11 @@ def main():
         shutil.rmtree(processed_dir)
     os.mkdir(processed_dir)
 
-    ### IMAGE PREPROCESSING ###
+
+
+    #############################
+    ###  IMAGE PREPROCESSING  ###
+    #############################
     # Rescale images and make white backgrounds transparent
     paths = load_files(input_dir)
     for path in paths:
@@ -106,7 +114,11 @@ def main():
     if config['final_op'] == 'process':
         return
 
-    ### APPLYING DAMAGE ###
+
+
+    #########################
+    ###  APPLYING DAMAGE  ###
+    #########################
     # Remove any old output and recreate the output directory
     # reusable = config['reuse_damage']  #TODO: Implement optional damage reuse or any dir reuse (check downstream first)
     # if not reusable:
@@ -131,7 +143,12 @@ def main():
     if config['final_op'] == 'damage':
         return
 
-    ### APPLYING TRANSFORMATIONS ###
+
+
+    #FIXME: 'transform_type' final label keeps having value None despite synth_image.set_transformation() working
+    ##################################
+    ###  APPLYING TRANSFORMATIONS  ###
+    ##################################
     if os.path.exists(transformed_dir):
         shutil.rmtree(transformed_dir)
     os.mkdir(transformed_dir)
@@ -147,7 +164,11 @@ def main():
     if config['final_op'] == 'transform':
         return
 
-    ### MANIPULATING EXPOSURE/FADE ###
+
+
+    ####################################
+    ###  MANIPULATING EXPOSURE/FADE  ###
+    ####################################
     if os.path.exists(manipulated_dir):
         shutil.rmtree(manipulated_dir)
     os.mkdir(manipulated_dir)
@@ -208,7 +229,11 @@ def main():
     if config['final_op'] == 'manipulate':
         return
 
-    ### GENERATING FINAL DATA ###
+
+
+    ###############################
+    ###  GENERATING FINAL DATA  ###
+    ###############################
     images_dir = os.path.join(final_dir, "Images")
     labels_path = os.path.join(final_dir, "labels.txt")
     about_path = os.path.join(final_dir, "generated_images_about.txt")
@@ -274,7 +299,10 @@ def main():
         text_file.write(string)
 
 
-    ### CREATE DATASET README ### #TODO: Really necessary?
+
+    ###############################
+    ###  CREATE DATASET README  ###
+    ###############################
     content = '''
     -----------------------------------------------
     |                     -*-                     |
@@ -283,8 +311,8 @@ def main():
     -----------------------------------------------
 
     This directory contains the generated training
-    set to be used for training a Convolutional
-    Neural Network (CNN).
+    set used for training a Convolutional Neural
+    Network (CNN) to detect traffic signs.
 
     It may be used for any detector desired and it
     is not limited to a specific set of traffic
@@ -296,11 +324,12 @@ def main():
     ----------------------------------------------
 
     The number of examples is based on the number:
-    ->of traffic signs that were used as templates
-    ->of damage types applied to images
-    ->of transformations in image manipulations
-    ->of the brightness variation values used
-    ->of blending procedures
+    - of traffic signs that were used as templates
+    - of damage types applied to images
+    - of transformations in image manipulations
+    - of the brightness variation values used
+    - of blending procedures
+    - of background images used
 
 
     ----------------------------------------------
@@ -318,16 +347,48 @@ def main():
 
 
     ----------------------------------------------
+    Label tags for each damage type
+    ----------------------------------------------
+
+    original:
+        'no_damage=-1', meaning no damage.
+
+    quadrant:
+        'quadrant=XXX', where (X) is the missing
+        quadrant with range [1,4].
+
+    big_hole:
+        'big_hole=AAA_BBB_CCC_DDD, where (A) is
+        the angle of placement, (B) is the radius
+        of the hole, and the x and y coordinates
+        of the hole's centre are (C) and (D).
+
+    bullet_holes:
+        'bullet_holes=NNN', where (N) is the
+        number of holes made in the sign.
+
+    graffiti:
+        'graffiti=TTT', where (T) is the *target*
+        damage. As can be seen in the labels, the
+        actual damage may be higher or lower.
+
+    bend:
+        'bend=LLL_RRR', where (L) and (R) are the
+        angle of bending on the left and right
+        sides of the sign respectively.
+
+
+    ----------------------------------------------
     Additional information
     ----------------------------------------------
 
-    Contact Email:
-    Original Code:
-        asterga@essex.ac.uk
+    Contact Emails:
+        Original Code:
+            asterga@essex.ac.uk
 
-    Adapted Damage Code:
-        kristian.rados@student.curtin.edu.au
-        seana.dale@student.curtin.edu.au
+        Adapted Damage Code:
+            kristian.rados@student.curtin.edu.au
+            seana.dale@student.curtin.edu.au
 
 
     ----------------------------------------------
