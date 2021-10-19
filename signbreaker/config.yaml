@@ -31,6 +31,6 @@ bullet_holes:
 
 # Parameters for the graffiti damage type, each in range (0.0,1.0], recommended to be in increments of 0.1
 graffiti:
-  initial: 0.1  # First target level of damage
-  final: 0.5    # Level of damage to stop at
-  step: 0.1     # Step for the next level of damage
+  initial: 0.2  # First target level of damage
+  final: 0.4    # Level of damage to stop at
+  step: 0.2     # Step for the next level of damage
