@@ -1,7 +1,7 @@
-Traffic_Signs_Templates/*
-Traffic_Signs_Exposure_Manipulation/*
-Traffic_Signs_Fade_Manipulation/*
-SGTSD/*
-SGTSD*
+signbreaker/Sign_Templates/*
+signbreaker/SGTS_Dataset*
+
 .vscode/settings.json
 __pycache__/*
+signbreaker/__pycache__/*
+*.zip

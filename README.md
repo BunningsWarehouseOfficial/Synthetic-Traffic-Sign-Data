@@ -1,4 +1,4 @@
-# Utilising Synthetic Data Generation for the Detection of Damage in Traffic Signs
+# Synthetic Dataset Generation for Traffic Sign Damage Detection
 
 🚧 *Work in progress.*
 
@@ -19,9 +19,26 @@ $ sudo apt-get update
 $ sudo apt-get install git
 $ git clone https://github.com/BunningsWarehouseOfficial/Traffic-Sign-Damage-Detection-using-Synthesised-Training-Data.git
 ```
+To install the required packages, simply execute the following command:
+```sh
+$ pip3 install -r requirements.txt
+```
 
 [comment]: <> (Note that the synthetic dataset SGTSD will need aprox. 10GB and the sample set used for training will be close to 1GB.)
-Please allow sufficient storage space when running the dataset generator.
+
+
+## Usage
+Navigate to the `signbreaker` directory. To run the generator, simply execute the following command:
+```sh
+$ python create_dataset.py
+```
+The generator can be configured with by modifying the `config.yaml` file.
+
+Please allow for sufficient storage space when running the dataset generator. With the default config values and the below example inputs, have 50GB available to be on the safe side.
+
+**Example traffic sign templates** for data generation can be downloaded [here](https://drive.google.com/file/d/1a65EPNK_3gNII8VXBKDZ0N6H_mL6F6P1/view?usp=sharing).
+
+**Example backgrounds** for data generation can be downloaded [here](https://drive.google.com/file/d/1WCfWVruL0_WxnMaYJ-qzQD0cnFO478fh/view?usp=sharing).
 
 ## License
 MIT

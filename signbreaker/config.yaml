@@ -1,0 +1,36 @@
+# TODO: Some or all of these may be command line parameters in the future
+
+# The width of the square to which sign images will be scaled
+sign_width: 200  # Default: 200
+
+# When to stop the program, in the case that not all of the sequential steps are required
+final_op: 'dataset'  # Either 'process', 'damage', 'transform', 'manipulate', or 'dataset'
+
+# The number of transformations applied to each damaged sign template
+num_transform: 6  # Range: [0,15] | low: [1,5], medium: [6,10], high: [11,15]
+
+# Method of image manipulation: either 'exposure' or 'fade' (not implemented)
+man_method: exposure
+
+# reuse_damage: false  # Whether to generate new damage 
+damage_types:
+  - original  # Original undamaged sign
+  - quadrant
+  - big_hole
+  - bullet_holes
+  - graffiti
+  - bend
+  # - tinted_yellow (not implemented)
+  # - grey (not implemented)
+
+# Parameters for the bullet_holes damage type (note: num_holes may include 'holes' that missed the sign)
+bullet_holes:
+  min_holes: 7  # Not relevant if target != -1
+  max_holes: 30  # Not relevant if target != -1
+  target: -1   # The target level of damage, either -1 or in range (0.0,1.0), <= 0.50 is recommended
+
+# Parameters for the graffiti damage type, each in range (0.0,1.0], recommended to be in increments of 0.1
+graffiti:
+  initial: 0.2  # First target level of damage
+  final: 0.4    # Level of damage to stop at
+  step: 0.2     # Step for the next level of damage
