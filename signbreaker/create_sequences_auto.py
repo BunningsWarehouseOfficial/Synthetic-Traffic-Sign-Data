@@ -111,8 +111,8 @@ def produce_anchors(bg_size, fovy, fovx, size, sign_near_z=4, sign_far_z=20):
     if not fovy:
         fovy = 2 * math.atan(math.tan(math.radians(fovx) / 2) * aspect_ratio)
     proj_matrix = create_perspective(fovy, aspect_ratio, 0.1, 50)
-    sign_near = SignObject(x1=6, y1=2, z=sign_near_z, size=size)
-    sign_far = SignObject(x1=6, y1=2, z=sign_far_z, size=size)
+    sign_near = SignObject(x1=6/2, y1=2/2, z=sign_near_z, size=size)
+    sign_far = SignObject(x1=6/2, y1=2/2, z=sign_far_z, size=size)
     
     anchors['near'] = sign_near.perspective_transform(proj_matrix)
     anchors['far'] = sign_far.perspective_transform(proj_matrix)
