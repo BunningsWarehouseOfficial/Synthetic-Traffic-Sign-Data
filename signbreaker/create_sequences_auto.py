@@ -43,11 +43,14 @@ class Anchor(object):
       
         
 class SignObject(object):
-    def __init__(self, x1, y1, z, size):
-        self.x1 = x1
-        self.x2 = x1 + size
-        self.y1 = y1
-        self.y2 = y1 - size
+    def __init__(self, centre_x, centre_y, z, size):
+        # Top left corner of sign
+        self.x1 = centre_x - size / 2
+        self.y1 = centre_x + size / 2
+        # Bottom right corner of sign
+        self.x2 = centre_y + size / 2
+        self.y2 = centre_y - size / 2
+        # Virtual distance from camera to sign
         self.z = z
         
     def perspective_transform(self, proj_matrix):
@@ -55,12 +58,13 @@ class SignObject(object):
         Applies perspective projection to the sign object, and returns the coordinates of the top-left and bottom-right
         corners of the sign object in the image.
         """
-        x1, y1, x2, y2, z = self.x1, self.y1, self.x2, self.y2, self.z
-        x1n, y1n, _, w1 = proj_matrix.dot(np.array([x1, y1, z, 1]))
-        x2n, y2n, _, w2 = proj_matrix.dot(np.array([x2, y2, z, 1]))
-        centre_x = (x1n / w1 + x2n / w2) / 2
-        centre_y = (y1n / w1 + y2n / w2) / 2
-        scaled_size = int(abs(x2n / w1 - x1n / w2))
+        # Scale the sign coordinates by the perspective projection matrix
+        x1, y1, _, w = proj_matrix.dot(np.array([self.x1, self.y1, self.z, 1]))
+        x2, y2, _, w = proj_matrix.dot(np.array([self.x2, self.y2, self.z, 1]))
+        x1f, y1f, x2f, y2f = x1/w, y1/w, x2/w, y2/w
+        centre_x = (x1f + x2f) / 2
+        centre_y = (y1f + y2f) / 2
+        scaled_size = abs(x2f - x1f)
         return Anchor(x=centre_x, y=centre_y, size=scaled_size) 
 
 
@@ -105,14 +109,19 @@ def create_frustrum(left, right, bottom, top, near, far):
                  dtype=np.float32)  
     
 
-def produce_anchors(bg_size, fovy, fovx, size, sign_near_z=4, sign_far_z=20):
+def produce_anchors(bg_size, fovy=45, fovx=60, size=1, centre_x=1.5, centre_y=1, sign_near_dist=6, sign_far_dist=20):
     anchors = {}
     aspect_ratio = bg_size['width'] / bg_size['height']
     if not fovy:
         fovy = 2 * math.atan(math.tan(math.radians(fovx) / 2) * aspect_ratio)
     proj_matrix = create_perspective(fovy, aspect_ratio, 0.1, 50)
-    sign_near = SignObject(x1=6/2, y1=2/2, z=sign_near_z, size=size)
-    sign_far = SignObject(x1=6/2, y1=2/2, z=sign_far_z, size=size)
+    
+    # Projection matrix assumes negative z values in front of camera
+    sign_near_z = -1 * sign_near_dist
+    sign_far_z = -1 * sign_far_dist
+    
+    sign_near = SignObject(centre_x, centre_y, z=sign_near_z, size=size)
+    sign_far = SignObject(centre_x, centre_y, z=sign_far_z, size=size)
     
     anchors['near'] = sign_near.perspective_transform(proj_matrix)
     anchors['far'] = sign_far.perspective_transform(proj_matrix)
