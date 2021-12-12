@@ -41,17 +41,24 @@ def parse_arguments():
 
 
 class Anchor(object):
-    def __init__(self, bg_size, NDC_x, NDC_y, x_size):
+    def __init__(self, bg_size, NDC_x, NDC_y, x_size, y_size):
         height, width, _ = bg_size
+        x_size, y_size = x_size / 2, y_size / 2
         
         # Converting from normalized device coordinates to 0-1 range
         NDC_x = (NDC_x + 1) / 2
-        NDC_y = 1 - ((NDC_y + 1) / 2)
+        NDC_x = min(max(NDC_x, 0), 1 - x_size)
+        
+        NDC_y = 1 - ((NDC_y + 0.45) / 1.45)
+        NDC_y = min(max(NDC_y, 0), 1 - y_size)
         
         # Converting from 0-1 range to pixel coordinates
-        self.size = int((x_size / 2) * width)
+        self.size = int(x_size * width)
         self.screen_x = int(NDC_x * width)
         self.screen_y = int(NDC_y * height)
+        
+    def __str__(self):
+        return f"Anchor: {self.screen_x}, {self.screen_y}, {self.size}"
       
         
 class SignObject(object):
@@ -78,7 +85,8 @@ class SignObject(object):
         x1f, y1f, x2f, y2f = x1/w, y1/w, x2/w, y2/w
         
         x_size = abs(x2f - x1f)
-        return Anchor(bg_size, NDC_x=x1f, NDC_y=y1f, x_size=x_size)
+        y_size = abs(y2f - y1f)
+        return Anchor(bg_size, NDC_x=x1f, NDC_y=y1f, x_size=x_size, y_size=y_size)
 
 
 def dir_path(path):
@@ -98,7 +106,6 @@ def create_perspective(fovy, aspect, near, far):
     bottom = -top
     right = top * aspect
     left = -right
-
     return create_frustrum(left, right, bottom, top, near, far)
 
 
@@ -108,18 +115,17 @@ def create_frustrum(left, right, bottom, top, near, far):
     if (near <= 0 or far <= 0):
         raise ValueError('Near and far must be positive')
     
-    sx = 2 * near / (right - left)
-    sy = 2 * near / (top - bottom)
-    c2 = -1 * (far + near) / (far - near)
-    c1 = 2 * near * far / (near - far)
-    tx = -near * (left + right) / (right - left)
-    ty = -near * (bottom + top) / (top - bottom)
-    
-    return np.array([[    sx, 0, 0, tx    ],
-                    [     0, sy, 0, ty    ],
-                    [     0, 0, c2, c1    ],
-                    [     0, 0, -1, 0     ]], 
-                 dtype=np.float32)  
+    perspective_matrix =  np.array([[near, 0, 0, 0],
+                                    [0, near, 0, 0],
+                                    [0, 0, 1, 0],
+                                    [0, 0, -1, 0]], 
+                                    dtype=np.float32) 
+    NDC_matrix =  np.array([[2/(right-left), 0, 0, 0],
+                            [0, 2/(top-bottom), 0, 0],
+                            [0, 0, 1, 0],
+                            [0, 0, 0, 1]],
+                            dtype=np.float32)
+    return np.dot(NDC_matrix, perspective_matrix)
     
 
 def produce_anchors(bg_size, size, x, y, sign_near_dist, sign_far_dist):
@@ -136,7 +142,9 @@ def produce_anchors(bg_size, size, x, y, sign_near_dist, sign_far_dist):
     sign_far = SignObject(x, y, z=sign_far_z, size=size)
     
     anchors['near'] = sign_near.perspective_transform(bg_size, proj_matrix)
+    print(anchors['near'])
     anchors['far'] = sign_far.perspective_transform(bg_size, proj_matrix)
+    print(anchors['far'])
     return anchors
     
 
@@ -198,7 +206,7 @@ def main():
   
   
 # World coordinates for sign objects
-sign_coords = {'x':1.5, 'y':1, 'near_dist':4, 'far_dist':20, 'size':0.5}
+sign_coords = {'x':1.5, 'y':1, 'near_dist':4, 'far_dist':50, 'size':0.5}
 
 
 def get_view_plane_bounds(distance, fovy, aspect_ratio):
@@ -233,8 +241,7 @@ def z_on_change(val):
 def x_on_change(val):
     x_prop = 2 * val / X_TRACKBAR_MAX - 1
     right_bound = get_view_plane_bounds(sign_coords['near_dist'], FOVY, aspect_ratio)['right']
-    world_x = x_prop * right_bound
-    sign_coords['x'] = min(max(world_x, -right_bound), right_bound - sign_coords['size'])
+    sign_coords['x'] = x_prop * right_bound
     draw_anchors(sign_path, bg_path, sign_coords['size'], sign_coords['x'], sign_coords['y'], 
                 sign_coords['near_dist'], sign_coords['far_dist'])
     
@@ -242,8 +249,7 @@ def x_on_change(val):
 def y_on_change(val):
     y_prop = 2 * val / Y_TRACKBAR_MAX - 1
     upper_bound = get_view_plane_bounds(sign_coords['near_dist'], FOVY, aspect_ratio)['top']
-    world_y = y_prop * upper_bound
-    sign_coords['y'] = min(max(world_y, -upper_bound + sign_coords['size']), upper_bound)
+    sign_coords['y'] = y_prop * upper_bound
     draw_anchors(sign_path, bg_path, sign_coords['size'], sign_coords['x'], sign_coords['y'], 
                 sign_coords['near_dist'], sign_coords['far_dist'])   
 
@@ -254,6 +260,8 @@ sign_path = os.path.join(current_dir, 'Signs/0.jpg')
 img = cv2.imread(bg_path)
 height, width, channels = img.shape
 aspect_ratio = width / height
+
+#produce_anchors(img.shape, sign_coords['size'], sign_coords['x'], sign_coords['y'], sign_coords['near_dist'], sign_coords['far_dist'])
 
 cv2.imshow('image', img)
 
