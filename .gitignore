@@ -6,3 +6,4 @@ __pycache__/*
 signbreaker/__pycache__/*
 signbreaker/Signs
 *.zip
+*.jpg
