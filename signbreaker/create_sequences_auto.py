@@ -29,6 +29,8 @@ from utils import load_paths, overlay
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument("bg_dir", type=Path, help="path to background image directory")
+    parser.add_argument("fg_dir", type=Path, help="path to foreground/sign image directory")
     parser.add_argument("-n", "--num_frames", type=int, help="number of frames generated for each sequence", default=8)
     parser.add_argument("-d1", "--min_dist", type=int, help="minimum distance of sign from camera", default=4)
     parser.add_argument("-d2", "--max_dist", type=int, help="maximum distance of sign from camera", default=20)
@@ -118,7 +120,6 @@ def create_frustrum(left, right, bottom, top, near, far):
     bounds of the near clipping plane.
     Code adapted from http://learnwebgl.brown37.net/08_projections/projections_perspective.html
     """
-    # http://learnwebgl.brown37.net/08_projections/projections_perspective.html
     if (left == right or bottom == top or near == far):
         raise ValueError('Invalid parameters to createFrustrum')
     if (near <= 0 or far <= 0):
@@ -172,7 +173,7 @@ if __name__ == '__main__':
     print(f"Found {len(bg_paths)} background images.")
     print(f"Found {len(fg_paths)} foreground images.\n")
     
-    if os.listdir(args.output_dir) == [] or os.listdir(args.fg_dir) == []:
+    if os.listdir(args.bg_dir) == [] or os.listdir(args.fg_dir) == []:
         raise ValueError("Error: each input directory must have at least 1 image")
     
     # Directory structure setup
@@ -192,7 +193,7 @@ if __name__ == '__main__':
             fg_name = Path(fg_path).stem
             print(f'Generating sequence for background: {bg_name} and foreground: {fg_name}')
             
-            anchors = produce_anchors(bg_img.shape, SIGN_COORDS['x'], SIGN_COORDS['y'], 
+            anchors = produce_anchors(bg_img.shape, SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], 
                                     args.min_dist, args.max_dist, args.num_frames)
             
             for frame, anchor in enumerate(anchors):
