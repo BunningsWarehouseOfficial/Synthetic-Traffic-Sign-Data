@@ -9,6 +9,7 @@ evenly distributed distances over the near and far anchor distances, are produce
 
 The camera's focal length or field of view is also passed as a command line argument to apply perspective projection.
 """
+
 # Author: Kristian Rados, Allen Antony
 
 OUT_DIR         = "SGTS_Sequences"
@@ -33,14 +34,6 @@ def parse_arguments():
     parser.add_argument("-d2", "--max_dist", type=int, help="maximum distance of sign from camera", default=20)
     parser.add_argument("-f", "--fovy", type=float, help="vertical field of view of camera", default=60)
     return parser.parse_args()
-
-
-def dir_path(path):
-    """Validate an argument type as being a directory path."""
-    if os.path.isdir(path):
-        return path
-    else:
-        raise argparse.ArgumentTypeError(f"""{path} is not a valid path""")
 
 
 class Anchor(object):
@@ -161,23 +154,27 @@ def produce_anchors(bg_size, size, x, y, min_dist, max_dist, num_frames):
         anchor = sign_near.perspective_transform(bg_size, proj_matrix)
         anchors.append(anchor)
     return anchors
-        
 
-def main():
+
+SIGN_COORDS = {'x':1.5, 'y':1, 'size':0.5}      # World coordinates for sign objects
+NEAR_CLIPPING_PLANE_DIST = 2
+FAR_CLIPPING_PLANE_DIST = 50
+
+
+if __name__ == '__main__':
     args = parse_arguments()
-
+    FOVY = args.fovy
+    
     # Loading argument-specified directories
     bg_paths = load_paths(args.bg_dir)
     fg_paths = load_paths(args.fg_dir)
-    num_bg = len(bg_paths)
-    num_fg = len(fg_paths)
-    print(f"Found {num_bg} background images.")
-    print(f"Found {num_fg} foreground images.\n")
     
-    if num_bg == 0 or num_fg == 0:
-        print("Error: each input directory must have at least 1 image")
-        return
-
+    print(f"Found {len(bg_paths)} background images.")
+    print(f"Found {len(fg_paths)} foreground images.\n")
+    
+    if os.listdir(args.output_dir) == [] or os.listdir(args.fg_dir) == []:
+        raise ValueError("Error: each input directory must have at least 1 image")
+    
     # Directory structure setup
     if (not os.path.exists(OUT_DIR)):
         out_dir = OUT_DIR
@@ -186,86 +183,23 @@ def main():
         out_dir = OUT_DIR + timestamp
     os.mkdir(out_dir)
 
-    anchors = produce_anchors()
-    print("Anchors (x, y, size):\n" + str(anchors))
-
     # Generate sequences by overlaying foregrounds over backgrounds according to anchor point data
     for bg_path in bg_paths:
         for fg_path in fg_paths:
-            pass
-  
-  
-# World coordinates for sign objects
-SIGN_COORDS = {'x':1.5, 'y':1, 'size':0.5}
-
-
-class ShowAnchors(object):
-    """[summary]
-    A class which is a wrapper for the functions needed to show num_frames projected
-    signs at varying distances from the camera, using cv2.imshow
-    """
-    def __init__(self, bg_path, fg_path, min_dist, max_dist, num_frames):
-        self.bg_img = cv2.imread(bg_path)
-        self.fg_img = cv2.imread(fg_path)
-        self.display_img = self.bg_img.copy()
-        height, width, _ = self.bg_img.shape
-        self.aspect_ratio = width / height
-        self.min_dist = min_dist
-        self.max_dist = max_dist
-        self.num_frames = num_frames
-        
-        self.x_trackbar_max = 200
-        self.y_trackbar_max = 200
-        
-        self.__draw_anchors(SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], self.min_dist, self.max_dist,
-                          self.num_frames)
-        cv2.imwrite('overlayed_sequence_auto.jpg', self.display_img)
-        cv2.createTrackbar('x', 'image', 0, self.x_trackbar_max, self.__x_on_change)
-        cv2.createTrackbar('y', 'image', 0, self.y_trackbar_max, self.__y_on_change)
-        cv2.waitKey(0)
-        
-
-    def __get_view_plane_bounds(self, distance, fovy, aspect_ratio):
-        top = distance * math.tan(math.radians(fovy) / 2)
-        right = top * aspect_ratio
-        left = -right
-        bottom = -top
-        return {'top':top, 'right':right, 'left':left, 'bottom':bottom}
-
-
-    def __draw_anchors(self, fg_size, x, y, min_dist, max_dist, num_frames):
-        self.display_img = self.bg_img.copy()
-        anchors = produce_anchors(self.bg_img.shape, fg_size, x, y, min_dist, max_dist, num_frames)
-        
-        for anchor in anchors:
-            sign_img_scaled = cv2.resize(self.fg_img, (anchor.size, anchor.size))
-            self.display_img = overlay(sign_img_scaled, self.display_img, anchor.screen_x, anchor.screen_y)
-        cv2.imshow('image', self.display_img)
-        
-        
-    def __x_on_change(self, val):
-        x_prop = 2 * val / self.x_trackbar_max - 1
-        right_bound = self.__get_view_plane_bounds(args.min_dist, FOVY, self.aspect_ratio)['right']
-        SIGN_COORDS['x'] = x_prop * right_bound
-        self.__draw_anchors(SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], 
-                        self.min_dist, self.max_dist, self.num_frames)
-        
-        
-    def __y_on_change(self, val):
-        y_prop = 2 * val / self.y_trackbar_max - 1
-        upper_bound = self.__get_view_plane_bounds(args.min_dist, FOVY, self.aspect_ratio)['top']
-        SIGN_COORDS['y'] = y_prop * upper_bound
-        self.__draw_anchors(SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], 
-                        self.min_dist, self.max_dist, self.num_frames)   
-
-
-current_dir = os.path.dirname(os.path.realpath(__file__))
-bg_path = os.path.join(current_dir, 'Backgrounds/GTSDB/00049.png')
-sign_path = os.path.join(current_dir, 'Signs/0.jpg')
-args = parse_arguments()
-
-NEAR_CLIPPING_PLANE_DIST = 2
-FAR_CLIPPING_PLANE_DIST = 50
-FOVY = args.fovy
-
-signs_viewer = ShowAnchors(bg_path, sign_path, args.min_dist, args.max_dist, args.num_frames)           
+            bg_img = cv2.imread(bg_path)
+            fg_img = cv2.imread(fg_path)
+            bg_name = Path(bg_path).stem
+            fg_name = Path(fg_path).stem
+            print(f'Generating sequence for background: {bg_name} and foreground: {fg_name}')
+            
+            anchors = produce_anchors(bg_img.shape, SIGN_COORDS['x'], SIGN_COORDS['y'], 
+                                    args.min_dist, args.max_dist, args.num_frames)
+            
+            for frame, anchor in enumerate(anchors):
+                print(f'Generating frame {frame + 1} out of {len(anchors)}')
+                scaled_fg_img = cv2.resize(fg_img, (anchor.size, anchor.size))
+                new_img = overlay(scaled_fg_img, bg_img, anchor.screen_x, anchor.screen_y)
+                save_path = f'{out_dir}/{bg_name}_{fg_name}_{frame}.jpg'
+                cv2.imwrite(save_path, new_img)
+    
+    
