@@ -20,23 +20,18 @@ import argparse
 import cv2
 from datetime import datetime
 import numpy as np
-import ntpath
 import os
 import math
 from pathlib import Path
-from utils import load_paths, load_files, resize, overlay
-
-NEAR_CLIPPING_PLANE_DIST = 2
-FAR_CLIPPING_PLANE_DIST = 50
-FOVY = 45
-FOVX = 60
+from utils import load_paths, overlay
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("bg_dir", type=dir_path, help="path to background image directory")
-    parser.add_argument("fg_dir", type=dir_path, help="path to foreground/sign image directory")
     parser.add_argument("-n", "--num_frames", type=int, help="number of frames generated for each sequence", default=8)
+    parser.add_argument("-d1", "--min_dist", type=int, help="minimum distance of sign from camera", default=4)
+    parser.add_argument("-d2", "--max_dist", type=int, help="maximum distance of sign from camera", default=20)
+    parser.add_argument("-f", "--fovy", type=float, help="vertical field of view of camera", default=60)
     return parser.parse_args()
 
 
@@ -49,6 +44,8 @@ class Anchor(object):
         NDC_x = (NDC_x + 1) / 2
         NDC_x = min(max(NDC_x, 0), 1 - x_size)
         
+        # Converting from normalized device coordinates to 0-1 range and shifting
+        # vanishing point vertically
         NDC_y = 1 - ((NDC_y + 0.45) / 1.45)
         NDC_y = min(max(NDC_y, 0), 1 - y_size)
         
@@ -128,49 +125,19 @@ def create_frustrum(left, right, bottom, top, near, far):
     return np.dot(NDC_matrix, perspective_matrix)
     
 
-def produce_anchors(bg_size, size, x, y, sign_near_dist, sign_far_dist):
-    anchors = {}
+def produce_anchors(bg_size, size, x, y, min_dist, max_dist, num_frames):
+    anchors = []
     height, width, _ = bg_size
     aspect_ratio = width / height
     proj_matrix = create_perspective(FOVY, aspect_ratio, NEAR_CLIPPING_PLANE_DIST, FAR_CLIPPING_PLANE_DIST)
     
     # Projection matrix assumes negative z values in front of camera
-    sign_near_z = -1 * sign_near_dist
-    sign_far_z = -1 * sign_far_dist
-    
-    sign_near = SignObject(x, y, z=sign_near_z, size=size)
-    sign_far = SignObject(x, y, z=sign_far_z, size=size)
-    
-    anchors['near'] = sign_near.perspective_transform(bg_size, proj_matrix)
-    print(anchors['near'])
-    anchors['far'] = sign_far.perspective_transform(bg_size, proj_matrix)
-    print(anchors['far'])
+    for z in np.linspace(min_dist, max_dist, num=num_frames, endpoint=True):
+        sign_z = -1 * z
+        sign_near = SignObject(x, y, z=sign_z, size=size)
+        anchor = sign_near.perspective_transform(bg_size, proj_matrix)
+        anchors.append(anchor)
     return anchors
-    
-
-def interpolate_frames(bg_path, fg_path, num_frames, anchors):
-    bg_name = Path(bg_path).stem
-    fg_name = Path(fg_path).stem
-    
-    seq_ratio = 1 / (num_frames - 1)     
-    near_anchor = anchors['near']
-    far_anchor = anchors['far']
-
-    x_diff = near_anchor.x - far_anchor.x 
-    y_diff = near_anchor.y - far_anchor.y
-    size_diff = near_anchor.size - far_anchor.size
-
-    for frame in range(num_frames):
-        diff_ratio = frame * seq_ratio
-        size = int(near_anchor.size + (diff_ratio * size_diff))
-        x = int(near_anchor.x + (diff_ratio * x_diff))
-        y = int(near_anchor.y + (diff_ratio * y_diff))
-
-        interpolated_fg = cv2.resize(cv2.imread(fg_path), (size, size))
-        img_new = overlay(interpolated_fg, cv2.imread(bg_path), x, y)
-        
-        img_new_path = os.path.join(OUT_DIR, bg_name + "_" + fg_name + "_" + str(frame) + ".jpg")
-        cv2.imwrite(img_new_path, img_new)
         
 
 def main():
@@ -202,11 +169,11 @@ def main():
     # Generate sequences by overlaying foregrounds over backgrounds according to anchor point data
     for bg_path in bg_paths:
         for fg_path in fg_paths:
-            interpolate_frames(bg_path, fg_path, args.num_frames, anchors)
+            pass
   
   
 # World coordinates for sign objects
-sign_coords = {'x':1.5, 'y':1, 'near_dist':4, 'far_dist':50, 'size':0.5}
+sign_coords = {'x':1.5, 'y':1, 'size':0.5}
 
 
 def get_view_plane_bounds(distance, fovy, aspect_ratio):
@@ -217,59 +184,51 @@ def get_view_plane_bounds(distance, fovy, aspect_ratio):
     return {'top':top, 'right':right, 'left':left, 'bottom':bottom}
 
 
-def draw_anchors(sign_path, bg_path, fg_size, x, y, near_dist, far_dist):
+def draw_anchors(sign_path, bg_path, fg_size, x, y, min_dist, max_dist, num_frames):
     sign_img = cv2.imread(sign_path)
     bg_img = cv2.imread(bg_path)
     
-    anchors = produce_anchors(bg_img.shape, fg_size, x, y, near_dist, far_dist)
-    sign_img_near = cv2.resize(sign_img, (anchors['near'].size, anchors['near'].size))
-    sign_img_far = cv2.resize(sign_img, (anchors['far'].size, anchors['far'].size))
-    final_img = overlay(sign_img_far, bg_img, anchors['far'].screen_x, anchors['far'].screen_y)
-    final_img = overlay(sign_img_near, final_img, anchors['near'].screen_x, anchors['near'].screen_y)
-    print(f'X: {anchors["near"].screen_x}, Y: {anchors["near"].screen_y}, Size: {anchors["near"].size}')
-    cv2.imshow('image', final_img)
+    anchors = produce_anchors(bg_img.shape, fg_size, x, y, min_dist, max_dist, num_frames)
     
-    
-# Add slider callbacks
-def z_on_change(val):
-    z_prop = val / Z_TRACKBAR_MAX
-    sign_coords['near_dist'] = z_prop * FAR_CLIPPING_PLANE_DIST + NEAR_CLIPPING_PLANE_DIST + 0.5
-    draw_anchors(sign_path, bg_path, sign_coords['size'], sign_coords['x'], sign_coords['y'], 
-                sign_coords['near_dist'], sign_coords['far_dist'])
+    for anchor in anchors:
+        sign_img_scaled = cv2.resize(sign_img, (anchor.size, anchor.size))
+        bg_img = overlay(sign_img_scaled, bg_img, anchor.screen_x, anchor.screen_y)
+    cv2.imshow('image', bg_img)
     
     
 def x_on_change(val):
     x_prop = 2 * val / X_TRACKBAR_MAX - 1
-    right_bound = get_view_plane_bounds(sign_coords['near_dist'], FOVY, aspect_ratio)['right']
+    right_bound = get_view_plane_bounds(args.min_dist, FOVY, aspect_ratio)['right']
     sign_coords['x'] = x_prop * right_bound
     draw_anchors(sign_path, bg_path, sign_coords['size'], sign_coords['x'], sign_coords['y'], 
-                sign_coords['near_dist'], sign_coords['far_dist'])
+                args.min_dist, args.max_dist, args.num_frames)
     
     
 def y_on_change(val):
     y_prop = 2 * val / Y_TRACKBAR_MAX - 1
-    upper_bound = get_view_plane_bounds(sign_coords['near_dist'], FOVY, aspect_ratio)['top']
+    upper_bound = get_view_plane_bounds(args.min_dist, FOVY, aspect_ratio)['top']
     sign_coords['y'] = y_prop * upper_bound
     draw_anchors(sign_path, bg_path, sign_coords['size'], sign_coords['x'], sign_coords['y'], 
-                sign_coords['near_dist'], sign_coords['far_dist'])   
+                args.min_dist, args.max_dist, args.num_frames)   
 
-            
+
 current_dir = os.path.dirname(os.path.realpath(__file__))
-bg_path = os.path.join(current_dir, 'Backgrounds/GTSDB/00014.png')
+bg_path = os.path.join(current_dir, 'Backgrounds/GTSDB/00049.png')
 sign_path = os.path.join(current_dir, 'Signs/0.jpg')
 img = cv2.imread(bg_path)
 height, width, channels = img.shape
 aspect_ratio = width / height
+args = parse_arguments()
 
-#produce_anchors(img.shape, sign_coords['size'], sign_coords['x'], sign_coords['y'], sign_coords['near_dist'], sign_coords['far_dist'])
+NEAR_CLIPPING_PLANE_DIST = 2
+FAR_CLIPPING_PLANE_DIST = 50
+FOVY = args.fovy            
 
 cv2.imshow('image', img)
 
-Z_TRACKBAR_MAX = 100
 X_TRACKBAR_MAX = 200
 Y_TRACKBAR_MAX = 200
 
-cv2.createTrackbar('z', 'image', 0, Z_TRACKBAR_MAX, z_on_change)
 cv2.createTrackbar('x', 'image', 0, X_TRACKBAR_MAX, x_on_change)
 cv2.createTrackbar('y', 'image', 0, Y_TRACKBAR_MAX, y_on_change)
 
