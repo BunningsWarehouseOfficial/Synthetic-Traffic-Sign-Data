@@ -200,6 +200,10 @@ SIGN_COORDS = {'x':1.5, 'y':1, 'size':0.5}
 
 
 class ShowAnchors(object):
+    """[summary]
+    A class which is a wrapper for the functions needed to show num_frames projected
+    signs at varying distances from the camera, using cv2.imshow
+    """
     def __init__(self, bg_path, fg_path, min_dist, max_dist, num_frames):
         self.bg_img = cv2.imread(bg_path)
         self.fg_img = cv2.imread(fg_path)
@@ -213,14 +217,14 @@ class ShowAnchors(object):
         self.x_trackbar_max = 200
         self.y_trackbar_max = 200
         
-        self.draw_anchors(SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], self.min_dist, self.max_dist,
+        self.__draw_anchors(SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], self.min_dist, self.max_dist,
                           self.num_frames)
-        cv2.createTrackbar('x', 'image', 0, self.x_trackbar_max, self.x_on_change)
-        cv2.createTrackbar('y', 'image', 0, self.y_trackbar_max, self.y_on_change)
+        cv2.createTrackbar('x', 'image', 0, self.x_trackbar_max, self.__x_on_change)
+        cv2.createTrackbar('y', 'image', 0, self.y_trackbar_max, self.__y_on_change)
         cv2.waitKey(0)
         
 
-    def get_view_plane_bounds(self, distance, fovy, aspect_ratio):
+    def __get_view_plane_bounds(self, distance, fovy, aspect_ratio):
         top = distance * math.tan(math.radians(fovy) / 2)
         right = top * aspect_ratio
         left = -right
@@ -228,7 +232,7 @@ class ShowAnchors(object):
         return {'top':top, 'right':right, 'left':left, 'bottom':bottom}
 
 
-    def draw_anchors(self, fg_size, x, y, min_dist, max_dist, num_frames):
+    def __draw_anchors(self, fg_size, x, y, min_dist, max_dist, num_frames):
         self.display_img = self.bg_img.copy()
         anchors = produce_anchors(self.bg_img.shape, fg_size, x, y, min_dist, max_dist, num_frames)
         
@@ -238,19 +242,19 @@ class ShowAnchors(object):
         cv2.imshow('image', self.display_img)
         
         
-    def x_on_change(self, val):
+    def __x_on_change(self, val):
         x_prop = 2 * val / self.x_trackbar_max - 1
-        right_bound = self.get_view_plane_bounds(args.min_dist, FOVY, self.aspect_ratio)['right']
+        right_bound = self.__get_view_plane_bounds(args.min_dist, FOVY, self.aspect_ratio)['right']
         SIGN_COORDS['x'] = x_prop * right_bound
-        self.draw_anchors(SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], 
+        self.__draw_anchors(SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], 
                         self.min_dist, self.max_dist, self.num_frames)
         
         
-    def y_on_change(self, val):
+    def __y_on_change(self, val):
         y_prop = 2 * val / self.y_trackbar_max - 1
-        upper_bound = self.get_view_plane_bounds(args.min_dist, FOVY, self.aspect_ratio)['top']
+        upper_bound = self.__get_view_plane_bounds(args.min_dist, FOVY, self.aspect_ratio)['top']
         SIGN_COORDS['y'] = y_prop * upper_bound
-        self.draw_anchors(SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], 
+        self.__draw_anchors(SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], 
                         self.min_dist, self.max_dist, self.num_frames)   
 
 
