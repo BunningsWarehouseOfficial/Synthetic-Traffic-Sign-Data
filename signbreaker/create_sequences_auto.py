@@ -35,6 +35,14 @@ def parse_arguments():
     return parser.parse_args()
 
 
+def dir_path(path):
+    """Validate an argument type as being a directory path."""
+    if os.path.isdir(path):
+        return path
+    else:
+        raise argparse.ArgumentTypeError(f"""{path} is not a valid path""")
+
+
 class Anchor(object):
     """
     A class that stores OpenCV pixel coordinates of the top left corner of the sign, 
@@ -92,14 +100,6 @@ class SignObject(object):
         x_size = abs(x2f - x1f)
         y_size = abs(y2f - y1f)
         return Anchor(bg_size, NDC_x=x1f, NDC_y=y1f, x_size=x_size, y_size=y_size)
-
-
-def dir_path(path):
-    """Validate an argument type as being a directory path."""
-    if os.path.isdir(path):
-        return path
-    else:
-        raise argparse.ArgumentTypeError(f"""{path} is not a valid path""")
     
     
 def create_perspective(fovy, aspect, near, far):
@@ -219,6 +219,7 @@ class ShowAnchors(object):
         
         self.__draw_anchors(SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], self.min_dist, self.max_dist,
                           self.num_frames)
+        cv2.imwrite('overlayed_sequence_auto.jpg', self.display_img)
         cv2.createTrackbar('x', 'image', 0, self.x_trackbar_max, self.__x_on_change)
         cv2.createTrackbar('y', 'image', 0, self.y_trackbar_max, self.__y_on_change)
         cv2.waitKey(0)
