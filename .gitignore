@@ -1,9 +1,10 @@
 signbreaker/Sign_Templates/*
-/*_Dataset
+signbreaker/SGTS*
 venv
 .vscode/settings.json
 __pycache__/*
 signbreaker/__pycache__/*
 signbreaker/Signs
+/*_Dataset
 *.zip
 *.jpg
