@@ -11,8 +11,6 @@ def main():
     import cv2
     from PIL import Image, ImageChops, ImageDraw, ImageOps, ImageFilter, ImageStat, ImageEnhance, ImageFile
     from skimage import io, color, exposure
-    import matplotlib
-    import matplotlib.pyplot as plt
     import glob
     import math
 
