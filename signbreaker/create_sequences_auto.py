@@ -16,6 +16,7 @@ OUT_DIR         = "SGTS_Sequences"
 LABELS_FILE     = "labels.txt"
 MIN_ANCHOR_SIZE = 10
 MAX_ANCHOR_SIZE = 200
+FOVY = 60
 
 import argparse
 import cv2
@@ -24,7 +25,7 @@ import numpy as np
 import os
 import math
 from pathlib import Path
-from utils import load_paths, overlay
+from .utils import load_paths, overlay
 
 
 def parse_arguments():
@@ -34,7 +35,6 @@ def parse_arguments():
     parser.add_argument("-n", "--num_frames", type=int, help="number of frames generated for each sequence", default=8)
     parser.add_argument("-d1", "--min_dist", type=int, help="minimum distance of sign from camera", default=4)
     parser.add_argument("-d2", "--max_dist", type=int, help="maximum distance of sign from camera", default=20)
-    parser.add_argument("-f", "--fovy", type=float, help="vertical field of view of camera", default=60)
     return parser.parse_args()
 
 
@@ -162,9 +162,27 @@ NEAR_CLIPPING_PLANE_DIST = 2
 FAR_CLIPPING_PLANE_DIST = 50
 
 
+def create_sequence(bg_img, fg_img, bg_path, fg_path, out_dir, min_dist=4, max_dist=20, num_frames=8):
+    bg_name = Path(bg_path).stem
+    fg_name = Path(fg_path).stem
+    anchors = produce_anchors(bg_img.shape, SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], 
+                              min_dist, max_dist, num_frames)
+    bounding_boxes = []
+    image_paths = []
+    
+    for frame, anchor in enumerate(anchors):
+        save_path = f'{out_dir}/{bg_name}-{fg_name}-{frame}.jpg'
+        scaled_fg_img = cv2.resize(fg_img, (anchor.size, anchor.size))
+        new_img = overlay(scaled_fg_img, bg_img, anchor.screen_x, anchor.screen_y)
+        cv2.imwrite(save_path, new_img)
+        
+        bounding_boxes.append([anchor.screen_x, anchor.screen_y, anchor.size, anchor.size])
+        image_paths.append(save_path)
+    return (image_paths, bounding_boxes)
+
+
 if __name__ == '__main__':
     args = parse_arguments()
-    FOVY = args.fovy
     
     # Loading argument-specified directories
     bg_paths = load_paths(args.bg_dir)
@@ -186,21 +204,9 @@ if __name__ == '__main__':
 
     # Generate sequences by overlaying foregrounds over backgrounds according to anchor point data
     for bg_path in bg_paths:
+        bg_img = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
         for fg_path in fg_paths:
-            bg_img = cv2.imread(bg_path)
-            fg_img = cv2.imread(fg_path)
-            bg_name = Path(bg_path).stem
-            fg_name = Path(fg_path).stem
-            print(f'Generating sequence for background: {bg_name} and foreground: {fg_name}')
-            
-            anchors = produce_anchors(bg_img.shape, SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], 
-                                    args.min_dist, args.max_dist, args.num_frames)
-            
-            for frame, anchor in enumerate(anchors):
-                print(f'Generating frame {frame + 1} out of {len(anchors)}')
-                scaled_fg_img = cv2.resize(fg_img, (anchor.size, anchor.size))
-                new_img = overlay(scaled_fg_img, bg_img, anchor.screen_x, anchor.screen_y)
-                save_path = f'{out_dir}/{bg_name}_{fg_name}_{frame}.jpg'
-                cv2.imwrite(save_path, new_img)
+            create_sequence(bg_img, bg_path, fg_path, out_dir, 
+                            args.min_dist, args.max_dist, args.num_frames)
     
     
