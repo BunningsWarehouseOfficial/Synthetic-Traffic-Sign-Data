@@ -162,16 +162,14 @@ NEAR_CLIPPING_PLANE_DIST = 2
 FAR_CLIPPING_PLANE_DIST = 50
 
 
-def create_sequence(bg_img, fg_img, bg_path, fg_path, out_dir, min_dist=4, max_dist=20, num_frames=8):
-    bg_name = Path(bg_path).stem
-    fg_name = Path(fg_path).stem
+def create_sequence(bg_img, fg_img, bg_name, fg_name, sequence_id, out_dir, min_dist=4, max_dist=20, num_frames=8):
     anchors = produce_anchors(bg_img.shape, SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], 
                               min_dist, max_dist, num_frames)
     bounding_boxes = []
     image_paths = []
     
     for frame, anchor in enumerate(anchors):
-        save_path = f'{out_dir}/{bg_name}-{fg_name}-{frame}.jpg'
+        save_path = f"{out_dir}/{sequence_id + frame}-{bg_name}-{fg_name}-{frame}.jpg"
         scaled_fg_img = cv2.resize(fg_img, (anchor.size, anchor.size))
         new_img = overlay(scaled_fg_img, bg_img, anchor.screen_x, anchor.screen_y)
         cv2.imwrite(save_path, new_img)
@@ -206,7 +204,10 @@ if __name__ == '__main__':
     for bg_path in bg_paths:
         bg_img = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
         for fg_path in fg_paths:
-            create_sequence(bg_img, bg_path, fg_path, out_dir, 
+            fg_img = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
+            # Path without extension
+            save_path = f'{out_dir}/{Path(bg_path).stem}-{Path(fg_path).stem}'
+            create_sequence(bg_img, fg_img, fg_path, save_path, 
                             args.min_dist, args.max_dist, args.num_frames)
     
     

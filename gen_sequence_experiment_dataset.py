@@ -10,14 +10,14 @@ from signbreaker.create_sequences_auto import create_sequence
 from pathlib import Path
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
-OUTDIR = os.path.join(current_dir, "sequences_dataset")
+default_outdir = os.path.join(current_dir, "sgts_sequences")
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument("bg_dir", type=str, help="path to background image directory")
 parser.add_argument("damaged_sign_dir", type=str, help="path to directory of damaged signs")
 parser.add_argument("original_sign_dir", type=str, help="path to directory of original signs")
-parser.add_argument("-o", "--out_dir", type=str, help="path to output directory of sequences", default=OUTDIR)
+parser.add_argument("-o", "--out_dir", type=str, help="path to output directory of sequences", default=default_outdir)
 
 
 def initialise_annotations(num_classes):
@@ -55,10 +55,7 @@ def initialise_annotations(num_classes):
 
 
 if __name__ == '__main__':
-    bg_dir = current_dir + "/signbreaker/Backgrounds/GTSDB/"
-    damaged_sign_dir = current_dir + "/signbreaker/Sign_Templates/3_Damaged/"
-    original_sign_dir = current_dir + "/signbreaker/Sign_Templates/2_Processed/"
-    args = parser.parse_args([bg_dir, damaged_sign_dir, original_sign_dir])
+    args = parser.parse_args()
     
     OUTDIR = args.out_dir
     if os.path.exists(OUTDIR):
@@ -83,7 +80,7 @@ if __name__ == '__main__':
             
             sign_img = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
             original_sign_img = cv2.imread(original_sign_path, cv2.IMREAD_UNCHANGED)
-            image_paths, bounding_boxes = create_sequence(bg_img, sign_img, bg_path, sign_path, OUTDIR)
+            image_paths, bounding_boxes = create_sequence(bg_img, sign_img, bg_name, sign_name, image_num, OUTDIR)
             
             for i in range(len(image_paths)):
                 # damage proprtion changes as sign size is scaled down via the sequence generator.
@@ -96,7 +93,7 @@ if __name__ == '__main__':
                         "id": image_num,
                         "width": width,
                         "height": height,
-                        "file_name": image_paths[i]
+                        "file_name": os.path.basename(image_paths[i])
                     }
                 )
                 annotations["annotations"].append(
@@ -113,7 +110,7 @@ if __name__ == '__main__':
                 )
                 image_num += 1
                 
-    annotations_path = os.path.join(OUTDIR, "annotations.json")
+    annotations_path = os.path.join(OUTDIR, "_annotations.coco.json")
     with open(annotations_path, 'w') as f:
         json.dump(annotations, f, indent=4)
             
