@@ -15,8 +15,9 @@ default_outdir = os.path.join(current_dir, "sgts_sequences")
 parser = argparse.ArgumentParser()
 
 parser.add_argument("bg_dir", type=str, help="path to background image directory")
-parser.add_argument("damaged_sign_dir", type=str, help="path to directory of damaged signs")
+parser.add_argument("damaged_sign_dir", type=str, help="path to damaged sign directory")
 parser.add_argument("original_sign_dir", type=str, help="path to directory of original signs")
+parser.add_argument("-n", "--num_frames", type=int, help="number of frames generated for each sequence", default=8)
 parser.add_argument("-o", "--out_dir", type=str, help="path to output directory of sequences", default=default_outdir)
 
 
@@ -49,8 +50,7 @@ def initialise_annotations(num_classes):
                 "supercategory": "signs"
             }
         )
-    annotations["images"] = []
-    annotations["annotations"] = []
+    annotations["gt"] = []
     return annotations
 
 
@@ -64,8 +64,9 @@ if __name__ == '__main__':
         
     annotations = initialise_annotations(len(os.listdir(args.original_sign_dir)))
     sign_paths = glob.glob(args.damaged_sign_dir + '/*/*.png')
-    bg_paths = glob.glob(args.bg_dir + "/*")
-    image_num = 0
+    bg_paths = glob.glob(args.bg_dir + "/*.png")
+    image_id = 0
+    sequence_id = 0
     
     for bg_path in bg_paths:
         bg_name = Path(bg_path).stem
@@ -80,35 +81,31 @@ if __name__ == '__main__':
             
             sign_img = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
             original_sign_img = cv2.imread(original_sign_path, cv2.IMREAD_UNCHANGED)
-            image_paths, bounding_boxes = create_sequence(bg_img, sign_img, bg_name, sign_name, image_num, OUTDIR)
+            image_paths, bounding_boxes = create_sequence(bg_img, sign_img, bg_name, sign_name, image_id, OUTDIR, num_frames=args.num_frames)
+            annotations["gt"].append({'images': [], 'annotations': [], 'damage': round(calc_damage(sign_img, original_sign_img), 1)})
             
             for i in range(len(image_paths)):
-                # damage proprtion changes as sign size is scaled down via the sequence generator.
-                scaled_sign = cv2.resize(sign_img, bounding_boxes[i][2:])
-                scaled_original_sign = cv2.resize(original_sign_img, bounding_boxes[i][2:])
-                damage = calc_damage(scaled_sign, scaled_original_sign)
-                
-                annotations["images"].append(
+                annotations['gt'][sequence_id]["images"].append(
                     {
-                        "id": image_num,
+                        "id": image_id,
                         "width": width,
                         "height": height,
                         "file_name": os.path.basename(image_paths[i])
                     }
                 )
-                annotations["annotations"].append(
+                annotations['gt'][sequence_id]["annotations"].append(
                     {
-                        "id": image_num,        # one annotation per image
-                        "image_id": image_num,
+                        "id": image_id,        # one annotation per image
+                        "image_id": image_id,
                         "category_id": int(cls_name) + 1,
                         "bbox": bounding_boxes[i],
                         "iscrowd": 0,
                         "area": bounding_boxes[i][2] ** 2,
                         "segmentation": [],
-                        "damage": damage
                     }
                 )
-                image_num += 1
+                image_id += 1
+            sequence_id += 1
                 
     annotations_path = os.path.join(OUTDIR, "_annotations.coco.json")
     with open(annotations_path, 'w') as f:
