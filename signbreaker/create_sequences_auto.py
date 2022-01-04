@@ -25,7 +25,7 @@ import numpy as np
 import os
 import math
 from pathlib import Path
-from .utils import load_paths, overlay
+from utils import load_paths, overlay
 
 
 def parse_arguments():
@@ -157,7 +157,7 @@ def produce_anchors(bg_size, size, x, y, min_dist, max_dist, num_frames):
     return anchors
 
 
-SIGN_COORDS = {'x':1.5, 'y':1, 'size':0.5}      # World coordinates for sign objects
+SIGN_COORDS = {'x':1.5, 'y':1, 'size':0.5}      # World coordinates for rendered sign objects
 NEAR_CLIPPING_PLANE_DIST = 2
 FAR_CLIPPING_PLANE_DIST = 50
 
