@@ -11,6 +11,9 @@ from pathlib import Path
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 default_outdir = os.path.join(current_dir, "sgts_sequences")
+default_background_dir = os.path.join(current_dir, "signbreaker/Backgrounds/GTSDB")
+default_damaged_dir = os.path.join(current_dir, "signbreaker/Sign_Templates/3_Damaged")
+default_original_sign_dir = os.path.join(current_dir, "signbreaker/Sign_Templates/2_Processed/")
 
 parser = argparse.ArgumentParser()
 
@@ -50,7 +53,8 @@ def initialise_annotations(num_classes):
                 "supercategory": "signs"
             }
         )
-    annotations["gt"] = []
+    annotations["images"] = []
+    annotations["annotations"] = []
     return annotations
 
 
@@ -66,7 +70,6 @@ if __name__ == '__main__':
     sign_paths = glob.glob(args.damaged_sign_dir + '/*/*.png')
     bg_paths = glob.glob(args.bg_dir + "/*.png")
     image_id = 0
-    sequence_id = 0
     
     for bg_path in bg_paths:
         bg_name = Path(bg_path).stem
@@ -82,10 +85,14 @@ if __name__ == '__main__':
             sign_img = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
             original_sign_img = cv2.imread(original_sign_path, cv2.IMREAD_UNCHANGED)
             image_paths, bounding_boxes = create_sequence(bg_img, sign_img, bg_name, sign_name, image_id, OUTDIR, num_frames=args.num_frames)
-            annotations["gt"].append({'images': [], 'annotations': [], 'damage': round(calc_damage(sign_img, original_sign_img), 1)})
             
             for i in range(len(image_paths)):
-                annotations['gt'][sequence_id]["images"].append(
+                bbox = bounding_boxes[i]
+                image_i = cv2.resize(sign_img, (bbox[2], bbox[3]))
+                original_image_i = cv2.resize(original_sign_img, (bbox[2], bbox[3]))
+                damage_i = calc_damage(original_image_i, image_i)
+                
+                annotations["images"].append(
                     {
                         "id": image_id,
                         "width": width,
@@ -93,7 +100,7 @@ if __name__ == '__main__':
                         "file_name": os.path.basename(image_paths[i])
                     }
                 )
-                annotations['gt'][sequence_id]["annotations"].append(
+                annotations["annotations"].append(
                     {
                         "id": image_id,        # one annotation per image
                         "image_id": image_id,
@@ -102,10 +109,10 @@ if __name__ == '__main__':
                         "iscrowd": 0,
                         "area": bounding_boxes[i][2] ** 2,
                         "segmentation": [],
+                        "damage": damage_i
                     }
                 )
                 image_id += 1
-            sequence_id += 1
                 
     annotations_path = os.path.join(OUTDIR, "_annotations.coco.json")
     with open(annotations_path, 'w') as f:
