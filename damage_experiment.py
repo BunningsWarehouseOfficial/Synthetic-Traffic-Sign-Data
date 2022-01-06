@@ -21,12 +21,11 @@
 
 import os
 import argparse
-from posixpath import split
 import numpy as np
 import pandas as pd
 import plotly.express as px
 
-from collections import Counter
+from collections import Counter, defaultdict
 from evaluation_metrics.detection_eval import BoundingBox, get_pascal_voc_metrics
 
 
@@ -38,9 +37,10 @@ parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/data
 parser.add_argument('--eval_file', default='/home/allenator/Pawsey-Internship/eval_dir/sgts_sequences/efficientdet-d0.npy', 
                     help='File containing evaluated detections as a numpy file')
 parser.add_argument('--num_frames', default=8, type=int, help='Number of frames per sequence in dataset')
+parser.add_argument('--experiment', default='distance', choices=['damage', 'distance', 'dist_damage'] , help='Type of experiment to evaluate')
 
 
-def split_array_by_sequence(arr, num_frames):
+def split_by_sequence(arr, num_frames):
     """
     Splits an array of detections into sequences of detections.
     """
@@ -53,6 +53,29 @@ def split_array_by_sequence(arr, num_frames):
             split_indices.append(i)
     split_arrs = np.split(arr.copy(), split_indices)
     return split_arrs
+
+
+def map_seq_to_dmg(sequences_arr):
+    sequence_damages = [0] * len(sequences_arr)
+    damage_level_count = Counter()
+    
+    for i in range(len(sequences_arr)):
+        detections = sequences_arr[i]
+        damage_level = round(np.mean(detections[:, 5]), 1)
+        damage_level_count[damage_level] += 1
+        sequence_damages[i] = damage_level
+    return sequence_damages, damage_level_count
+
+
+def split_by_distance(gt_arr, arr_to_split):
+    gt_arr = gt_arr[np.argsort(gt_arr[:, 0])] # Sort gt_arr by image_id just in case
+    arrs_by_dist = defaultdict(list)
+    for i in range(len(arr_to_split)):
+        image_id = arr_to_split[i][0]
+        dist = gt_arr[int(image_id)][6]
+        arrs_by_dist[dist].append(arr_to_split[i])
+    arrs_by_dist = {dist:np.array(arr) for dist, arr in arrs_by_dist.items()}
+    return arrs_by_dist
 
 
 def get_metrics(gt, pred):
@@ -77,28 +100,23 @@ def prune_detections(detections_array, max_detections=50):
     return pruned_arr[:max_detections]
 
 
-if __name__ == '__main__':
-    args = parser.parse_args()
-    sequences_gt = split_array_by_sequence(np.load(args.gt_file), args.num_frames)
-    sequences_pred = split_array_by_sequence(np.load(args.eval_file), args.num_frames)
+def damage_experiment(gt_arr, pred_arr):
+    sequences_gt = split_by_sequence(gt_arr, args.num_frames)
+    sequences_pred = split_by_sequence(pred_arr, args.num_frames)
     sequences_pred = [prune_detections(detections) for detections in sequences_pred]
     
-    sequence_damages = [0] * len(sequences_gt)
     metrics_array = np.zeros((11, 8), dtype=np.float32)
     metrics_array[:, 0] = np.arange(0, 110, 10)
-    damage_level_count = Counter()
     
-    for i in range(len(sequences_gt)):
-        detections_gt = sequences_gt[i]
-        damage_level = round(np.mean(detections_gt[:, 5]), 1)
-        damage_level_count[damage_level] += 1
-        sequence_damages[i] = damage_level
+    # Computes average damage level for each sequence and incerements count for each damage 
+    # level over all sequences
+    sequence_damages, damage_level_count = map_seq_to_dmg(sequences_gt)
     
     # iterate over each image sequence
     for i in range(len(sequences_gt)):
         damage_level = sequence_damages[i]
         
-        # gt detections array in format [image_id, xtl, ytl, width, height, damage, class_id]
+        # gt detections array in format [image_id, xtl, ytl, width, height, damage, distance, class_id]
         detections_gt = [BoundingBox(image_name=det[0], label=det[-1], xtl=det[1], ytl=det[2], xbr=det[1] + det[3], ybr=det[2] + det[4]) 
                         for det in sequences_gt[i]]
         # pred detections array in format [image_id, xtl, ytl, width, height, score, class_id]
@@ -113,11 +131,46 @@ if __name__ == '__main__':
     
     dataless_rows = (metrics_array[:, 6] == 0.0).nonzero()[0]
     metrics_array = np.delete(metrics_array, dataless_rows, axis=0)
-    df = pd.DataFrame(metrics_array, columns=columns)
+    return pd.DataFrame(metrics_array, columns=columns)
+
+
+def distance_experiment(gt_arr, pred_arr):
+    distances_gt = split_by_distance(gt_arr, gt_arr)
+    distances_pred = split_by_distance(gt_arr, pred_arr)
+    metrics_array = np.zeros((len(distances_gt), 8), dtype=np.float32)
     
-    # Draw plotly chart for damage vs AP
-    fig = px.line(df, x='Damage', y='AP50', title='Average Precision (AP) vs. Damage Level')
-    fig.write_html('damage_experiment.html', auto_open=True)
+    for i, dist in enumerate(distances_gt):
+        # gt detections array in format [image_id, xtl, ytl, width, height, damage, distance, class_id]
+        detections_gt = [BoundingBox(image_name=det[0], label=det[-1], xtl=det[1], ytl=det[2], xbr=det[1] + det[3], ybr=det[2] + det[4]) 
+                        for det in distances_gt[dist]]
+        # pred detections array in format [image_id, xtl, ytl, width, height, score, class_id]
+        detections_pred = [BoundingBox(image_name=det[0], label=det[-1], xtl=det[1], ytl=det[2], xbr=det[1] + det[3], ybr=det[2] + det[4], score=det[5])
+                        for det in distances_pred[dist]]
+        metrics_array[i, 0] = dist
+        metrics_array[i, 1:] = get_metrics(detections_gt, detections_pred)
+        
+    columns = ['Distance', 'AP40', 'AP50', 'AP60', 'AP70', 'AP80', 'AP90', 'mAP']
+    return pd.DataFrame(metrics_array, columns=columns)
+        
+
+
+if __name__ == '__main__':
+    args = parser.parse_args()
+    gt_arr = np.array(np.load(args.gt_file), dtype=np.float32)
+    pred_arr = np.array(np.load(args.eval_file), dtype=np.float32)
+    
+    if args.experiment == 'damage':
+        df = damage_experiment(gt_arr, pred_arr)
+        print(df)
+        # Draw plotly chart for damage vs AP
+        fig = px.line(df, x='Damage', y='AP50', title='Average Precision (AP) vs. Damage Level')
+        fig.write_html('damage_experiment.html', auto_open=True)
+        
+    elif args.experiment == 'distance':
+        df = distance_experiment(gt_arr, pred_arr)
+        print(df)
+        fig = px.line(df, x='Distance', y='AP50', title='Average Precision (AP) vs. Distance from camera')
+        fig.write_html('damage_experiment.html', auto_open=True)
         
         
     
