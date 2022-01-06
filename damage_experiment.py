@@ -1,19 +1,36 @@
+'''    
+    This code evaluates given against the ground truth for the sgts_sequences dataset,
+    evaluating each sequence seperately via various AP thresholds, averaging the results of sequences with the same
+    (rounded to 1 decimal place) damage metric, and then producing a dataframe in the following format:
+    _____________________________________________________________________________________
+    |   Damage  |   AP40  |   AP50  |   AP60  |   AP70  |   AP80  |   AP90  |   APMean  |
+    |___________|_________|_________|_________|_________|_________|_________|___________|
+    |   0       |
+    |   10      |                                                       
+    |   20      |                                                                       
+    |   30      |                                                   
+    |   40      |      
+    |   50      |     
+    |   60      |      
+    |   70      |      
+    |   80      |     
+    |   90      |  
+        
+    Author: Allen Antony                                                                     
+'''
+
 import os
 import argparse
 from posixpath import split
-import shutil
-import json
 import numpy as np
 import pandas as pd
-from datetime import datetime
-from collections import Counter, defaultdict
-from matplotlib import pyplot as plt
-from time import time
+import plotly.express as px
 
+from collections import Counter
 from evaluation_metrics.detection_eval import BoundingBox, get_pascal_voc_metrics
 
-current_dir = os.path.dirname(os.path.realpath(__file__))
 
+current_dir = os.path.dirname(os.path.realpath(__file__))
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/datasets/sgts_sequences/_single_annotations_array.npy', 
@@ -43,14 +60,14 @@ def get_metrics(gt, pred):
     Calculates the metrics for a given set of ground truth and predicted detections.
     Metrics in the format [AP50, AP75, AP95, max precision, max recall, min precision, min recall]
     """    
-    metrics = np.zeros(6)
-    metrics50 = get_pascal_voc_metrics(gt, pred, iou_threshold=0.5)
-    metrics[0] = metrics50.ap
-    metrics[1] = get_pascal_voc_metrics(gt, pred, iou_threshold=0.6).ap
-    metrics[2] = get_pascal_voc_metrics(gt, pred, iou_threshold=0.75).ap
-    metrics[3] = get_pascal_voc_metrics(gt, pred, iou_threshold=0.95).ap
-    metrics[4] = max(metrics50.interpolated_precision)
-    metrics[5] = min(metrics50.interpolated_precision)
+    metrics = np.zeros(7)
+    metrics[0] = get_pascal_voc_metrics(gt, pred, iou_threshold=0.40).ap
+    metrics[1] = get_pascal_voc_metrics(gt, pred, iou_threshold=0.50).ap
+    metrics[2] = get_pascal_voc_metrics(gt, pred, iou_threshold=0.60).ap
+    metrics[3] = get_pascal_voc_metrics(gt, pred, iou_threshold=0.70).ap
+    metrics[4] = get_pascal_voc_metrics(gt, pred, iou_threshold=0.80).ap
+    metrics[5] = get_pascal_voc_metrics(gt, pred, iou_threshold=0.90).ap
+    metrics[6] = np.mean(metrics[:7])
     return metrics
 
 
@@ -67,7 +84,7 @@ if __name__ == '__main__':
     sequences_pred = [prune_detections(detections) for detections in sequences_pred]
     
     sequence_damages = [0] * len(sequences_gt)
-    metrics_array = np.zeros((11, 7), dtype=np.float32)
+    metrics_array = np.zeros((11, 8), dtype=np.float32)
     metrics_array[:, 0] = np.arange(0, 110, 10)
     damage_level_count = Counter()
     
@@ -92,25 +109,15 @@ if __name__ == '__main__':
         # Converting from 0-1 damage range to 0-10 index range
         metrics_array[int(damage_level * 10), 1:] += metrics / damage_level_count[damage_level]
     
-    columns = ['Damage', 'AP50', 'AP60', 'AP75', 'AP95', 'Max Precision', 'Min Precision']
+    columns = ['Damage', 'AP40', 'AP50', 'AP60', 'AP70', 'AP80', 'AP90', 'mAP']
     
     dataless_rows = (metrics_array[:, 6] == 0.0).nonzero()[0]
     metrics_array = np.delete(metrics_array, dataless_rows, axis=0)
     df = pd.DataFrame(metrics_array, columns=columns)
-    print(df)
     
-    fig, axs = plt.subplots(nrows=3, ncols=2, sharex=True)
-    axs = np.reshape(axs, 6)
-    
-    for i, col in enumerate(columns[1:]):
-        ax = axs[i]
-        ax.scatter(df['Damage'], df[col], marker=".", )
-        ax.set_title(col)
-        ax.set_xlabel('Damage')
-        ax.set_yticks(np.linspace(df[col].min() * 0.8, df[col].max() * 1.2, 4))
-    
-    plt.tight_layout()
-    plt.show()
+    # Draw plotly chart for damage vs AP
+    fig = px.line(df, x='Damage', y='AP50', title='Average Precision (AP) vs. Damage Level')
+    fig.write_html('damage_experiment.html', auto_open=True)
         
         
     
