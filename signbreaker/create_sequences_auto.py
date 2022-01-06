@@ -47,7 +47,7 @@ class Anchor(object):
     A class that stores OpenCV pixel coordinates of the top left corner of the sign, 
     as well as the size of the sign in pixels.
     """
-    def __init__(self, bg_size, NDC_x, NDC_y, x_size, y_size):
+    def __init__(self, bg_size, NDC_x, NDC_y, x_size, y_size, sign_z):
         height, width, _ = bg_size
         x_size, y_size = x_size / 2, y_size / 2
         
@@ -64,6 +64,7 @@ class Anchor(object):
         self.size = int(x_size * width)
         self.screen_x = int(NDC_x * width)
         self.screen_y = int(NDC_y * height)
+        self.distance = -1 * sign_z
         
     def __str__(self):
         return f"Anchor: {self.screen_x}, {self.screen_y}, {self.size}"
@@ -98,7 +99,7 @@ class SignObject(object):
         
         x_size = abs(x2f - x1f)
         y_size = abs(y2f - y1f)
-        return Anchor(bg_size, NDC_x=x1f, NDC_y=y1f, x_size=x_size, y_size=y_size)
+        return Anchor(bg_size, NDC_x=x1f, NDC_y=y1f, x_size=x_size, y_size=y_size, sign_z=self.z)
     
     
 def create_perspective(fovy, aspect, near, far):
@@ -178,7 +179,7 @@ def create_sequence(bg_img, fg_img, bg_name, fg_name, sequence_id, out_dir, min_
         new_img = overlay(scaled_fg_img, bg_img, anchor.screen_x, anchor.screen_y)
         cv2.imwrite(save_path, new_img)
         
-        bounding_boxes.append([anchor.screen_x, anchor.screen_y, anchor.size, anchor.size])
+        bounding_boxes.append([anchor.screen_x, anchor.screen_y, anchor.size, anchor.size, anchor.distance])
         image_paths.append(save_path)
     return (image_paths, bounding_boxes)
 
