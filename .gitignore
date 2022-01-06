@@ -2,7 +2,7 @@ signbreaker/Sign_Templates/*
 signbreaker/SGTS*
 venv
 .vscode/settings.json
-__pycache__/*
+*/__pycache__/*
 signbreaker/__pycache__/*
 signbreaker/Signs
 /*_Dataset
