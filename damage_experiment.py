@@ -1,29 +1,10 @@
-'''    
-    This code evaluates given against the ground truth for the sgts_sequences dataset,
-    evaluating each sequence seperately via various AP thresholds, averaging the results of sequences with the same
-    (rounded to 1 decimal place) damage metric, and then producing a dataframe in the following format:
-    _____________________________________________________________________________________
-    |   Damage  |   AP40  |   AP50  |   AP60  |   AP70  |   AP80  |   AP90  |   APMean  |
-    |___________|_________|_________|_________|_________|_________|_________|___________|
-    |   0       |
-    |   10      |                                                       
-    |   20      |                                                                       
-    |   30      |                                                   
-    |   40      |      
-    |   50      |     
-    |   60      |      
-    |   70      |      
-    |   80      |     
-    |   90      |  
-        
-    Author: Allen Antony                                                                     
-'''
-
 import os
 import argparse
+import math
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 from collections import Counter, defaultdict
 from evaluation_metrics.detection_eval import BoundingBox, get_pascal_voc_metrics
@@ -37,7 +18,7 @@ parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/data
 parser.add_argument('--eval_file', default='/home/allenator/Pawsey-Internship/eval_dir/sgts_sequences/efficientdet-d0.npy', 
                     help='File containing evaluated detections as a numpy file')
 parser.add_argument('--num_frames', default=8, type=int, help='Number of frames per sequence in dataset')
-parser.add_argument('--experiment', default='distance', choices=['damage', 'distance', 'dist_damage'] , help='Type of experiment to evaluate')
+parser.add_argument('--experiment', default='dist_damage', choices=['damage', 'distance', 'dist_damage'] , help='Type of experiment to evaluate')
 
 
 def split_by_sequence(arr, num_frames):
@@ -67,15 +48,28 @@ def map_seq_to_dmg(sequences_arr):
     return sequence_damages, damage_level_count
 
 
-def split_by_distance(gt_arr, arr_to_split):
-    gt_arr = gt_arr[np.argsort(gt_arr[:, 0])] # Sort gt_arr by image_id just in case
-    arrs_by_dist = defaultdict(list)
+def split_by_distance(gt_array, arr_to_split, also_split_by_damage=False, get_meshgrid_shape=False):
+    gt_array = gt_array[np.argsort(gt_array[:, 0])] # Sort gt_array by image_id just in case
+    split_dict = defaultdict(list)
+    distances = set([])
+    damages = set([])
+    
     for i in range(len(arr_to_split)):
-        image_id = arr_to_split[i][0]
-        dist = gt_arr[int(image_id)][6]
-        arrs_by_dist[dist].append(arr_to_split[i])
-    arrs_by_dist = {dist:np.array(arr) for dist, arr in arrs_by_dist.items()}
-    return arrs_by_dist
+        image_id = arr_to_split[i, 0]
+        dist = gt_array[int(image_id), 6]
+        damage = round(gt_array[int(image_id), 5], 1)
+        distances.add(dist); damages.add(damage)
+        
+        if also_split_by_damage:
+            split_dict[(damage, dist)].append(arr_to_split[i])
+        else:
+            split_dict[dist].append(arr_to_split[i])
+            
+    split_dict = {dist:np.array(arr) for dist, arr in split_dict.items()}
+    if get_meshgrid_shape:
+        return split_dict, len(distances), (damages)
+    else:
+        return split_dict
 
 
 def get_metrics(gt, pred):
@@ -100,10 +94,9 @@ def prune_detections(detections_array, max_detections=50):
     return pruned_arr[:max_detections]
 
 
-def damage_experiment(gt_arr, pred_arr):
-    sequences_gt = split_by_sequence(gt_arr, args.num_frames)
-    sequences_pred = split_by_sequence(pred_arr, args.num_frames)
-    sequences_pred = [prune_detections(detections) for detections in sequences_pred]
+def damage_experiment(gt_array, pred_array):
+    sequences_gt = split_by_sequence(gt_array, args.num_frames)
+    sequences_pred = split_by_sequence(pred_array, args.num_frames)
     
     metrics_array = np.zeros((11, 8), dtype=np.float32)
     metrics_array[:, 0] = np.arange(0, 110, 10)
@@ -134,9 +127,9 @@ def damage_experiment(gt_arr, pred_arr):
     return pd.DataFrame(metrics_array, columns=columns)
 
 
-def distance_experiment(gt_arr, pred_arr):
-    distances_gt = split_by_distance(gt_arr, gt_arr)
-    distances_pred = split_by_distance(gt_arr, pred_arr)
+def distance_experiment(gt_array, pred_array):
+    distances_gt = split_by_distance(gt_array, gt_array)
+    distances_pred = split_by_distance(gt_array, pred_array)
     metrics_array = np.zeros((len(distances_gt), 8), dtype=np.float32)
     
     for i, dist in enumerate(distances_gt):
@@ -151,26 +144,63 @@ def distance_experiment(gt_arr, pred_arr):
         
     columns = ['Distance', 'AP40', 'AP50', 'AP60', 'AP70', 'AP80', 'AP90', 'mAP']
     return pd.DataFrame(metrics_array, columns=columns)
+
+
+def get_meshgrid(gt_array):
+    damages = np.unique(np.around(gt_array[:, 5], 1))
+    distances = np.unique(gt_array[:, 6])
+    return damages, distances
         
+
+def damage_distance_experiment(gt_array, pred_array):
+    distances_gt = split_by_distance(gt_array, gt_array, also_split_by_damage=True)
+    distances_pred = split_by_distance(gt_array, pred_array, also_split_by_damage=True)
+    metrics_array = np.zeros((len(distances_gt), 9), dtype=np.float32)
+    damages, distances = get_meshgrid(gt_array)
+    surface_z = np.zeros((len(distances), len(damages)))
+    
+    for i, key in enumerate(distances_gt):
+        dmg, dist = key[0], key[1]
+        
+        # gt detections array in format [image_id, xtl, ytl, width, height, damage, distance, class_id]
+        detections_gt = [BoundingBox(image_name=det[0], label=det[-1], xtl=det[1], ytl=det[2], xbr=det[1] + det[3], ybr=det[2] + det[4]) 
+                        for det in distances_gt[key]]
+        # pred detections array in format [image_id, xtl, ytl, width, height, score, class_id]
+        detections_pred = [BoundingBox(image_name=det[0], label=det[-1], xtl=det[1], ytl=det[2], xbr=det[1] + det[3], ybr=det[2] + det[4], score=det[5])
+                        for det in distances_pred[key]]
+        
+        metrics_array[i, 0:2] = [dmg, dist]
+        metrics_array[i, 2:] = get_metrics(detections_gt, detections_pred)
+        x = np.where(np.isclose(damages, dmg))[0]; y = np.where(np.isclose(distances, dist))[0]
+        surface_z[y, x] = metrics_array[i, 3]
+        
+    columns = ['Damage', 'Distance', 'AP40', 'AP50', 'AP60', 'AP70', 'AP80', 'AP90', 'mAP']
+    df = pd.DataFrame(metrics_array, columns=columns)
+    df.sort_values(by=['Damage', 'Distance'], inplace=True, ascending=True)
+    return df, (damages, distances, surface_z)
 
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    gt_arr = np.array(np.load(args.gt_file), dtype=np.float32)
-    pred_arr = np.array(np.load(args.eval_file), dtype=np.float32)
+    gt_array = np.array(np.load(args.gt_file), dtype=np.float32)
+    pred_array = np.array(np.load(args.eval_file), dtype=np.float32)
     
     if args.experiment == 'damage':
-        df = damage_experiment(gt_arr, pred_arr)
+        df = damage_experiment(gt_array, pred_array)
         print(df)
-        # Draw plotly chart for damage vs AP
-        fig = px.line(df, x='Damage', y='AP50', title='Average Precision (AP) vs. Damage Level')
-        fig.write_html('damage_experiment.html', auto_open=True)
+        fig = px.line(df, x='Damage', y='AP70', title='Average Precision (AP) vs. Damage Level')
         
     elif args.experiment == 'distance':
-        df = distance_experiment(gt_arr, pred_arr)
+        df = distance_experiment(gt_array, pred_array)
         print(df)
         fig = px.line(df, x='Distance', y='AP50', title='Average Precision (AP) vs. Distance from camera')
-        fig.write_html('damage_experiment.html', auto_open=True)
+        
+    else:
+        df, mesh = damage_distance_experiment(gt_array, pred_array)
+        print(df)
+        x, y, z = mesh
+        fig = go.Figure(data=[go.Surface(x=x, y=y, z=z)])
+    fig.show()
         
         
     
