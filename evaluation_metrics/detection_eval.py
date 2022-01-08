@@ -152,11 +152,13 @@ class MetricPerClass:
         self.num_detection = None
         self.tp = None
         self.fp = None
+        self.tp_IOUs = None
+        self.tp_scores = None
 
     @staticmethod
     def mAP(results: Dict[str, 'MetricPerClass']):
         return np.average([m.ap for m in results.values() if m.num_groundtruth > 0])
-
+    
 
 def get_pascal_voc_metrics(gold_standard: List[BoundingBox],
                            predictions: List[BoundingBox],
@@ -198,7 +200,9 @@ def get_pascal_voc_metrics(gold_standard: List[BoundingBox],
         image_name2gt = defaultdict(list)
         for b in golds:
             image_name2gt[b.image_name].append(b)
-
+            
+        tp_IOUs = []
+        tp_scores = []
         # Loop through detections
         for i in range(len(preds)):
             # Find ground truth image
@@ -215,6 +219,8 @@ def get_pascal_voc_metrics(gold_standard: List[BoundingBox],
                 if counter[preds[i].image_name][mas_idx] == 0:
                     tps[i] = 1  # count as true positive
                     counter[preds[i].image_name][mas_idx] = 1  # flag as already 'seen'
+                    tp_IOUs.append(max_iou)
+                    tp_scores.append(preds[i].score)
                 else:
                     # - A detected "cat" is overlaped with a GT "cat" with IOU >= IOUThreshold.
                     fps[i] = 1  # count as false positive
@@ -240,6 +246,8 @@ def get_pascal_voc_metrics(gold_standard: List[BoundingBox],
         r.fp = np.sum(fps)
         r.num_groundtruth = len(golds)
         r.num_detection = len(preds)
+        r.tp_IOUs = tp_IOUs
+        r.tp_scores = tp_scores
         ret[c] = r
         
     if len(ret.keys()) == 1:
