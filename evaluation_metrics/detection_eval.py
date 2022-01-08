@@ -214,13 +214,19 @@ def get_pascal_voc_metrics(gold_standard: List[BoundingBox],
                 if iou > max_iou:
                     max_iou = iou
                     mas_idx = j
+            
+            # Metrics that are invariant with iou_threshold        
+            if counter[preds[i].image_name][mas_idx] == 0:
+                # Add IOU of best detection for this ground truth
+                tp_IOUs.append(max_iou)
+                # Add score of best detection for this ground truth
+                tp_scores.append(preds[i].score)
+                        
             # Assign detection as true positive/don't care/false positive
             if max_iou >= iou_threshold:
                 if counter[preds[i].image_name][mas_idx] == 0:
                     tps[i] = 1  # count as true positive
                     counter[preds[i].image_name][mas_idx] = 1  # flag as already 'seen'
-                    tp_IOUs.append(max_iou)
-                    tp_scores.append(preds[i].score)
                 else:
                     # - A detected "cat" is overlaped with a GT "cat" with IOU >= IOUThreshold.
                     fps[i] = 1  # count as false positive
