@@ -9,6 +9,7 @@ def main():
 
     import numpy as np
     import cv2
+    from collections import defaultdict
     from PIL import Image, ImageChops, ImageDraw, ImageOps, ImageFilter, ImageStat, ImageEnhance, ImageFile
     from skimage import io, color, exposure
     import glob
@@ -19,6 +20,9 @@ def main():
     import manipulate
     import generate
     from synth_image import SynthImage
+    
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    os.chdir(current_dir)
 
     #TODO: Add an example download link for a dataset of backgrounds that have no real signs on them
 
@@ -223,6 +227,14 @@ def main():
 
     # Delete SynthImage objects for any signs that were removed
     manipulated_data[:] = [x for x in manipulated_data if os.path.exists(x.fg_path)]
+    
+    if config['prune_dataset']['prune'] == 'true':
+        max_images = config['prune_dataset']['max_images']
+        images_dict = defaultdict(list)
+        for img in manipulated_data:
+            images_dict[os.path.dirname(img.fg_path)].append(img)
+        images_dict = {k:random.sample(v, max_images) for k,v in images_dict.items() if len(v) > max_images}
+        manipulated_data = [img for images_list in images_dict.values() for img in images_list]
 
     if config['final_op'] == 'manipulate':
         return

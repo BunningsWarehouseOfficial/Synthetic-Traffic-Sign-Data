@@ -34,3 +34,10 @@ graffiti:
   initial: 0.2  # First target level of damage
   final: 0.4    # Level of damage to stop at
   step: 0.2     # Step for the next level of damage
+
+# Prunes the dataset by using random.sample() to use a maximum of n images for each 
+# background+class+damage combination
+prune_dataset:
+  prune: 'true'
+  seed: 1
+  max_images: 4
