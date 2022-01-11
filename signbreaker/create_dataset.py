@@ -250,6 +250,7 @@ def main():
     labels_format = config['annotations']['type']
     if labels_format == 'retinanet':
         labels_path = os.path.join(final_dir, "labels.txt")
+        labels_dict = None
     elif labels_format == 'coco':
         labels_path = os.path.join(final_dir, "labels.json")
         classes = [Path(p).stem for p in glob.glob(f'{input_dir}{os.path.sep}*.jpg')]
@@ -283,25 +284,13 @@ def main():
 
         image = generate.new_data(synth_image)
         synth_image.write_label(labels_file, labels_dict, labels_format, ii, final_fg_path, image.shape)
-        cv2.imwrite(temp_fg_path, image)
+        cv2.imwrite(final_fg_path, image, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
         ii += 1
     print(f"Generating files: 100.0%\r\n")
     
     if labels_format == "coco":
         json.dump(labels_dict, labels_file, indent=4)
     labels_file.close()
-
-    #TODO: Is this really necessary? Can't we save to JPEG directly?
-    ii = 0
-    class_dirs = load_paths(images_dir)
-    for class_dir in class_dirs:
-        for damage_dir in load_paths(class_dir):
-            for image in load_paths(damage_dir):
-                print(f"Converting to JPEG: {float(ii) / float(total_gen):06.2%}", end='\r')
-                if image.endswith("png"):
-                    png_to_jpeg(image)
-                ii += 1  
-    print(f"Converting to JPEG: 100.0%\r\n")
 
     string = '''
     -------------------------------------
