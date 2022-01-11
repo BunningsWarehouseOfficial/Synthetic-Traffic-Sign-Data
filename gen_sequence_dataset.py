@@ -20,6 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("bg_dir", type=str, help="path to background image directory")
 parser.add_argument("damaged_sign_dir", type=str, help="path to damaged sign directory")
 parser.add_argument("original_sign_dir", type=str, help="path to directory of original signs")
+parser.add_argument("--max_dist", type=int, help="endpoint distance of sequence", default=20)
 parser.add_argument("-n", "--num_frames", type=int, help="number of frames generated for each sequence", default=8)
 parser.add_argument("-o", "--out_dir", type=str, help="path to output directory of sequences", default=default_outdir)
 
@@ -83,7 +84,7 @@ def convert_to_single_label(dataset_path, original_annotations, new_annotations)
             json.dump(a_json, f, indent=4)
         
         # Create a npy file to store ground truths, for more efficient evaluation    
-        annotations_array = np.array([[a["image_id"], a["bbox"][0], a["bbox"][1], a["bbox"][2], a["bbox"][3], a["damage"], a["distance"], a["category_id"]] 
+        annotations_array = np.array([[a["id"], a["bg_id"], a["sign_id"], a["bbox"][0], a["bbox"][1], a["bbox"][2], a["bbox"][3], a["damage"], a["distance"], a["category_id"]] 
                                     for a in a_json['annotations']])
         
         with open(os.path.join(dataset_path, '_single_annotations_array.npy'), 'wb') as f:
@@ -92,23 +93,23 @@ def convert_to_single_label(dataset_path, original_annotations, new_annotations)
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    
-    outdir = args.out_dir
-    if os.path.exists(outdir):
-        shutil.rmtree(outdir)
-    os.mkdir(outdir)
+
+    if os.path.exists(args.out_dir):
+        shutil.rmtree(args.out_dir)
+    os.mkdir(args.out_dir)
         
     annotations = initialise_annotations(len(os.listdir(args.original_sign_dir)))
     sign_paths = glob.glob(args.damaged_sign_dir + '/*/*.png')
     bg_paths = glob.glob(args.bg_dir + "/*.png")
     image_id = 0
     
-    for bg_path in bg_paths:
+    for bg_id, bg_path in enumerate(bg_paths):
         bg_name = Path(bg_path).stem
         bg_img = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
         height, width, _ = bg_img.shape
         print(f"Generating sequences for background image {bg_name}")
-            
+        
+        sign_id = 0    
         for sign_path in tqdm(sign_paths):
             sign_name = Path(sign_path).stem
             cls_name = sign_name.split('_')[0]
@@ -116,7 +117,8 @@ if __name__ == '__main__':
             
             sign_img = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
             original_sign_img = cv2.imread(original_sign_path, cv2.IMREAD_UNCHANGED)
-            image_paths, bounding_boxes = create_sequence(bg_img, sign_img, bg_name, sign_name, image_id, outdir, num_frames=args.num_frames)
+            image_paths, bounding_boxes = create_sequence(bg_img, sign_img, bg_name, sign_name, image_id, 
+                                                        args.out_dir, num_frames=args.num_frames, max_dist=args.max_dist)
             
             for i in range(len(image_paths)):
                 # Format [x, y, width, height, distance]
@@ -128,6 +130,7 @@ if __name__ == '__main__':
                 annotations["images"].append(
                     {
                         "id": image_id,
+                        "background_name": bg_name,
                         "width": width,
                         "height": height,
                         "file_name": os.path.basename(image_paths[i])
@@ -136,7 +139,8 @@ if __name__ == '__main__':
                 annotations["annotations"].append(
                     {
                         "id": image_id,        # one annotation per image
-                        "image_id": image_id,
+                        "bg_id": bg_id,
+                        "sign_id": sign_id,
                         "category_id": int(cls_name) + 1,
                         "bbox": bbox,
                         "iscrowd": 0,
@@ -147,11 +151,12 @@ if __name__ == '__main__':
                     }
                 )
                 image_id += 1
+            sign_id += 1
                 
-    annotations_path = os.path.join(outdir, "_annotations.coco.json")
+    annotations_path = os.path.join(args.out_dir, "_annotations.coco.json")
     with open(annotations_path, 'w') as f:
         json.dump(annotations, f, indent=4)
-    convert_to_single_label(outdir, '_annotations.coco.json', '_single_annotations.coco.json')
+    convert_to_single_label(args.out_dir, '_annotations.coco.json', '_single_annotations.coco.json')
             
             
         
