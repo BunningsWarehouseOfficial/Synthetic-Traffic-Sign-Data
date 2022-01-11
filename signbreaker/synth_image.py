@@ -63,6 +63,7 @@ class SynthImage:
                 "segmentation": [],
                 "iscrowd": 0
             })
+            import datetime
             labels_dict['images'].append({
                 "id": index,
                 "license": 1,
