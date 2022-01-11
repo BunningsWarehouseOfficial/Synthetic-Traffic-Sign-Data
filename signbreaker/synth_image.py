@@ -44,18 +44,33 @@ class SynthImage:
             self.damage_ratio,
             self.bg_path
         )
-
-    #TODO: Label format could be determined by config.yaml to suit particular models/pipelines
-    def get_label(self):
+        
+    def write_label(self, labels_file, labels_dict, labels_format, index, img_path, img_dims):
         axes = self.bounding_axes
         bounds = f"{axes[0]} {axes[1]} {axes[2]} {axes[3]}"
-        label = (f"{self.fg_path} {bounds} class={self.class_num} "
-                 f"{self.damage_type}={self.damage_tag} damage={self.damage_ratio} "
-                 f"transform_type={self.transform_type} man_type={self.man_type} "
-                 f"bg={self.bg_path}\n")
-        return label
-    #TODO: Labels don't include 'tag' key-value pairs
-
+        if labels_format == "retinanet":
+            labels_file.write(f"{self.fg_path} {bounds} class={self.class_num} "
+                        f"{self.damage_type}={self.damage_tag} damage={self.damage_ratio} "
+                        f"transform_type={self.transform_type} man_type={self.man_type} "
+                        f"bg={self.bg_path}\n")
+        elif labels_format == "coco":
+            labels_dict['annotations'].append({
+                "id": index,
+                "image_id": index,
+                "category_id": self.class_num,
+                "bbox": [axes[0], axes[2], axes[1] - axes[0], axes[3] - axes[2]],
+                "area": (axes[1] - axes[0]) * (axes[3] - axes[2]),
+                "segmentation": [],
+                "iscrowd": 0
+            })
+            labels_dict['images'].append({
+                "id": index,
+                "license": 1,
+                "file_name": img_path,
+                "height": img_dims[0],
+                "width": img_dims[1],
+                "date_captured": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
 
     def __check_class(self, class_num):
         if class_num < 0:
