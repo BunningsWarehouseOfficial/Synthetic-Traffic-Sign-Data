@@ -41,3 +41,7 @@ prune_dataset:
   prune: 'true'
   seed: 1
   max_images: 4
+
+annotations:
+  type: 'coco'
+  damage_labelling: 'true'
