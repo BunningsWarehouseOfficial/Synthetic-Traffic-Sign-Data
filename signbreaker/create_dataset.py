@@ -9,9 +9,11 @@ def main():
 
     import numpy as np
     import cv2
+    import json
     from collections import defaultdict
     from PIL import Image, ImageChops, ImageDraw, ImageOps, ImageFilter, ImageStat, ImageEnhance, ImageFile
     from skimage import io, color, exposure
+    from pathlib import Path
     import glob
     import math
 
@@ -245,7 +247,13 @@ def main():
     ###  GENERATING FINAL DATA  ###
     ###############################
     images_dir = os.path.join(final_dir, "Images")
-    labels_path = os.path.join(final_dir, "labels.txt")
+    labels_format = config['annotations']['type']
+    if labels_format == 'retinanet':
+        labels_path = os.path.join(final_dir, "labels.txt")
+    elif labels_format == 'coco':
+        labels_path = os.path.join(final_dir, "labels.json")
+        classes = [Path(p).stem for p in glob.glob(f'{input_dir}{os.path.sep}*.jpg')]
+        labels_dict = generate.initialise_coco_labels(classes)
     about_path = os.path.join(final_dir, "generated_images_about.txt")
 
     # Clean and recreate the parent images directory
@@ -257,25 +265,31 @@ def main():
     print(f"Files to be generated: {total_gen}")
 
     ii = 0
-    with open(labels_path, "w") as labels_file:
-        for synth_image in manipulated_data:
-            print(f"Generating files: {float(ii) / float(total_gen):06.2%}", end='\r')
-            
-            c_num = synth_image.class_num
-            d_type = synth_image.damage_type
-            class_dir = os.path.join(images_dir, f"{c_num}", f"{c_num}_{d_type}")
-            # Create the directory for each class+damage combination if it doesn't already exist
-            if not os.path.exists(class_dir):
-                os.makedirs(class_dir)
-            
-            fg_path =  os.path.join(class_dir, f"{c_num}_{d_type}_{ii}")
-            temp_fg_path  = fg_path + ".png"
-            final_fg_path = fg_path + ".jpg"  # It is assumed that the final .jpg -> .png conversion step is executed
+    labels_file = open(labels_path, "w")
+    
+    for synth_image in manipulated_data:
+        print(f"Generating files: {float(ii) / float(total_gen):06.2%}", end='\r')
+        
+        c_num = synth_image.class_num
+        d_type = synth_image.damage_type
+        class_dir = os.path.join(images_dir, f"{c_num}", f"{c_num}_{d_type}")
+        # Create the directory for each class+damage combination if it doesn't already exist
+        if not os.path.exists(class_dir):
+            os.makedirs(class_dir)
+        
+        fg_path =  os.path.join(class_dir, f"{c_num}_{d_type}_{ii}")
+        temp_fg_path  = fg_path + ".png"
+        final_fg_path = fg_path + ".jpg"  # It is assumed that the final .jpg -> .png conversion step is executed
 
-            image = generate.new_data(synth_image, labels_file)
-            cv2.imwrite(temp_fg_path, image)
-            ii += 1
-        print(f"Generating files: 100.0%\r\n")
+        image = generate.new_data(synth_image)
+        synth_image.write_label(labels_file, labels_dict, labels_format, ii, final_fg_path, image.shape)
+        cv2.imwrite(temp_fg_path, image)
+        ii += 1
+    print(f"Generating files: 100.0%\r\n")
+    
+    if labels_format == "coco":
+        json.dump(labels_dict, labels_file, indent=4)
+    labels_file.close()
 
     #TODO: Is this really necessary? Can't we save to JPEG directly?
     ii = 0
