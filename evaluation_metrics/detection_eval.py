@@ -5,7 +5,7 @@ from typing import List, Dict
 import numpy as np
 
 '''
-Code adapted from https://github.com/yfpeng/object_detection_metrics/blob/master/podm/podm.py
+Code from https://github.com/yfpeng/object_detection_metrics/blob/master/podm/podm.py
 
 Author: Yifan Peng
 
@@ -99,12 +99,12 @@ class Box:
 
 
 class BoundingBox(Box):
-    def __init__(self, image_name: str, label: str, xtl: float, ytl: float, xbr: float, ybr: float,
+    def __init__(self, image_id: float, class_id: float, xtl: float, ytl: float, xbr: float, ybr: float,
                  score=None):
         """Constructor.
         Args:
-            image_name: the image name.
-            label: class id.
+            image_id: the image name.
+            class_id: class id.
             xtl: the X top-left coordinate of the bounding box.
             ytl: the Y top-left coordinate of the bounding box.
             xbr: the X bottom-right coordinate of the bounding box.
@@ -112,9 +112,9 @@ class BoundingBox(Box):
             score: (optional) the confidence of the detected class.
         """
         super().__init__(xtl, ytl, xbr, ybr)
-        self.image_name = image_name
+        self.image_id = image_id
         self.score = score
-        self.label = label
+        self.class_id = class_id
         
         
 def calculate_all_points_average_precision(recall, precision):
@@ -142,7 +142,7 @@ def calculate_all_points_average_precision(recall, precision):
 
 class MetricPerClass:
     def __init__(self):
-        self.label = None
+        self.class_id = None
         self.precision = None
         self.recall = None
         self.ap = None
@@ -177,13 +177,13 @@ def get_pascal_voc_metrics(gold_standard: List[BoundingBox],
     ret = {}  # list containing metrics (precision, recall, average precision) of each class
 
     # Get all classes
-    classes = sorted(set(b.label for b in gold_standard + predictions))
+    classes = sorted(set(b.class_id for b in gold_standard + predictions))
 
     # Precision x Recall is obtained individually by each class
     # Loop through by classes
     for c in classes:
-        preds = [b for b in predictions if b.label == c]  # type: List[BoundingBox]
-        golds = [b for b in gold_standard if b.label == c]  # type: List[BoundingBox]
+        preds = [b for b in predictions if b.class_id == c]  # type: List[BoundingBox]
+        golds = [b for b in gold_standard if b.class_id == c]  # type: List[BoundingBox]
         npos = len(golds)
 
         # sort detections by decreasing confidence
@@ -192,21 +192,21 @@ def get_pascal_voc_metrics(gold_standard: List[BoundingBox],
         fps = np.zeros(len(preds))
 
         # create dictionary with amount of gts for each image
-        counter = Counter([cc.image_name for cc in golds])
+        counter = Counter([cc.image_id for cc in golds])
         for key, val in counter.items():
             counter[key] = np.zeros(val)
 
         # Pre-processing groundtruths of the some image
-        image_name2gt = defaultdict(list)
+        image_id2gt = defaultdict(list)
         for b in golds:
-            image_name2gt[b.image_name].append(b)
+            image_id2gt[b.image_id].append(b)
             
         tp_IOUs = []
         tp_scores = []
         # Loop through detections
         for i in range(len(preds)):
             # Find ground truth image
-            gt = image_name2gt[preds[i].image_name]
+            gt = image_id2gt[preds[i].image_id]
             max_iou = sys.float_info.min
             mas_idx = -1
             for j in range(len(gt)):
@@ -216,7 +216,7 @@ def get_pascal_voc_metrics(gold_standard: List[BoundingBox],
                     mas_idx = j
             
             # Metrics that are invariant with iou_threshold        
-            if counter[preds[i].image_name][mas_idx] == 0:
+            if counter[preds[i].image_id][mas_idx] == 0:
                 # Add IOU of best detection for this ground truth
                 tp_IOUs.append(max_iou)
                 # Add score of best detection for this ground truth
@@ -224,9 +224,9 @@ def get_pascal_voc_metrics(gold_standard: List[BoundingBox],
                         
             # Assign detection as true positive/don't care/false positive
             if max_iou >= iou_threshold:
-                if counter[preds[i].image_name][mas_idx] == 0:
+                if counter[preds[i].image_id][mas_idx] == 0:
                     tps[i] = 1  # count as true positive
-                    counter[preds[i].image_name][mas_idx] = 1  # flag as already 'seen'
+                    counter[preds[i].image_id][mas_idx] = 1  # flag as already 'seen'
                 else:
                     # - A detected "cat" is overlaped with a GT "cat" with IOU >= IOUThreshold.
                     fps[i] = 1  # count as false positive
@@ -242,7 +242,7 @@ def get_pascal_voc_metrics(gold_standard: List[BoundingBox],
         ap, mpre, mrec, _ = calculate_all_points_average_precision(recalls, precisions)
         # add class result in the dictionary to be returned
         r = MetricPerClass()
-        r.label = c
+        r.class_id = c
         r.precision = precisions
         r.recall = recalls
         r.ap = ap
