@@ -105,11 +105,17 @@ def main():
     # Rescale images and make white backgrounds transparent
     paths = load_files(input_dir)
     for path in paths:
+        _, filename = ntpath.split(path)
+        name, extension = filename.rsplit('.', 1)
+        
+        if extension == 'png':
+            png_to_jpeg(path)
+            path = os.path.join(input_dir, name + '.jpg')
+        
         img = scale_image(path, config['sign_width']) # Rescale the image
 
         # Remove the extension and save as a png
-        _, filename = ntpath.split(path)
-        name, _ = filename.rsplit('.', 1)
+        
         save_path = os.path.join(processed_dir, name) + ".png"
         img.save(save_path)
 
