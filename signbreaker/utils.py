@@ -50,7 +50,7 @@ def scale_image(image_path, width):
     old_size = img.size  # old_size is in (width, height) format
     ratio = float(width) / max(old_size)
     new_size = tuple([int(x * ratio) for x in old_size])
-    img = img.resize(new_size, Image.ANTIALIAS)
+    img = img.resize(new_size, Image.BICUBIC)
 
     # Pad the image with whitespace
     delta_w = width - new_size[0]
@@ -138,7 +138,7 @@ def png_to_jpeg(filepath):
     png = Image.open(filepath)
     png.load()  # Required for png.split()
     background = Image.new("RGB", png.size, (255, 255, 255))
-    background.paste(png, mask=png.split()[3])  # 3 is the alpha channel
+    background.paste(png, mask=png.split()[-1])  # 3 is the alpha channel
     background.save(string, 'JPEG', quality=100)
     os.remove(filepath)
 
