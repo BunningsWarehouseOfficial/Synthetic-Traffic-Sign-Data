@@ -56,7 +56,7 @@ def scale_image(image_path, width):
     delta_w = width - new_size[0]
     delta_h = width - new_size[1]
     padding = (delta_w // 2, delta_h // 2, delta_w - (delta_w // 2), delta_h - (delta_h // 2))
-    new_img = ImageOps.expand(img, padding, (255,255,255))
+    new_img = ImageOps.expand(img, padding, fill=(255, 255, 255, 0))
     
     return new_img
 
