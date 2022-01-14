@@ -108,10 +108,6 @@ def main():
         _, filename = ntpath.split(path)
         name, extension = filename.rsplit('.', 1)
         
-        if extension == 'png':
-            png_to_jpeg(path)
-            path = os.path.join(input_dir, name + '.jpg')
-        
         img = scale_image(path, config['sign_width']) # Rescale the image
 
         # Remove the extension and save as a png
@@ -119,7 +115,8 @@ def main():
         save_path = os.path.join(processed_dir, name) + ".png"
         img.save(save_path)
 
-        delete_background(save_path, save_path) # Overwrite the newly rescaled image
+        if not img.mode[-1] == 'A':
+            delete_background(save_path, save_path) # Overwrite the newly rescaled image
 
     if config['final_op'] == 'process':
         return
