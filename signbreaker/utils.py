@@ -50,7 +50,7 @@ def scale_image(image_path, width):
     old_size = img.size  # old_size is in (width, height) format
     ratio = float(width) / max(old_size)
     new_size = tuple([int(x * ratio) for x in old_size])
-    img = img.resize(new_size, Image.BICUBIC)
+    img = img.resize(new_size, Image.ANTIALIAS)
 
     # Pad the image with whitespace
     delta_w = width - new_size[0]
