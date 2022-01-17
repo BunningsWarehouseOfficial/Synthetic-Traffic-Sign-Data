@@ -179,7 +179,7 @@ def create_sequence(bg_img, fg_img, bg_name, fg_name, sequence_id, out_dir, min_
         new_img = overlay(scaled_fg_img, bg_img, anchor.screen_x, anchor.screen_y)
         cv2.imwrite(save_path, new_img)
         
-        bounding_boxes.append([anchor.screen_x, anchor.screen_y, anchor.size, anchor.size, anchor.distance])
+        bounding_boxes.append([anchor.screen_x, anchor.screen_y, anchor.size, anchor.size])
         image_paths.append(save_path)
     return (image_paths, bounding_boxes)
 

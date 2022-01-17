@@ -1,6 +1,6 @@
 import cv2
 import math
-from create_sequences_auto import SIGN_COORDS, produce_anchors
+from dataset_gen.sequence_gen.create_sequences_auto import SIGN_COORDS, produce_anchors
 from utils import overlay
 
 
