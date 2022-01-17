@@ -5,15 +5,15 @@ import pandas as pd
 import plotly.express as px
 
 from collections import defaultdict
-from evaluation_metrics.detection_eval import BoundingBox, get_pascal_voc_metrics, Box
+from detection_eval import BoundingBox, get_pascal_voc_metrics, Box
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/datasets/sgts_sequences/_single_annotations_array.npy', 
+parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/datasets/sgts_sequences_8/_single_annotations_array.npy', 
                     help='Ground truth annotations for dataset as a numpy file')
-parser.add_argument('--eval_file', default='/home/allenator/Pawsey-Internship/eval_dir/sgts_sequences/efficientdet-d0.npy', 
+parser.add_argument('--eval_file', default='/home/allenator/Pawsey-Internship/eval_dir/sgts_sequences_8/efficientdet-d0.npy', 
                     help='File containing evaluated detections as a numpy file')
 parser.add_argument('--num_frames', default=8, type=int, help='Number of frames per sequence in dataset')
 parser.add_argument('--experiment', default='damage', choices=['damage', 'distance'] , help='Type of experiment to evaluate')

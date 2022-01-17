@@ -6,8 +6,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from collections import Counter, defaultdict
-from evaluation_metrics.detection_eval import BoundingBox, get_pascal_voc_metrics
-from damage_experiment import get_metrics
+from experiments.detection_eval import BoundingBox, get_pascal_voc_metrics
+from experiments.damage_experiment import get_metrics
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
