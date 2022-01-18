@@ -88,7 +88,7 @@ if __name__ == '__main__':
     annotations_path = os.path.join(args.out_dir, "_annotations.coco.json")
     with open(annotations_path, 'w') as f:
         json.dump(annotations, f, indent=4)
-    convert_to_single_label(args.out_dir, '_annotations.coco.json', '_single_annotations.coco.json')
+    convert_to_single_label(args.out_dir, '_annotations.coco.json', '_single_annotations.coco.json', use_damages=True)
             
             
         
