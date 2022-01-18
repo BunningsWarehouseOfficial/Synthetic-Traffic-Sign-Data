@@ -66,7 +66,7 @@ def convert_to_single_label(dataset_path, original_annotations, new_annotations,
             annotations_array = np.array([[a["id"], a["image_id"], a["bg_id"], a["bbox"][0], a["bbox"][1], a["bbox"][2], a["bbox"][3], a["damage"], a["category_id"]] 
                                         for a in a_json['annotations']])
         else:
-            annotations_array = np.array([[a["id"], a["image_id"], a["bg_id"], a["bbox"][0], a["bbox"][1], a["bbox"][2], a["bbox"][3], a["category_id"]] 
+            annotations_array = np.array([[a["id"], a["image_id"], a["bbox"][0], a["bbox"][1], a["bbox"][2], a["bbox"][3], a["category_id"]] 
                                         for a in a_json['annotations']])
             
         with open(os.path.join(dataset_path, '_single_annotations_array.npy'), 'wb') as f:
