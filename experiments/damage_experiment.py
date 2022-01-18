@@ -13,7 +13,7 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/datasets/sgts_sequences_8/_single_annotations_array.npy', 
                     help='Ground truth annotations for dataset as a numpy file')
-parser.add_argument('--eval_file', default='/home/allenator/Pawsey-Internship/eval_dir/sgts_sequences_8/efficientdet-d0.npy', 
+parser.add_argument('--eval_file', default='/home/allenator/Pawsey-Internship/eval_dir/sgts_sequences_8/gtsdb_efficientdet-d0.npy', 
                     help='File containing evaluated detections as a numpy file')
 parser.add_argument('--num_frames', default=8, type=int, help='Number of frames per sequence in dataset')
 parser.add_argument('--experiment', default='damage', choices=['damage', 'distance'] , help='Type of experiment to evaluate')
@@ -69,8 +69,8 @@ def get_metrics(gt, pred):
 
 
 def get_bounding_boxes(gt_detections, pred_detections):
-    # gt detections array in format [image_id, bg_id, fg_id, xtl, ytl, width, height, damage, distance, class_id]
-    gt_boxes = [BoundingBox(image_id=det[0], class_id=det[-1], xtl=det[3], ytl=det[4], xbr=det[3] + det[5], ybr=det[4] + det[6]) 
+    # gt detections array in format [image_id, bg_id, xtl, ytl, width, height, damage, class_id]
+    gt_boxes = [BoundingBox(image_id=det[0], class_id=det[-1], xtl=det[2], ytl=det[3], xbr=det[2] + det[4], ybr=det[3] + det[5]) 
                         for det in gt_detections]
     # pred detections array in format [image_id, xtl, ytl, width, height, score, class_id]
     pred_boxes = [BoundingBox(image_id=det[0], class_id=det[-1], xtl=det[1], ytl=det[2], xbr=det[1] + det[3], ybr=det[2] + det[4], score=det[5])
@@ -90,7 +90,7 @@ def split_by_sign_size(gt_array, arr_to_split):
     
     for i in range(len(arr_to_split)):
         image_id = arr_to_split[i, 0]
-        size = gt_array[int(image_id), 5]   # sign width in pixels
+        size = gt_array[int(image_id), 4]   # sign width in pixels
         split_dict[size].append(arr_to_split[i])
             
     split_dict = {dist:np.array(arr) for dist, arr in split_dict.items()}
@@ -137,14 +137,14 @@ def metrics_by_size(gt_array, pred_array):
     return metrics_array, columns 
 
 
-def metrics_by_sequence(gt_array, pred_array):
+def metrics_by_sequence(gt_array, pred_array, num_frames):
     # Format [Sign Width, AP50, mAP, Maximum IOU, Minimum IOU, Mean IOU, Maximum Score, Minimum Score, Mean Score]
     size_metrics, _ = metrics_by_size(gt_array, pred_array)
     optimal_width = int(size_metrics[np.argmax(size_metrics[:, 2]), 0])
     closest_width = np.max(size_metrics[:, 0])
     
-    sequences_gt = split_by_sequence(gt_array, args.num_frames)
-    sequences_pred = split_by_sequence(pred_array, args.num_frames)
+    sequences_gt = split_by_sequence(gt_array, num_frames)
+    sequences_pred = split_by_sequence(pred_array, num_frames)
     sequences_pred = [prune_detections(arr) for arr in sequences_pred]
     
     # Format [Damage, AP50, mAP, Maximum IOU, Minimum IOU, Mean IOU, Maximum Score, Minimum Score, Mean Score] 
@@ -153,7 +153,7 @@ def metrics_by_sequence(gt_array, pred_array):
     
     # iterate over each image sequence
     for i in range(len(sequences_gt)):
-        damage_level = round(np.mean(sequences_gt[i][:, 7]), 1)
+        damage_level = round(np.mean(sequences_gt[i][:, -2]), 1)
         gt_boxes, pred_boxes = get_bounding_boxes(sequences_gt[i], sequences_pred[i])
         metrics, columns = get_metrics(gt_boxes, pred_boxes)
         
@@ -171,8 +171,8 @@ def metrics_by_sequence(gt_array, pred_array):
     return metrics_array, columns
 
 
-def damage_experiment(gt_array, pred_array):
-    metrics_array, columns = metrics_by_sequence(gt_array, pred_array) 
+def damage_experiment(gt_array, pred_array, num_frames):
+    metrics_array, columns = metrics_by_sequence(gt_array, pred_array, num_frames) 
     
     damages = np.unique(metrics_array[:, 0])
     dmg_metrics = np.zeros((len(damages), metrics_array.shape[1]))
@@ -198,7 +198,7 @@ if __name__ == '__main__':
     # Findings: it has been found that metrics remain consistent until a threshold damage level, 50%, is reached, whereupon
     # model performance reduces rapidly as damage increases.
     if args.experiment == 'damage':
-        df = damage_experiment(gt_array, pred_array)
+        df = damage_experiment(gt_array, pred_array, args.num_frames)
         df_long = pd.melt(df, id_vars=['Damage'], value_vars=['Mean IOU', 'Score Heuristic IOU', 'Area Heuristic IOU'])
         fig = px.line(df_long, x='Damage', y='value', title='IOU vs. Damage Level', color='variable')
         
