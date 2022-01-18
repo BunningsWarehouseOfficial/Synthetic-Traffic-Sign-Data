@@ -256,7 +256,7 @@ def main():
         labels_dict = None
     elif labels_format == 'coco':
         labels_path = os.path.join(final_dir, "labels.json")
-        classes = [Path(p).stem for p in glob.glob(f'{input_dir}{os.path.sep}*.jpg')]
+        classes = [Path(p).stem for p in glob.glob(f'{processed_dir}{os.path.sep}*.png')]
         labels_dict = generate.initialise_coco_labels(classes)
     about_path = os.path.join(final_dir, "generated_images_about.txt")
 
