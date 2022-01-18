@@ -56,8 +56,8 @@ def scale_image(image_path, width):
     delta_w = width - new_size[0]
     delta_h = width - new_size[1]
     padding = (delta_w // 2, delta_h // 2, delta_w - (delta_w // 2), delta_h - (delta_h // 2))
-    new_img = ImageOps.expand(img, padding, fill=(255, 255, 255, 0))
-    
+    fill = (255, 0) if img.mode[0] == 'L' else (255, 255, 255, 0)
+    new_img = ImageOps.expand(img, padding, fill=fill)
     return new_img
 
 def create_alpha(img, alpha_channel):
