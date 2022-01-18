@@ -7,7 +7,7 @@ import random
 from datetime import datetime
 from glob import glob
 
-from utils import initialise_coco_anns
+from utils import initialise_coco_anns, convert_to_single_label
 
 parser = argparse.ArgumentParser()
 
@@ -28,18 +28,20 @@ def extend_annotations(final_annotations, image_paths, annotations):
     for img_json in annotations['images']:
         path = os.path.basename(img_json["file_name"])
         
-        if path in image_paths:
-            image_anns = filter(lambda ann: ann['image_id'] == img_json['id'], annotations['annotations'])
-            img_json['id'] = image_id
-            img_json['file_name'] = path
-            final_anns['images'].append(img_json)
-            
-            for ann in image_anns:
-                ann['id'] = annotation_id
-                ann['image_id'] = image_id
-                final_annotations['annotations'].append(ann)
-                annotation_id += 1
-            image_id += 1
+        if path not in image_paths:
+            continue
+              
+        image_anns = list(filter(lambda ann: ann['image_id'] == img_json['id'], annotations['annotations']))
+        img_json['id'] = image_id
+        img_json['file_name'] = path
+        final_annotations['images'].append(img_json)
+        
+        for ann in image_anns:
+            ann['id'] = annotation_id
+            ann['image_id'] = image_id
+            final_annotations['annotations'].append(ann)
+            annotation_id += 1
+        image_id += 1
 
 
 if __name__ == '__main__':
@@ -53,7 +55,7 @@ if __name__ == '__main__':
     if not os.path.exists(augmentation_dir):
         os.mkdir(augmentation_dir)
     
-    outdir = os.path.join(augmentation_dir, f'{aug_factor}_augmented_gtsdb')
+    outdir = os.path.join(augmentation_dir, f'{aug_factor}_augmented')
     if os.path.exists(outdir):
         shutil.rmtree(outdir)
     os.mkdir(outdir)
@@ -72,7 +74,6 @@ if __name__ == '__main__':
     orig_paths = random.sample(orig_paths, int((1 - aug_factor) * num_train))
     augment_paths = random.sample(augment_paths, int(num_train * aug_factor))
     final_paths = orig_paths + augment_paths
-    random.shuffle(final_paths)
     
     extend_annotations(final_anns, orig_paths, orig_anns)
     extend_annotations(final_anns, augment_paths, augment_anns)
@@ -84,5 +85,7 @@ if __name__ == '__main__':
     for i, p in enumerate(final_paths):
         print(f"Copying files: {float(i) / float(len(final_paths)):06.2%}", end='\r')
         shutil.copyfile(p, os.path.join(outdir, os.path.basename(p)))
+    
+    convert_to_single_label(outdir, '_annotations.coco.json', '_single_annotations.coco.json')
     
     
