@@ -8,9 +8,9 @@ import math
 import numpy as np
 import cv2 as cv
 from skimage import draw
-from utils import overlay, calc_damage, count_diff_pixels, count_pixels, calc_damage_quadrants, calc_ratio
+from .utils import overlay, calc_damage, count_diff_pixels, count_pixels, calc_damage_quadrants, calc_ratio
 import ntpath
-from synth_image import SynthImage
+from .synth_image import SynthImage
 
 attributes = {
     "damage_type" : "None",
@@ -393,15 +393,22 @@ def bend_vertical(img):
 
     #TODO: Find out what 'pt_value' should actually be called
     def tilt(pt_value, angle):
-        pt = wd // pt_value  # The variable that changes the angle of the transform
-        xx = pt * 3
-        yy = pt // 2
+        pt = 0
+        angle = max(min(angle, 80), 0)  # Limit the angle to between 0 and 80 degrees
+        angle = math.radians(angle)  # Convert to radians
+        d = (wd // 2 - pt) * math.cos(angle)
+        delta_x = int(d * math.cos(angle))
+        delta_y = int(d * math.sin(angle))
+        xx = wd // 2 - delta_x
+        yy = pt - delta_y
+        
         # Keep top-middle and bottom-middle unchanged to bend on the vertical axis
         # Right             Top-left Top-middle  Bottom-left Bottom-middle
         src = np.float32( [ [pt,pt], [wd//2,pt], [pt,ht-pt], [wd//2,ht-pt] ] )
         dst = np.float32( [ [xx,yy], [wd//2,pt], [xx,ht-yy], [wd//2,ht-pt] ] )
         matrix = cv.getPerspectiveTransform(src, dst)
         right = cv.warpPerspective(img, matrix, (wd,ht))
+
         # Left              Top-middle  Top-right   Bottom-middle  Bottom-right
         src = np.float32( [ [wd//2,pt], [wd-pt,pt], [wd//2,ht-pt], [wd-pt,ht-pt] ] )
         dst = np.float32( [ [wd//2,pt], [wd-xx,yy], [wd//2,ht-pt], [wd-xx,ht-yy] ] )
@@ -438,6 +445,6 @@ def bend_vertical(img):
     #tilt(24, 40)  #TODO: Choices for which bends are done should be in config.yaml
 
     # TILT 60 DEGREES
-    tilt(12, 60)
+    tilt(12, 15)
 
     return dmgs, attrs
