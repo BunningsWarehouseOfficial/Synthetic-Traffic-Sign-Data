@@ -391,27 +391,42 @@ def bend_vertical(img):
     dmgs = []
     attrs = []
 
-    #TODO: Find out what 'pt_value' should actually be called
-    def tilt(pt_value, angle):
-        pt = 0
+    def tilt(angle):                               
+        #                                           (dst)
+        #        0,0 ------> x                      *
+        #                                           |\
+        #      0,0    (src)                         | \  
+        #      |            (wd/2, 0)   (delta_y)-->|  \<--(d)        
+        #      |      *_______↓                     |﹍﹍\<---(angle)
+        #      |      |       |                     |↑___|_(delta_x)    
+        #             |       |     =========>      |    | 
+        #      y      |       |                     |    |
+        #             |       |                     |    |
+        #             |_______|                     |   /
+        #             *                             |  /
+        #             ↑                             | /
+        #            (0, ht-1)                      |/
+        #                                           * 
+        #                                           
+
         angle = max(min(angle, 80), 0)  # Limit the angle to between 0 and 80 degrees
         angle = math.radians(angle)  # Convert to radians
-        d = (wd // 2 - pt) * math.cos(angle)
+        d = wd // 2 * math.cos(angle)  
         delta_x = int(d * math.cos(angle))
         delta_y = int(d * math.sin(angle))
         xx = wd // 2 - delta_x
-        yy = pt - delta_y
+        yy = -delta_y
         
         # Keep top-middle and bottom-middle unchanged to bend on the vertical axis
-        # Right             Top-left Top-middle  Bottom-left Bottom-middle
-        src = np.float32( [ [pt,pt], [wd//2,pt], [pt,ht-pt], [wd//2,ht-pt] ] )
-        dst = np.float32( [ [xx,yy], [wd//2,pt], [xx,ht-yy], [wd//2,ht-pt] ] )
+        # Right             Top-left  Top-middle  Bottom-left  Bottom-middle
+        src = np.float32( [ [0,0],    [wd//2,0],  [0,ht],      [wd//2,ht] ] )
+        dst = np.float32( [ [xx,yy],  [wd//2,0],  [xx,ht-yy],  [wd//2,ht] ] )
         matrix = cv.getPerspectiveTransform(src, dst)
         right = cv.warpPerspective(img, matrix, (wd,ht))
 
         # Left              Top-middle  Top-right   Bottom-middle  Bottom-right
-        src = np.float32( [ [wd//2,pt], [wd-pt,pt], [wd//2,ht-pt], [wd-pt,ht-pt] ] )
-        dst = np.float32( [ [wd//2,pt], [wd-xx,yy], [wd//2,ht-pt], [wd-xx,ht-yy] ] )
+        src = np.float32( [ [wd//2,0],  [wd,0],     [wd//2,ht],    [wd-0,ht] ] )
+        dst = np.float32( [ [wd//2,0],  [wd-xx,yy], [wd//2,ht],    [wd-xx,ht-yy] ] )
         matrix = cv.getPerspectiveTransform(src, dst)
         left = cv.warpPerspective(img, matrix, (wd,ht))
         
@@ -441,10 +456,7 @@ def bend_vertical(img):
         att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
         attrs.append(att.copy())
 
-    # TILT 40 DEGREES
-    #tilt(24, 40)  #TODO: Choices for which bends are done should be in config.yaml
-
-    # TILT 60 DEGREES
-    tilt(12, 15)
+    # TILT 15 DEGREES
+    tilt(15)
 
     return dmgs, attrs
