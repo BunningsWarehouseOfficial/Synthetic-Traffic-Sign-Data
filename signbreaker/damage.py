@@ -3,6 +3,7 @@
 # https://github.com/ai-research-students-at-curtin/sign_augmentation
 
 import os
+import imutils
 import random as rand
 import math
 import numpy as np
@@ -383,10 +384,13 @@ def combine(img1, img2, beta_diff=-20):
 
     return result
 
-def bend_vertical(img):
+def bend_vertical(img, axis_angle):
     """Apply perspective warp to tilt images and combine to produce bent signs.
+       :param img: the image to use to produce damaged signs
+       :param axis_angle: the bearing of the axis of rotation in x-y plane
        :returns: a list of bent signs and a list of corresponding attributes"""
-    dmg = validate_sign(img)
+       
+    img = imutils.rotate_bound(img, axis_angle)
     ht,wd,_ = img.shape  # Retrieve image dimentions
     dmgs = []
     attrs = []
@@ -457,6 +461,8 @@ def bend_vertical(img):
         attrs.append(att.copy())
 
     # TILT 15 DEGREES
-    tilt(15)
+    tilt(20)
 
+    for i in range(len(dmgs)):
+        dmgs[i] = imutils.rotate_bound(dmgs[i], -axis_angle)
     return dmgs, attrs
