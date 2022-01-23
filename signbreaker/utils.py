@@ -429,3 +429,13 @@ def append_labels(image_path, axes, class_id, dmg, labels_path):
         file.write("{0} {1},{2},{3},{4},{5}\n" \
             .format(image_path, axes[0],axes[2],axes[1],axes[3], class_id))
     file.close()
+
+
+def remove_padding(img):
+    opaque_pixels = img[:, :, -1] > 0
+    opaque_pixels = opaque_pixels.astype(np.uint8) * 255
+    coords = cv2.findNonZero(opaque_pixels) # Find all non-zero points
+    x, y, w, h = cv2.boundingRect(coords) # Find minimum spanning bounding box
+    rect = img[y:y+h, x:x+w] # Crop the image - note we do this on the original image
+    return rect
+            
