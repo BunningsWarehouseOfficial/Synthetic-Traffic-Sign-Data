@@ -9,7 +9,7 @@ import math
 import numpy as np
 import cv2 as cv
 from skimage import draw
-from utils import overlay, calc_damage, count_diff_pixels, count_pixels, calc_damage_quadrants, calc_ratio, remove_padding
+from utils import calc_damage_ssim, overlay, calc_damage, calc_damage_ssim, count_diff_pixels, count_pixels, calc_damage_quadrants, calc_ratio, remove_padding
 import ntpath
 from synth_image import SynthImage
 
@@ -445,8 +445,8 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
         att = attributes
         att["damage_type"] = "bend"
         att["tag"]    = "{}".format(tag)
-        original = cv.resize(img, dmg.shape[:2][::-1])
-        att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, original))
+        original = cv.resize(remove_padding(img), dmg.shape[:2][::-1])
+        att["damage_ratio"]  = "{:.3f}".format(calc_damage_ssim(dmg, original))
         attrs.append(att.copy())
         
     # Combine the right tilt with the original forward-facing image
