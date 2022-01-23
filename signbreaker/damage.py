@@ -9,7 +9,7 @@ import math
 import numpy as np
 import cv2 as cv
 from skimage import draw
-from .utils import overlay, calc_damage, count_diff_pixels, count_pixels, calc_damage_quadrants, calc_ratio
+from .utils import overlay, calc_damage, count_diff_pixels, count_pixels, calc_damage_quadrants, calc_ratio, remove_padding
 import ntpath
 from .synth_image import SynthImage
 
@@ -363,7 +363,7 @@ def graffiti(img, color=(0,0,0), initial=0.1, final=0.4, step=0.1):
     return dmgs, attrs
 
 
-### The following two functions are both for the 'bend' damage type ###
+### The following three functions are both for the 'bend' damage type ###
 
 def combine(img1, img2, beta_diff=-20):
     """Combine the left half of img1 with right half of img2 and returns the result."""
@@ -384,18 +384,7 @@ def combine(img1, img2, beta_diff=-20):
 
     return result
 
-def bend_vertical(img, axis_angle):
-    """Apply perspective warp to tilt images and combine to produce bent signs.
-       :param img: the image to use to produce damaged signs
-       :param axis_angle: the bearing of the axis of rotation in x-y plane
-       :returns: a list of bent signs and a list of corresponding attributes"""
-       
-    img = imutils.rotate_bound(img, axis_angle)
-    ht,wd,_ = img.shape  # Retrieve image dimentions
-    dmgs = []
-    attrs = []
-
-    def tilt(angle):                               
+def tilt(img, angle, dims):                               
         #                                           (dst)
         #        0,0 ------> x                      *
         #                                           |\
@@ -412,7 +401,7 @@ def bend_vertical(img, axis_angle):
         #            (0, ht-1)                      |/
         #                                           * 
         #                                           
-
+        ht, wd = dims
         angle = max(min(angle, 80), 0)  # Limit the angle to between 0 and 80 degrees
         angle = math.radians(angle)  # Convert to radians
         d = wd // 2 * math.cos(angle)  
@@ -433,36 +422,38 @@ def bend_vertical(img, axis_angle):
         dst = np.float32( [ [wd//2,0],  [wd-xx,yy], [wd//2,ht],    [wd-xx,ht-yy] ] )
         matrix = cv.getPerspectiveTransform(src, dst)
         left = cv.warpPerspective(img, matrix, (wd,ht))
-        
-        # Combine the right tilt with the original forward-facing image
-        #TODO: Would look more realistic with non-zero beta_diff, but introduces too much complexity with exposure atm
-        dmg = combine(img, right, beta_diff=0)
+        return left, right
+
+def bend_vertical(img, axis_angle):
+    """Apply perspective warp to tilt images and combine to produce bent signs.
+       :param img: the image to use to produce damaged signs
+       :param axis_angle: the bearing of the axis of rotation in x-y plane
+       :returns: a list of bent signs and a list of corresponding attributes"""
+    bend_img = imutils.rotate_bound(img, axis_angle)
+    bend_img = remove_padding(bend_img)
+    ht, wd,_ = bend_img.shape  # Retrieve image dimentions
+    dmgs = []
+    attrs = []
+    # TODO: Make this a parameter in config.yaml
+    left, right = tilt(bend_img, 15, (ht, wd))
+
+    def apply_bend(left, right, bend_angle, beta_diff):
+        dmg = combine(left, right, beta_diff)
+        dmg = imutils.rotate_bound(dmg, -axis_angle)
+        dmg = remove_padding(dmg)
         dmgs.append(dmg.copy())
         att = attributes
         att["damage_type"] = "bend"
-        att["tag"]    = "0_{}".format(angle)
-        att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
+        att["tag"]    = "0_{}".format(bend_angle)
+        original = cv.resize(img, dmg.shape[:2][::-1])
+        att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, original))
         attrs.append(att.copy())
-
-        # Combine the left tilt with the original forward-facing image
-        dmg = combine(left, img, beta_diff=0)
-        dmgs.append(dmg.copy())
-        att["damage_type"] = "bend"
-        att["tag"]    = "{}_0".format(angle)
-        att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
-        attrs.append(att.copy())
-
-        # Combine the left and right tilt
-        dmg = combine(left, right, beta_diff=0)
-        dmgs.append(dmg.copy())
-        att["damage_type"] = "bend"
-        att["tag"]    = "{}_{}".format(angle, angle)
-        att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
-        attrs.append(att.copy())
-
-    # TILT 15 DEGREES
-    tilt(20)
-
-    for i in range(len(dmgs)):
-        dmgs[i] = imutils.rotate_bound(dmgs[i], -axis_angle)
+        
+    # Combine the right tilt with the original forward-facing image
+    #TODO: Would look more realistic with non-zero beta_diff, but introduces too much complexity with exposure atm
+    apply_bend(bend_img, right, 30, -20)
+    # Combine the left tilt with the original forward-facing image
+    apply_bend(left, bend_img, 30, -20)
+    # Combine the left and right tilt
+    apply_bend(left, right, 30, -20)
     return dmgs, attrs
