@@ -66,8 +66,9 @@ def damage_image(image_path, output_dir, config):
 
     #TODO: Only feed unshaded (and bent) half of sign to damage calc for single bent? Idk about double bent
     # BEND
+    bd_config = config['bend']
     if 'bend' in types:
-        dmgs, attrs = bend_vertical(img)
+        dmgs, attrs = bend_vertical(img, axis_angle=bd_config['axis_angle'], bend_angle=bd_config['bend_angle'], beta_diff=0)
         for ii in range(len(dmgs)):
             dmg_path = os.path.join(output_path, class_num + "_" + attrs[ii]["damage_type"] + "_" + str(attrs[ii]["tag"]) + ".png")
             cv.imwrite(dmg_path, dmgs[ii])
@@ -424,7 +425,7 @@ def tilt(img, angle, dims):
         left = cv.warpPerspective(img, matrix, (wd,ht))
         return left, right
 
-def bend_vertical(img, axis_angle):
+def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
     """Apply perspective warp to tilt images and combine to produce bent signs.
        :param img: the image to use to produce damaged signs
        :param axis_angle: the bearing of the axis of rotation in x-y plane
@@ -434,10 +435,9 @@ def bend_vertical(img, axis_angle):
     ht, wd,_ = bend_img.shape  # Retrieve image dimentions
     dmgs = []
     attrs = []
-    # TODO: Make this a parameter in config.yaml
-    left, right = tilt(bend_img, 15, (ht, wd))
+    left, right = tilt(bend_img, bend_angle, (ht, wd))
 
-    def apply_bend(left, right, bend_angle, beta_diff):
+    def apply_bend(left, right):
         dmg = combine(left, right, beta_diff)
         dmg = imutils.rotate_bound(dmg, -axis_angle)
         dmg = remove_padding(dmg)
@@ -451,9 +451,9 @@ def bend_vertical(img, axis_angle):
         
     # Combine the right tilt with the original forward-facing image
     #TODO: Would look more realistic with non-zero beta_diff, but introduces too much complexity with exposure atm
-    apply_bend(bend_img, right, 30, -20)
+    apply_bend(bend_img, right)
     # Combine the left tilt with the original forward-facing image
-    apply_bend(left, bend_img, 30, -20)
+    apply_bend(left, bend_img)
     # Combine the left and right tilt
-    apply_bend(left, right, 30, -20)
+    apply_bend(left, right)
     return dmgs, attrs
