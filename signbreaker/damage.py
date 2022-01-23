@@ -9,9 +9,9 @@ import math
 import numpy as np
 import cv2 as cv
 from skimage import draw
-from .utils import overlay, calc_damage, count_diff_pixels, count_pixels, calc_damage_quadrants, calc_ratio, remove_padding
+from utils import overlay, calc_damage, count_diff_pixels, count_pixels, calc_damage_quadrants, calc_ratio, remove_padding
 import ntpath
-from .synth_image import SynthImage
+from synth_image import SynthImage
 
 attributes = {
     "damage_type" : "None",
@@ -437,23 +437,23 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
     attrs = []
     left, right = tilt(bend_img, bend_angle, (ht, wd))
 
-    def apply_bend(left, right):
+    def apply_bend(left, right, tag):
         dmg = combine(left, right, beta_diff)
         dmg = imutils.rotate_bound(dmg, -axis_angle)
         dmg = remove_padding(dmg)
         dmgs.append(dmg.copy())
         att = attributes
         att["damage_type"] = "bend"
-        att["tag"]    = "0_{}".format(bend_angle)
+        att["tag"]    = "{}".format(tag)
         original = cv.resize(img, dmg.shape[:2][::-1])
         att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, original))
         attrs.append(att.copy())
         
     # Combine the right tilt with the original forward-facing image
     #TODO: Would look more realistic with non-zero beta_diff, but introduces too much complexity with exposure atm
-    apply_bend(bend_img, right)
+    apply_bend(bend_img, right, 'right')
     # Combine the left tilt with the original forward-facing image
-    apply_bend(left, bend_img)
+    apply_bend(left, bend_img, 'left')
     # Combine the left and right tilt
-    apply_bend(left, right)
+    apply_bend(left, right, 'both')
     return dmgs, attrs
