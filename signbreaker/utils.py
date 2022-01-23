@@ -386,7 +386,16 @@ def calc_damage(new, original):
     ##
     return count_damaged_pixels(new, original) / count_pixels(original)
 
-def calc_damage_quadrants(new, original):
+
+def calc_damage_ssim(new, original):
+    from skimage.metrics import structural_similarity as compare_ssim
+    grayA = cv2.cvtColor(new, cv2.COLOR_BGR2GRAY)
+    grayB = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
+    score, _ = compare_ssim(grayA, grayB, win_size=3, full=True)
+    return 1 - (score + 1) / 2
+
+
+def calc_damage_quadrants(new, original, method='ssim'):
     """Calculate the ratio of damaged pixels between two versions of the same image for each quadrant."""
     height, width, _ = original.shape
     centre_x = int(round( width / 2 ))
@@ -402,11 +411,16 @@ def calc_damage_quadrants(new, original):
     original_III = original[centre_y:height, 0:centre_x]
     original_IV  = original[centre_y:height, centre_x:width]
 
-    ratio_I   = count_damaged_pixels(new_I, original_I) / count_pixels(original_I)
-    ratio_II  = count_damaged_pixels(new_II, original_II) / count_pixels(original_II)
-    ratio_III = count_damaged_pixels(new_III, original_III) / count_pixels(original_III)
-    ratio_IV  = count_damaged_pixels(new_IV, original_IV) / count_pixels(original_IV)
-
+    if method=='pixel_wise':
+        ratio_I   = count_damaged_pixels(new_I, original_I) / count_pixels(original_I)
+        ratio_II  = count_damaged_pixels(new_II, original_II) / count_pixels(original_II)
+        ratio_III = count_damaged_pixels(new_III, original_III) / count_pixels(original_III)
+        ratio_IV  = count_damaged_pixels(new_IV, original_IV) / count_pixels(original_IV)
+    elif method=='ssim':
+        ratio_I   = calc_damage_ssim(new_I, original_I)
+        ratio_II  = calc_damage_ssim(new_II, original_II)
+        ratio_III = calc_damage_ssim(new_III, original_III)
+        ratio_IV  = calc_damage_ssim(new_IV, original_IV)
     return [ratio_I, ratio_II, ratio_III, ratio_IV]
 
 
