@@ -15,7 +15,7 @@ parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/data
 parser.add_argument('--eval_files', default='/home/allenator/Pawsey-Internship/eval_dir/sgts_sequences_8/augments.json',
                     help='Json of augment_level:file_path pairs')
 parser.add_argument('--num_frames', default=8, type=int, help='Number of frames per sequence the dataset')
-parser.add_argument('--experiment', default='damage', choices=['damage', 'distance'] , help='Type of experiment to evaluate')
+parser.add_argument('--experiment', default='distance', choices=['damage', 'distance'] , help='Type of experiment to evaluate')
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -40,8 +40,12 @@ if __name__ == "__main__":
     fig = go.Figure()
     for aug in augment_dict:
         df = augment_dict[aug][args.experiment]
-        fig = fig.add_trace(go.Scatter(x = df[args.experiment.capitalize()], y = df['mAP'], 
-                                       name=aug, mode='lines+markers'))
+        if args.experiment == 'damage':
+            fig = fig.add_trace(go.Scatter(x = df['Damage'], y = df['mAP'], 
+                                        name=aug, mode='lines+markers'))
+        elif args.experiment == 'distance':
+            fig = fig.add_trace(go.Scatter(x = df['Sign Width'], y = df['mAP'], 
+                                        name=aug, mode='lines+markers'))
     fig.show()
     
             
