@@ -48,15 +48,20 @@ class SynthImage:
             self.bg_path
         )
         
-    def write_label_retinanet(self, labels_file):
+    def write_label_retinanet(self, labels_file, damage_labelling=True):
         axes = self.bounding_axes
         bounds = f"{axes[0]} {axes[1]} {axes[2]} {axes[3]}"
-        labels_file.write(f"{self.fg_path} {bounds} class={self.class_num} "
-                    f"{self.damage_type}={self.damage_tag} damage={self.damage_ratio} "
-                    f"transform_type={self.transform_type} man_type={self.man_type} "
-                    f"bg={self.bg_path}\n")
+        if damage_labelling:
+            labels_file.write(f"{self.fg_path} {bounds} class={self.class_num} "
+                        f"{self.damage_type}={self.damage_tag} damage={self.damage_ratio} "
+                        f"transform_type={self.transform_type} man_type={self.man_type} "
+                        f"bg={self.bg_path}\n")
+        else:
+            labels_file.write(f"{self.fg_path} {bounds} class={self.class_num} "
+                        f"transform_type={self.transform_type} man_type={self.man_type} "
+                        f"bg={self.bg_path}\n")
             
-    def write_label_coco(self, labels_dict, id, img_path, img_dims):
+    def write_label_coco(self, labels_dict, id, img_path, img_dims, damage_labelling=True):
         axes = self.bounding_axes
         labels_dict['images'].append({
             "id": id,
@@ -75,8 +80,10 @@ class SynthImage:
             "area": (axes[1] - axes[0]) * (axes[3] - axes[2]),
             "segmentation": [],
             "iscrowd": 0,
-            "damage": self.damage_ratio
         })
+        if damage_labelling:
+            labels_dict['annotations'][-1]['damage'] = self.damage_ratio
+            labels_dict['annotations'][-1]['damage_type'] = self.damage_type
 
     def __check_class(self, class_num):
         if class_num < 0:
