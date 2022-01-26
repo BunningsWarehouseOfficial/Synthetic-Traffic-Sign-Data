@@ -1,20 +1,14 @@
 import argparse
 import os
+import sys
 import glob
 import json
 import shutil
 from tqdm import tqdm
-from signbreaker.utils import *
 from pathlib import Path
 
 from sequence_gen.create_sequences_auto import create_sequence
 from utils import initialise_coco_anns, convert_to_single_label
-
-current_dir = os.path.dirname(os.path.realpath(__file__))
-default_outdir = os.path.join(current_dir, "sgts_sequences")
-default_background_dir = os.path.join(current_dir, "signbreaker/Backgrounds/GTSDB")
-default_damaged_dir = os.path.join(current_dir, "signbreaker/Sign_Templates/3_Damaged")
-default_original_sign_dir = os.path.join(current_dir, "signbreaker/Sign_Templates/2_Processed/")
 
 parser = argparse.ArgumentParser()
 
@@ -23,7 +17,12 @@ parser.add_argument("damaged_sign_dir", type=str, help="path to damaged sign dir
 parser.add_argument("original_sign_dir", type=str, help="path to directory of original signs")
 parser.add_argument("--max_dist", type=int, help="endpoint distance of sequence", default=20)
 parser.add_argument("-n", "--num_frames", type=int, help="number of frames generated for each sequence", default=8)
-parser.add_argument("-o", "--out_dir", type=str, help="path to output directory of sequences", default=default_outdir)
+parser.add_argument("-o", "--out_dir", type=str, help="path to output directory of sequences", default='.')
+
+current_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.join(current_dir, "../"))
+
+from signbreaker.utils import *
 
 
 if __name__ == '__main__':
