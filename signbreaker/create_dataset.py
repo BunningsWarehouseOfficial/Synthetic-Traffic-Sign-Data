@@ -97,7 +97,10 @@ def main():
         shutil.rmtree(processed_dir)
     os.mkdir(processed_dir)
 
-
+    # Seed the random number generator
+    random.seed(config['seed'])
+    
+       
 
     #############################
     ###  IMAGE PREPROCESSING  ###
@@ -251,13 +254,16 @@ def main():
     ###############################
     images_dir = os.path.join(final_dir, "Images")
     labels_format = config['annotations']['type']
+    
     if labels_format == 'retinanet':
         labels_path = os.path.join(final_dir, "labels.txt")
-        labels_dict = None
+        
     elif labels_format == 'coco':
         labels_path = os.path.join(final_dir, "labels.json")
         classes = [Path(p).stem for p in glob.glob(f'{processed_dir}{os.path.sep}*.png')]
-        labels_dict = generate.initialise_coco_labels(classes)
+        labels_dict = {'categories': [], 'images': [], 'annotations': []}
+        labels_dict["categories"] += [{"id": 0, "name": "signs", "supercategory": "none"}]
+        labels_dict["categories"] += [{'id:': int(c), 'name': c, 'supercategory': 'signs'} for c in classes]
     about_path = os.path.join(final_dir, "generated_images_about.txt")
 
     # Clean and recreate the parent images directory
@@ -282,11 +288,13 @@ def main():
             os.makedirs(class_dir)
         
         fg_path =  os.path.join(class_dir, f"{c_num}_{d_type}_{ii}")
-        temp_fg_path  = fg_path + ".png"
         final_fg_path = fg_path + ".jpg"  # It is assumed that the final .jpg -> .png conversion step is executed
 
         image = generate.new_data(synth_image)
-        synth_image.write_label(labels_file, labels_dict, labels_format, ii, final_fg_path, image.shape)
+        if labels_format == 'retinanet':
+            synth_image.write_label_retinanet(labels_file)
+        elif labels_format == 'coco':
+            synth_image.write_label_coco(labels_dict, ii, final_fg_path, image.shape)
         cv2.imwrite(final_fg_path, image, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
         ii += 1
     print(f"Generating files: 100.0%\r\n")
