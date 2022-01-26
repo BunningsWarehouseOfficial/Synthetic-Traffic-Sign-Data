@@ -21,7 +21,8 @@ FOVY = 60
 import os
 import sys
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+current_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.join(current_dir, "../../"))
 
 import argparse
 import cv2
@@ -29,7 +30,7 @@ from datetime import datetime
 import numpy as np
 import math
 from pathlib import Path
-from utils import load_paths, overlay
+from signbreaker.utils import load_paths, overlay
 
 
 def parse_arguments():
