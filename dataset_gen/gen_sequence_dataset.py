@@ -73,7 +73,6 @@ if __name__ == '__main__':
                     {
                         "id": image_id, 
                         "image_id": image_id,  # one image per annotation
-                        "bg_id": bg_id,
                         "category_id": int(cls_name) + 1,
                         "bbox": bbox,
                         "iscrowd": 0,
