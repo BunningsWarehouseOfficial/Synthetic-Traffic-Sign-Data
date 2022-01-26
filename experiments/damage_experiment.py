@@ -1,5 +1,6 @@
 import os
 import argparse
+import math
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -13,10 +14,10 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/datasets/sgts_sequences_8/_single_annotations_array.npy', 
                     help='Ground truth annotations for dataset as a numpy file')
-parser.add_argument('--eval_file', default='/home/allenator/Pawsey-Internship/eval_dir/sgts_sequences_8/gtsdb_efficientdet-d0.npy', 
+parser.add_argument('--eval_file', default='/home/allenator/Pawsey-Internship/eval_dir/sgts_sequences_8/1.0_augmented_efficientdet-d2.npy', 
                     help='File containing evaluated detections as a numpy file')
 parser.add_argument('--num_frames', default=8, type=int, help='Number of frames per sequence in dataset')
-parser.add_argument('--experiment', default='damage', choices=['damage', 'distance'] , help='Type of experiment to evaluate')
+parser.add_argument('--experiment', default='distance', choices=['damage', 'distance'] , help='Type of experiment to evaluate')
 
 
 class SequenceEvaluation:
@@ -33,16 +34,15 @@ class SequenceEvaluation:
         [ann] = list(filter(lambda x: x.image_id == det.image_id, self.gt_boxes))
         return Box.intersection_over_union(det, ann)
     
-    # Proposed heuristic 2: use the bounding box with area closest to width ** 2
-    def area_heuristic(self, gt_width):
+    # Proposed heuristic 2: use the bounding box with area closest to optimal area
+    def area_heuristic(self, opt_area):
         """
         Choose the detection among the ones generated for this sequence which has size closest to the optimal width.
         """
         area_diffs = []
-        gt_area = gt_width ** 2
         for det in self.pred_boxes:
             det_area = (det.xbr - det.xtl) * (det.ybr - det.ytl)
-            area_diffs.append(abs(det_area - gt_area))
+            area_diffs.append(abs(det_area - opt_area))
         optimal_det = self.pred_boxes[np.argmin(area_diffs)]
         [ann] = list(filter(lambda x: x.image_id == optimal_det.image_id, self.gt_boxes))
         return Box.intersection_over_union(optimal_det, ann)
@@ -84,95 +84,85 @@ def prune_detections(detections_array, max_detections=50):
     return pruned_arr[:max_detections]
 
 
-def split_by_sign_size(gt_array, arr_to_split):
-    gt_array = gt_array[np.argsort(gt_array[:, 0])] # Sort gt_array by image_id just in case
-    split_dict = defaultdict(list)
+def split_by_area(gt_arr, split_arr):
+    out_dict = defaultdict(list)
     
-    for i in range(len(arr_to_split)):
-        image_id = arr_to_split[i, 0]
-        size = gt_array[int(image_id), 4]   # sign width in pixels
-        split_dict[size].append(arr_to_split[i])
-            
-    split_dict = {dist:np.array(arr) for dist, arr in split_dict.items()}
-    return split_dict
+    for i in range(len(split_arr)):
+        id = int(split_arr[i, 0])
+        area = gt_arr[id, 4] * gt_arr[id, 5]
+        out_dict[area].append(split_arr[i])
+        
+    areas, rows = zip(*out_dict.items())
+    return np.array(rows), areas
 
 
-def split_by_sequence(arr, num_frames):
-    """
-    Splits an array of detections into sequences of detections.
-    """
+def split_by_damage(gt_arr, split_arr):
+    out_dict = defaultdict(list)
+    
+    for i in range(len(split_arr)):
+        id = int(split_arr[i, 0])
+        dmg = math.round(gt_arr[id, -2], 1)
+        out_dict[dmg].append(split_arr[i])
+        
+    areas, rows = zip(*out_dict.items())
+    return np.array(rows), areas
+ 
+
+def split_by_sequence(split_arr, num_frames):
     split_indices = []
     # Sort array by image_id
-    arr = arr[np.argsort(arr[:, 0])]
-    image_ids = arr[:, 0]
-    for i in range(len(image_ids) - 1):
+    split_arr = split_arr[np.argsort(split_arr[:, 0])]
+    image_ids = split_arr[:, 0]
+    for i in range(len(image_ids)):
         id = int(image_ids[i])
         is_boundary_index = image_ids[i - 1] != image_ids[i]  # Check if image_id has changed
         if id % num_frames == 0 and id != 0 and is_boundary_index:
             split_indices.append(i)
-    split_arrs = np.split(arr.copy(), split_indices)
-    return np.array(split_arrs)  
+    out_arr = np.split(split_arr, split_indices)
+    damages = np.around([np.mean(seq[:, -2]) for seq in out_arr], 1)
+    return out_arr, damages  
 
 
-def metrics_by_size(gt_array, pred_array):
-    sizes_gt = split_by_sign_size(gt_array, gt_array)
-    max_detections = int(np.mean([len(arr) for arr in sizes_gt.values()]) * 5)
-    sizes_pred = split_by_sign_size(gt_array, pred_array)
-    sizes_pred = {dist:prune_detections(arr, max_detections) for dist, arr in sizes_pred.items()}
+def metrics_by_param(gt_arr, pred_arr, param='sequence'):
+    gt_arr = gt_arr[np.argsort(gt_arr[:, 0])]
+    pred_arr = pred_arr[np.argsort(pred_arr[:, 0])]
+    
+    if param == 'sequence':
+        param_gts, vars = split_by_sequence(gt_arr, num_frames=8)
+        param_preds, _ = split_by_sequence(pred_arr, num_frames=8)
+    else:
+        param_gts, vars = globals()["split_by_" + param](gt_arr, gt_arr)
+        param_preds, _ = globals()["split_by_" + param](gt_arr, pred_arr)
+    
+    max_detections = int(np.mean([len(arr) for arr in param_gts]) * 5)
+    param_preds = [prune_detections(arr, max_detections) for arr in param_preds]
+    
+    # Format [param, AP50, mAP, Maximum IOU, Minimum IOU, Mean IOU, Maximum Score, Minimum Score, Mean Score] 
     metrics_array = None
     
-    # Format [Sign Width, AP50, mAP, Maximum IOU, Minimum IOU, Mean IOU, Maximum Score, Minimum Score, Mean Score]
-    
-    for size in sizes_gt:
-        gt_boxes, pred_boxes = get_bounding_boxes(sizes_gt[size], sizes_pred[size])
+    # iterate over each image sequence
+    for i in range(len(param_preds)):
+        var = vars[i]
+        if i == 4:
+            print('wtf')
+        gt_boxes, pred_boxes = get_bounding_boxes(param_gts[i], param_preds[i])
         metrics, columns = get_metrics(gt_boxes, pred_boxes)
         row = np.zeros((1, len(metrics) + 1))
-        row[0, 0] = size
+        row[0, 0] = var
         row[0, 1:] = metrics
         if metrics_array is None:
             metrics_array = row
         else:
             metrics_array = np.append(metrics_array, row, axis=0)
-    columns = ['Sign Width'] + columns
-    return metrics_array, columns 
-
-
-def metrics_by_sequence(gt_array, pred_array, num_frames):
-    # Format [Sign Width, AP50, mAP, Maximum IOU, Minimum IOU, Mean IOU, Maximum Score, Minimum Score, Mean Score]
-    size_metrics, _ = metrics_by_size(gt_array, pred_array)
-    optimal_width = int(size_metrics[np.argmax(size_metrics[:, 2]), 0])
-    closest_width = np.max(size_metrics[:, 0])
-    
-    sequences_gt = split_by_sequence(gt_array, num_frames)
-    sequences_pred = split_by_sequence(pred_array, num_frames)
-    sequences_pred = [prune_detections(arr) for arr in sequences_pred]
-    
-    # Format [Damage, AP50, mAP, Maximum IOU, Minimum IOU, Mean IOU, Maximum Score, Minimum Score, Mean Score] 
-    # for each sequence
-    metrics_array = None
-    
-    # iterate over each image sequence
-    for i in range(len(sequences_gt)):
-        damage_level = round(np.mean(sequences_gt[i][:, -2]), 1)
-        gt_boxes, pred_boxes = get_bounding_boxes(sequences_gt[i], sequences_pred[i])
-        metrics, columns = get_metrics(gt_boxes, pred_boxes)
-        
-        row = np.zeros((1, len(metrics) + 3))
-        row[0, 0] = damage_level
-        eval = SequenceEvaluation(gt_boxes, pred_boxes)
-        row[0, 1:3] = np.array([eval.score_heuristic(), eval.area_heuristic(optimal_width)])
-        row[0, 3:] = metrics
-        
-        if metrics_array is None:
-            metrics_array = row
-        else:
-            metrics_array = np.append(metrics_array, row, axis=0)
-    columns = ['Damage', 'Score Heuristic IOU', 'Area Heuristic IOU'] + columns
+    if param == 'sequence':
+        columns.insert(0, 'Damage')
+    else:
+        columns.insert(0, param.capitalize())
     return metrics_array, columns
 
 
-def damage_experiment(gt_array, pred_array, num_frames):
-    metrics_array, columns = metrics_by_sequence(gt_array, pred_array, num_frames) 
+def damage_experiment(gt_arr, pred_arr, num_frames):
+    metrics_array, columns = metrics_by_param(gt_arr, pred_arr, param='sequence')
     
     damages = np.unique(metrics_array[:, 0])
     dmg_metrics = np.zeros((len(damages), metrics_array.shape[1]))
@@ -182,15 +172,15 @@ def damage_experiment(gt_array, pred_array, num_frames):
     return pd.DataFrame(dmg_metrics, columns=columns)
 
 
-def distance_experiment(gt_array, pred_array):
-    metrics_array, columns = metrics_by_size(gt_array, pred_array)
+def distance_experiment(gt_arr, pred_arr):
+    metrics_array, columns = metrics_by_param(gt_arr, pred_arr, param='area')
     return pd.DataFrame(data=metrics_array, columns=columns)
     
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    gt_array = np.array(np.load(args.gt_file), dtype=np.float32)
-    pred_array = np.array(np.load(args.eval_file), dtype=np.float32)
+    gt_arr = np.array(np.load(args.gt_file), dtype=np.float32)
+    pred_arr = np.array(np.load(args.eval_file), dtype=np.float32)
     
     # A plot of a metric (e.g., mAP) against various damage average levels (e.g., 10%, 20%, etc.), where AP is evaluated
     # across a sequence, and metrics are averaged across sequences with the same average damage level.
@@ -198,8 +188,9 @@ if __name__ == '__main__':
     # Findings: it has been found that metrics remain consistent until a threshold damage level, 50%, is reached, whereupon
     # model performance reduces rapidly as damage increases.
     if args.experiment == 'damage':
-        df = damage_experiment(gt_array, pred_array, args.num_frames)
-        df_long = pd.melt(df, id_vars=['Damage'], value_vars=['Mean IOU', 'Score Heuristic IOU', 'Area Heuristic IOU'])
+        df = damage_experiment(gt_arr, pred_arr, args.num_frames)
+        print(df)
+        df_long = pd.melt(df, id_vars=['Damage'], value_vars=['Mean IOU'])
         fig = px.line(df_long, x='Damage', y='value', title='IOU vs. Damage Level', color='variable')
         
     
@@ -209,9 +200,9 @@ if __name__ == '__main__':
     # Findings: it has been found that mAP reaches a maximum at a width of ~40 pixels, and decreases until ~55 pixels,
     # before plateauing. 
     elif args.experiment == 'distance':
-        df = distance_experiment(gt_array, pred_array)
+        df = distance_experiment(gt_arr, pred_arr)
         print(df)
-        fig = px.line(df, x='Sign Width', y='mAP', title='Average Precision (AP) vs. width of sign in pixels in image')
+        fig = px.line(df, x='Area', y='mAP', title='Average Precision (AP) vs. width of sign in pixels in image')
     fig.show()
     
     
