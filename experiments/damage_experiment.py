@@ -69,8 +69,8 @@ def get_metrics(gt, pred):
 
 
 def get_bounding_boxes(gt_detections, pred_detections):
-    # gt detections array in format [image_id, bg_id, xtl, ytl, width, height, damage, class_id]
-    gt_boxes = [BoundingBox(image_id=det[0], class_id=det[-1], xtl=det[2], ytl=det[3], xbr=det[2] + det[4], ybr=det[3] + det[5]) 
+    # gt detections array in format [image_id, xtl, ytl, width, height, damage, class_id]
+    gt_boxes = [BoundingBox(image_id=det[0], class_id=det[-1], xtl=det[1], ytl=det[2], xbr=det[1] + det[3], ybr=det[2] + det[4]) 
                         for det in gt_detections]
     # pred detections array in format [image_id, xtl, ytl, width, height, score, class_id]
     pred_boxes = [BoundingBox(image_id=det[0], class_id=det[-1], xtl=det[1], ytl=det[2], xbr=det[1] + det[3], ybr=det[2] + det[4], score=det[5])
@@ -89,7 +89,7 @@ def split_by_area(gt_arr, split_arr):
     
     for i in range(len(split_arr)):
         id = int(split_arr[i, 0])
-        area = gt_arr[id, 4] * gt_arr[id, 5]
+        area = gt_arr[id, 3] * gt_arr[id, 4]
         out_dict[area].append(split_arr[i])
         
     areas, rows = zip(*out_dict.items())
@@ -142,13 +142,10 @@ def metrics_by_param(gt_arr, pred_arr, param='sequence'):
     
     # iterate over each image sequence
     for i in range(len(param_preds)):
-        var = vars[i]
-        if i == 4:
-            print('wtf')
         gt_boxes, pred_boxes = get_bounding_boxes(param_gts[i], param_preds[i])
         metrics, columns = get_metrics(gt_boxes, pred_boxes)
         row = np.zeros((1, len(metrics) + 1))
-        row[0, 0] = var
+        row[0, 0] = vars[i]
         row[0, 1:] = metrics
         if metrics_array is None:
             metrics_array = row
