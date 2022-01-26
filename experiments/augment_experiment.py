@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 from tqdm import tqdm
 
-from experiments.damage_experiment import damage_experiment, distance_experiment
+from damage_experiment import damage_experiment, distance_experiment
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -15,7 +15,7 @@ parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/data
 parser.add_argument('--eval_files', default='/home/allenator/Pawsey-Internship/eval_dir/sgts_sequences_8/augments.json',
                     help='Json of augment_level:file_path pairs')
 parser.add_argument('--num_frames', default=8, type=int, help='Number of frames per sequence the dataset')
-parser.add_argument('--experiment', default='distance', choices=['damage', 'distance'] , help='Type of experiment to evaluate')
+parser.add_argument('--experiment', default='damage', choices=['damage', 'distance'] , help='Type of experiment to evaluate')
 
 if __name__ == "__main__":
     args = parser.parse_args()
