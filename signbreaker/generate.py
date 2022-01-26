@@ -137,36 +137,3 @@ def list_for_sign_x(sign, dmg, directories):
         if (foreground[-2] == sign + dmg):  # Eg. if (9_YELLOW == 4_ORIGINAL)
             l.append(elements)
     return l  # Directory for every single sign and its relevant background image
-
-def initialise_coco_labels(classes):
-    labels = {}
-    labels["info"] = {
-        "year": "2021",
-        "version": "1",
-        "description": "Dataset of synthetically generated damaged traffic signs",
-        "contributor": "Curtin University",
-        "date_created": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"),
-    }
-    labels["licenses"] = {
-        "id": 1,
-        "url": "https://opensource.org/licenses/MIT",
-        "name": "MIT License"
-    }
-    labels["categories"] = [
-        {
-            "id": 0,
-            "name": "signs",
-            "supercategory": "none"
-        }
-    ]
-    for c in classes:
-        labels["categories"].append(
-            {
-                "id": int(c),
-                "name": c, 
-                "supercategory": "signs"
-            }
-        )
-    labels["images"] = []
-    labels["annotations"] = []
-    return labels
