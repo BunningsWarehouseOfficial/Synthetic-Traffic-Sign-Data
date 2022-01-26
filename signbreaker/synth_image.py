@@ -1,3 +1,6 @@
+from datetime import datetime
+from pathlib import Path
+
 class SynthImage:
     def __init__(self, fg_path, class_num, damage_type=None, damage_tag=None, damage_ratio=0.0,
             transform_type=None, man_type=None, bg_path=None, bounding_axes=None):
@@ -45,33 +48,35 @@ class SynthImage:
             self.bg_path
         )
         
-    def write_label(self, labels_file, labels_dict, labels_format, index, img_path, img_dims):
+    def write_label_retinanet(self, labels_file):
         axes = self.bounding_axes
         bounds = f"{axes[0]} {axes[1]} {axes[2]} {axes[3]}"
-        if labels_format == "retinanet":
-            labels_file.write(f"{self.fg_path} {bounds} class={self.class_num} "
-                        f"{self.damage_type}={self.damage_tag} damage={self.damage_ratio} "
-                        f"transform_type={self.transform_type} man_type={self.man_type} "
-                        f"bg={self.bg_path}\n")
-        elif labels_format == "coco":
-            labels_dict['annotations'].append({
-                "id": index,
-                "image_id": index,
-                "category_id": self.class_num,
-                "bbox": [axes[0], axes[2], axes[1] - axes[0], axes[3] - axes[2]],
-                "area": (axes[1] - axes[0]) * (axes[3] - axes[2]),
-                "segmentation": [],
-                "iscrowd": 0
-            })
-            from datetime import datetime
-            labels_dict['images'].append({
-                "id": index,
-                "license": 1,
-                "file_name": img_path,
-                "height": img_dims[0],
-                "width": img_dims[1],
-                "date_captured": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
+        labels_file.write(f"{self.fg_path} {bounds} class={self.class_num} "
+                    f"{self.damage_type}={self.damage_tag} damage={self.damage_ratio} "
+                    f"transform_type={self.transform_type} man_type={self.man_type} "
+                    f"bg={self.bg_path}\n")
+            
+    def write_label_coco(self, labels_dict, id, img_path, img_dims):
+        axes = self.bounding_axes
+        labels_dict['images'].append({
+            "id": id,
+            "background_name": Path(self.bg_path).stem,
+            "license": 1,
+            "file_name": img_path,
+            "height": img_dims[0],
+            "width": img_dims[1],
+            "date_captured": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
+        labels_dict['annotations'].append({
+            "id": id,
+            "image_id": id,
+            "category_id": self.class_num,
+            "bbox": [axes[0], axes[2], axes[1] - axes[0], axes[3] - axes[2]],
+            "area": (axes[1] - axes[0]) * (axes[3] - axes[2]),
+            "segmentation": [],
+            "iscrowd": 0,
+            "damage": self.damage_ratio
+        })
 
     def __check_class(self, class_num):
         if class_num < 0:
