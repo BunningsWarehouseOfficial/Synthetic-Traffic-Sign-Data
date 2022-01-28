@@ -200,7 +200,7 @@ def get_pascal_voc_metrics(gold_standard: List[BoundingBox],
     ret = {}  # list containing metrics (precision, recall, average precision) of each class
 
     # Get all classes
-    classes = sorted(set(b.class_id for b in gold_standard + predictions))
+    classes = sorted(set(b.class_id for b in gold_standard))
 
     # Precision x Recall is obtained individually by each class
     # Loop through by classes
