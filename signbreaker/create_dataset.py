@@ -259,7 +259,7 @@ def main():
         labels_path = os.path.join(final_dir, "labels.txt")
         
     elif labels_format == 'coco':
-        labels_path = os.path.join(final_dir, "labels.json")
+        labels_path = os.path.join(final_dir, "_annotations.coco.json")
         classes = [Path(p).stem for p in glob.glob(f'{processed_dir}{os.path.sep}*.png')]
         labels_dict = {'categories': [], 'images': [], 'annotations': []}
         labels_dict["categories"] += [{"id": 0, "name": "signs", "supercategory": "none"}]
