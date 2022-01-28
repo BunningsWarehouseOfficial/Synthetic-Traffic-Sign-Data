@@ -17,7 +17,7 @@ parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/data
 parser.add_argument('--eval_file', default='/home/allenator/Pawsey-Internship/eval_dir/sgts_sequences_8/1.0_augmented_efficientdet-d2.npy', 
                     help='File containing evaluated detections as a numpy file')
 parser.add_argument('--num_frames', default=8, type=int, help='Number of frames per sequence in dataset')
-parser.add_argument('--experiment', default='distance', choices=['damage', 'distance'] , help='Type of experiment to evaluate')
+parser.add_argument('--experiment', default='distance', choices=['damage', 'distance', 'sequence'] , help='Type of experiment to evaluate')
 
 
 class SequenceEvaluation:
@@ -90,10 +90,13 @@ def split_by_area(gt_arr, split_arr):
     for i in range(len(split_arr)):
         id = int(split_arr[i, 0])
         area = gt_arr[id, 3] * gt_arr[id, 4]
+        area = round(area / 2500, 1) * 2500
         out_dict[area].append(split_arr[i])
         
-    areas, rows = zip(*out_dict.items())
-    return np.array(rows), areas
+    areas, dist_arrs = zip(*out_dict.items())
+    dist_arrs = np.array([np.array(dist_arrs[i]) for i in range(len(dist_arrs))], dtype=object)
+    dist_arrs = dist_arrs[np.argsort(areas)]
+    return dist_arrs, sorted(areas)
 
 
 def split_by_damage(gt_arr, split_arr):
@@ -101,11 +104,13 @@ def split_by_damage(gt_arr, split_arr):
     
     for i in range(len(split_arr)):
         id = int(split_arr[i, 0])
-        dmg = math.round(gt_arr[id, -2], 1)
+        dmg = round(gt_arr[id, -2], 1)
         out_dict[dmg].append(split_arr[i])
         
-    areas, rows = zip(*out_dict.items())
-    return np.array(rows), areas
+    damages, dmg_arrs = zip(*out_dict.items())
+    dmg_arrs = np.array([np.array(dmg_arrs[i]) for i in range(len(dmg_arrs))], dtype=object)
+    dmg_arrs = dmg_arrs[np.argsort(damages)]
+    return dmg_arrs, sorted(damages)
  
 
 def split_by_sequence(split_arr, num_frames):
@@ -123,13 +128,13 @@ def split_by_sequence(split_arr, num_frames):
     return out_arr, damages  
 
 
-def metrics_by_param(gt_arr, pred_arr, param='sequence'):
+def metrics_by_param(gt_arr, pred_arr, num_frames=8, param='sequence'):
     gt_arr = gt_arr[np.argsort(gt_arr[:, 0])]
     pred_arr = pred_arr[np.argsort(pred_arr[:, 0])]
     
     if param == 'sequence':
-        param_gts, vars = split_by_sequence(gt_arr, num_frames=8)
-        param_preds, _ = split_by_sequence(pred_arr, num_frames=8)
+        param_gts, vars = split_by_sequence(gt_arr, num_frames)
+        param_preds, _ = split_by_sequence(pred_arr, num_frames)
     else:
         param_gts, vars = globals()["split_by_" + param](gt_arr, gt_arr)
         param_preds, _ = globals()["split_by_" + param](gt_arr, pred_arr)
@@ -158,8 +163,8 @@ def metrics_by_param(gt_arr, pred_arr, param='sequence'):
     return metrics_array, columns
 
 
-def damage_experiment(gt_arr, pred_arr, num_frames):
-    metrics_array, columns = metrics_by_param(gt_arr, pred_arr, param='sequence')
+def sequence_experiment(gt_arr, pred_arr, num_frames):
+    metrics_array, columns = metrics_by_param(gt_arr, pred_arr, num_frames, param='sequence')
     
     damages = np.unique(metrics_array[:, 0])
     dmg_metrics = np.zeros((len(damages), metrics_array.shape[1]))
@@ -172,7 +177,12 @@ def damage_experiment(gt_arr, pred_arr, num_frames):
 def distance_experiment(gt_arr, pred_arr):
     metrics_array, columns = metrics_by_param(gt_arr, pred_arr, param='area')
     return pd.DataFrame(data=metrics_array, columns=columns)
-    
+
+
+def damage_experiment(gt_arr, pred_arr):
+    metrics_array, columns = metrics_by_param(gt_arr, pred_arr, param='damage')
+    return pd.DataFrame(data=metrics_array, columns=columns)
+
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -181,25 +191,25 @@ if __name__ == '__main__':
     
     # A plot of a metric (e.g., mAP) against various damage average levels (e.g., 10%, 20%, etc.), where AP is evaluated
     # across a sequence, and metrics are averaged across sequences with the same average damage level.
-    
-    # Findings: it has been found that metrics remain consistent until a threshold damage level, 50%, is reached, whereupon
-    # model performance reduces rapidly as damage increases.
-    if args.experiment == 'damage':
-        df = damage_experiment(gt_arr, pred_arr, args.num_frames)
+    if args.experiment == 'sequence':
+        df = sequence_experiment(gt_arr, pred_arr, args.num_frames)
         print(df)
         df_long = pd.melt(df, id_vars=['Damage'], value_vars=['Mean IOU'])
         fig = px.line(df_long, x='Damage', y='value', title='IOU vs. Damage Level', color='variable')
         
     
-    # A plot of a metric (e.g., mAP) against width of the sign in the image, where width represents 'distance' 
-    # from the sign to the camera. I.e., closer signs have higher pixel width.
-    
-    # Findings: it has been found that mAP reaches a maximum at a width of ~40 pixels, and decreases until ~55 pixels,
-    # before plateauing. 
+    # A plot of a metric (e.g., mAP) against pixel area of the sign in the image. Closer signs have higher pixel area.
     elif args.experiment == 'distance':
         df = distance_experiment(gt_arr, pred_arr)
         print(df)
         fig = px.line(df, x='Area', y='mAP', title='Average Precision (AP) vs. width of sign in pixels in image')
+        
+    # A plot of a metric (e.g., mAP) against damage level (10%, 20%, etc.), where AP is evaluated against annotations with
+    # the same (mapped) damage level.
+    elif args.experiment == 'damage':
+        df = damage_experiment(gt_arr, pred_arr)
+        print(df)
+        fig = px.line(df, x='Damage', y='mAP', title='Average Precision (AP) vs. Damage Level')
     fig.show()
     
     
