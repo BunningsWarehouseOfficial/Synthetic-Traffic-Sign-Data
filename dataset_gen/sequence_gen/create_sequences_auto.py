@@ -18,29 +18,8 @@ MIN_ANCHOR_SIZE = 10
 MAX_ANCHOR_SIZE = 200
 FOVY = 60
 
-import os
-import sys
-
-current_dir = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(os.path.join(current_dir, "../../"))
-
-import argparse
-import cv2
-from datetime import datetime
 import numpy as np
 import math
-from pathlib import Path
-from signbreaker.utils import load_paths, overlay
-
-
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("bg_dir", type=Path, help="path to background image directory")
-    parser.add_argument("fg_dir", type=Path, help="path to foreground/sign image directory")
-    parser.add_argument("-n", "--num_frames", type=int, help="number of frames generated for each sequence", default=8)
-    parser.add_argument("-d1", "--min_dist", type=int, help="minimum distance of sign from camera", default=4)
-    parser.add_argument("-d2", "--max_dist", type=int, help="maximum distance of sign from camera", default=20)
-    return parser.parse_args()
 
 
 class Anchor(object):
@@ -166,54 +145,5 @@ def produce_anchors(bg_size, size, x, y, min_dist, max_dist, num_frames):
 SIGN_COORDS = {'x':1.5, 'y':1, 'size':0.5}      # World coordinates for rendered sign objects
 NEAR_CLIPPING_PLANE_DIST = 2
 FAR_CLIPPING_PLANE_DIST = 50
-
-
-def create_sequence(bg_img, fg_img, bg_name, fg_name, sequence_id, out_dir, min_dist=4, max_dist=20, num_frames=8):
-    anchors = produce_anchors(bg_img.shape, SIGN_COORDS['size'], SIGN_COORDS['x'], SIGN_COORDS['y'], 
-                              min_dist, max_dist, num_frames)
-    bounding_boxes = []
-    image_paths = []
-    
-    for frame, anchor in enumerate(anchors):
-        save_path = f"{out_dir}/{sequence_id + frame}-{bg_name}-{fg_name}-{frame}.jpg"
-        scaled_fg_img = cv2.resize(fg_img, (anchor.size, anchor.size))
-        new_img = overlay(scaled_fg_img, bg_img, anchor.screen_x, anchor.screen_y)
-        cv2.imwrite(save_path, new_img)
-        
-        bounding_boxes.append([anchor.screen_x, anchor.screen_y, anchor.size, anchor.size])
-        image_paths.append(save_path)
-    return (image_paths, bounding_boxes)
-
-
-if __name__ == '__main__':
-    args = parse_arguments()
-    
-    # Loading argument-specified directories
-    bg_paths = load_paths(args.bg_dir)
-    fg_paths = load_paths(args.fg_dir)
-    
-    print(f"Found {len(bg_paths)} background images.")
-    print(f"Found {len(fg_paths)} foreground images.\n")
-    
-    if os.listdir(args.bg_dir) == [] or os.listdir(args.fg_dir) == []:
-        raise ValueError("Error: each input directory must have at least 1 image")
-    
-    # Directory structure setup
-    if (not os.path.exists(OUT_DIR)):
-        out_dir = OUT_DIR
-    else:
-        timestamp = datetime.now().strftime("_%d%m%Y_%H%M%S")
-        out_dir = OUT_DIR + timestamp
-    os.mkdir(out_dir)
-
-    # Generate sequences by overlaying foregrounds over backgrounds according to anchor point data
-    for bg_path in bg_paths:
-        bg_img = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
-        for fg_path in fg_paths:
-            fg_img = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
-            # Path without extension
-            save_path = f'{out_dir}/{Path(bg_path).stem}-{Path(fg_path).stem}'
-            create_sequence(bg_img, fg_img, fg_path, save_path, 
-                            args.min_dist, args.max_dist, args.num_frames)
     
     

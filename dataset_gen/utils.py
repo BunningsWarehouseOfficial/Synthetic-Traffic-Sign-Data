@@ -38,6 +38,29 @@ def initialise_coco_anns(classes):
     return labels
 
 
+def write_label_coco(annotations, file_path, image_id, class_id, bbox, damage, dims):
+    height, width = dims
+    annotations["images"].append(
+        {
+            "id": image_id,
+            "width": width,
+            "height": height,
+            "file_name": file_path
+        }
+    )
+    annotations["annotations"].append(
+        {
+            "id": image_id, 
+            "image_id": image_id,  # one image per annotation
+            "category_id": class_id,
+            "bbox": bbox,
+            "iscrowd": 0,
+            "area": bbox[2] * bbox[3],
+            "segmentation": [],
+            "damage": damage
+        }
+    )
+
 def convert_to_single_label(dataset_path, original_annotations, new_annotations, use_damages=False):
     with open(os.path.join(dataset_path, original_annotations), 'r') as a_file:
         a_json = json.load(a_file)
