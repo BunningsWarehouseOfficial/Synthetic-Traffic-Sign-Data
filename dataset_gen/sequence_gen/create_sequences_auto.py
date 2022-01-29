@@ -126,13 +126,12 @@ def create_frustrum(left, right, bottom, top, near, far):
     return np.dot(NDC_matrix, perspective_matrix)
     
 
-def produce_anchors(bg_shape, screen_coords, sign_dims, min_dist, max_dist, num_frames):
+def produce_anchors(bg_shape, x, y, sign_dims, min_dist, max_dist, num_frames):
     """[summary]
     Generates a list of anchor objects, by applying perspective projection on the constant
     world coordinates, depending on virtual distance from the camera. Using np.linspace, the 
     distances are evenly distributed over min_dist to max_dist to create the anchor objects.
     """
-    x, y = screen_coords
     anchors = []
     height, width, _ = bg_shape
     aspect_ratio = width / height
@@ -146,7 +145,7 @@ def produce_anchors(bg_shape, screen_coords, sign_dims, min_dist, max_dist, num_
     return anchors
 
 
-def get_world_coords(fovy, aspect, coords, fg_dims):
+def get_world_coords(aspect, x_prop, y_prop, z, fg_dims):
     """[summary]
     Get the location in word coordinates of the sign located z distance from the camera.
     Args:
@@ -157,9 +156,7 @@ def get_world_coords(fovy, aspect, coords, fg_dims):
     """
     y_size, x_size = fg_dims
     
-    x_prop, y_prop, z = coords
-    
-    half_fovy = math.radians(fovy) / 2
+    half_fovy = math.radians(FOVY) / 2
     top = z * math.tan(half_fovy)
     right = top * aspect
     

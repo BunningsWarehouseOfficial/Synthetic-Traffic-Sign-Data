@@ -19,13 +19,12 @@ class ShowAnchors(object):
     A class which is a wrapper for the functions needed to show num_frames projected
     signs at varying distances from the camera, using cv2.imshow
     """
-    def __init__(self, bg_path, fg_path, min_dist, max_dist, num_frames, fovy):
+    def __init__(self, bg_path, fg_path, min_dist, max_dist, num_frames):
         self.bg_img = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
         self.fg_img = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
         self.min_dist = min_dist
         self.max_dist = max_dist
         self.num_frames = num_frames
-        self.fovy = fovy
         
         self.display_img = self.bg_img.copy()
         height, width, _ = self.bg_img.shape
@@ -44,10 +43,10 @@ class ShowAnchors(object):
 
     def __draw_anchors(self, x, y):
         self.display_img = self.bg_img.copy()
-        res = get_world_coords(self.fovy, self.aspect_ratio, (x, y, self.min_dist), (SIZE, SIZE))
+        res = get_world_coords(self.aspect_ratio, x, y, self.min_dist, (SIZE, SIZE))
         world_x, world_y, x_wsize, y_wsize = res
         print(res)
-        anchors = produce_anchors(self.bg_img.shape, (world_x, world_y), (y_wsize, x_wsize), 
+        anchors = produce_anchors(self.bg_img.shape, world_x, world_y, (y_wsize, x_wsize), 
                                   self.min_dist, self.max_dist, self.num_frames)
         
         for anchor in anchors:
@@ -71,4 +70,4 @@ if __name__ == '__main__':
     
     bg_path = './signbreaker/Backgrounds/GTSDB/00014.png'
     fg_path = './signbreaker/Sign_Templates/1_Input/1.png'
-    anchors = ShowAnchors(bg_path, fg_path, min_dist=4, max_dist=20, num_frames=8, fovy=60)
+    anchors = ShowAnchors(bg_path, fg_path, min_dist=4, max_dist=20, num_frames=8)
