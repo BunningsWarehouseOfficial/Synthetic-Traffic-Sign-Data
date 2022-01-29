@@ -12,11 +12,13 @@ The camera's focal length or field of view is also passed as a command line argu
 
 # Author: Kristian Rados, Allen Antony
 
-OUT_DIR         = "SGTS_Sequences"
-LABELS_FILE     = "labels.txt"
 MIN_ANCHOR_SIZE = 10
 MAX_ANCHOR_SIZE = 200
 FOVY = 60
+NEAR_CLIPPING_PLANE_DIST = 2
+FAR_CLIPPING_PLANE_DIST = 50
+
+SIGN_COORDS = {'x':1.5, 'y':1, 'height':0.5}      # Example world coordinates for rendered sign objects
 
 import numpy as np
 import math
@@ -25,7 +27,7 @@ import math
 class Anchor(object):
     """
     A class that stores OpenCV pixel coordinates of the top left corner of the sign, 
-    as well as the size of the sign in pixels.
+    as well as the width and height of the sign in pixels.
     """
     def __init__(self, bg_size, NDC_x, NDC_y, x_size, y_size, sign_z):
         height, width, _ = bg_size
@@ -41,13 +43,13 @@ class Anchor(object):
         NDC_y = min(max(NDC_y, 0), 1 - y_size)
         
         # Converting from 0-1 range to pixel coordinates
-        self.size = int(x_size * width)
+        self.width = int(x_size * width)
+        self.height = int(y_size * height)
         self.screen_x = int(NDC_x * width)
         self.screen_y = int(NDC_y * height)
-        self.distance = -1 * sign_z
         
     def __str__(self):
-        return f"Anchor: {self.screen_x}, {self.screen_y}, {self.size}"
+        return f"Anchor: {self.screen_x}, {self.screen_y}, {self.height}, {self.width}"
       
         
 class SignObject(object):
@@ -55,13 +57,14 @@ class SignObject(object):
     A class that stores the world coordinates of a sign object, applying perspective projection via
     the method 'perspective_transform'
     """
-    def __init__(self, x, y, z, size):
+    def __init__(self, x, y, z, dims):
+        height, width = dims
         # Top left corner of sign
         self.x1 = x 
         self.y1 = y 
         # Bottom right corner of sign
-        self.x2 = x + size
-        self.y2 = y - size
+        self.x2 = x + width
+        self.y2 = y - height
         # Virtual distance from camera to sign
         self.z = z
         
@@ -123,27 +126,56 @@ def create_frustrum(left, right, bottom, top, near, far):
     return np.dot(NDC_matrix, perspective_matrix)
     
 
-def produce_anchors(bg_size, size, x, y, min_dist, max_dist, num_frames):
+def produce_anchors(bg_shape, screen_coords, sign_dims, min_dist, max_dist, num_frames):
     """[summary]
     Generates a list of anchor objects, by applying perspective projection on the constant
     world coordinates, depending on virtual distance from the camera. Using np.linspace, the 
     distances are evenly distributed over min_dist to max_dist to create the anchor objects.
     """
+    x, y = screen_coords
     anchors = []
-    height, width, _ = bg_size
+    height, width, _ = bg_shape
     aspect_ratio = width / height
     proj_matrix = create_perspective(FOVY, aspect_ratio, NEAR_CLIPPING_PLANE_DIST, FAR_CLIPPING_PLANE_DIST)
     
     for dist in np.linspace(max_dist, min_dist, num=num_frames, endpoint=True):
         sign_z = -1 * dist      # Projection matrix assumes negative z values in front of camera
-        sign_near = SignObject(x, y, z=sign_z, size=size)
-        anchor = sign_near.perspective_transform(bg_size, proj_matrix)
+        sign_near = SignObject(x=x, y=y, z=sign_z, dims=sign_dims)
+        anchor = sign_near.perspective_transform(bg_shape, proj_matrix)
         anchors.append(anchor)
     return anchors
 
 
-SIGN_COORDS = {'x':1.5, 'y':1, 'size':0.5}      # World coordinates for rendered sign objects
-NEAR_CLIPPING_PLANE_DIST = 2
-FAR_CLIPPING_PLANE_DIST = 50
+def get_world_coords(fovy, aspect, coords, fg_dims):
+    """[summary]
+    Get the location in word coordinates of the sign located z distance from the camera.
+    Args:
+        fovy: vertical field of view
+        aspect: width / height of the screen
+        coords: x proportion, y proportion, z value => where x and y coordinates are proportion to screen
+        fg_dims: y size, x size => where sizes are proportional to screen
+    """
+    y_size, x_size = fg_dims
+    
+    x_prop, y_prop, z = coords
+    
+    half_fovy = math.radians(fovy) / 2
+    top = z * math.tan(half_fovy)
+    right = top * aspect
+    
+    x_prop = x_prop * 2 - 1   # [0, 1] --> [-1, 1]
+    y_prop = y_prop * -2 + 1   # [0, 1] --> [1, -1]
+    
+    x_world = right * x_prop
+    y_world = top * y_prop
+    
+    y_wsize = 2 * top * y_size
+    x_wsize = y_wsize * (x_size / y_size)
+    
+    # Top left coordinates of sign in world
+    x_world = min(max(x_world, -right), right - x_wsize)
+    y_world = min(max(y_world, -top + y_wsize), top)
+    
+    return x_world, y_world, x_wsize, y_wsize
     
     
