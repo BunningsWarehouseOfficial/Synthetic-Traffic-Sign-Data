@@ -386,7 +386,16 @@ def calc_damage(new, original):
     ##
     return count_damaged_pixels(new, original) / count_pixels(original)
 
-def calc_damage_quadrants(new, original):
+
+def calc_damage_ssim(new, original):
+    from skimage.metrics import structural_similarity as compare_ssim
+    grayA = cv2.cvtColor(new, cv2.COLOR_BGR2GRAY)
+    grayB = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
+    score, _ = compare_ssim(grayA, grayB, win_size=3, full=True)
+    return 1 - (score + 1) / 2
+
+
+def calc_damage_quadrants(new, original, method='ssim'):
     """Calculate the ratio of damaged pixels between two versions of the same image for each quadrant."""
     height, width, _ = original.shape
     centre_x = int(round( width / 2 ))
@@ -402,11 +411,16 @@ def calc_damage_quadrants(new, original):
     original_III = original[centre_y:height, 0:centre_x]
     original_IV  = original[centre_y:height, centre_x:width]
 
-    ratio_I   = count_damaged_pixels(new_I, original_I) / count_pixels(original_I)
-    ratio_II  = count_damaged_pixels(new_II, original_II) / count_pixels(original_II)
-    ratio_III = count_damaged_pixels(new_III, original_III) / count_pixels(original_III)
-    ratio_IV  = count_damaged_pixels(new_IV, original_IV) / count_pixels(original_IV)
-
+    if method=='pixel_wise':
+        ratio_I   = count_damaged_pixels(new_I, original_I) / count_pixels(original_I)
+        ratio_II  = count_damaged_pixels(new_II, original_II) / count_pixels(original_II)
+        ratio_III = count_damaged_pixels(new_III, original_III) / count_pixels(original_III)
+        ratio_IV  = count_damaged_pixels(new_IV, original_IV) / count_pixels(original_IV)
+    elif method=='ssim':
+        ratio_I   = calc_damage_ssim(new_I, original_I)
+        ratio_II  = calc_damage_ssim(new_II, original_II)
+        ratio_III = calc_damage_ssim(new_III, original_III)
+        ratio_IV  = calc_damage_ssim(new_IV, original_IV)
     return [ratio_I, ratio_II, ratio_III, ratio_IV]
 
 
@@ -429,3 +443,13 @@ def append_labels(image_path, axes, class_id, dmg, labels_path):
         file.write("{0} {1},{2},{3},{4},{5}\n" \
             .format(image_path, axes[0],axes[2],axes[1],axes[3], class_id))
     file.close()
+
+
+def remove_padding(img):
+    opaque_pixels = img[:, :, -1] > 0
+    opaque_pixels = opaque_pixels.astype(np.uint8) * 255
+    coords = cv2.findNonZero(opaque_pixels) # Find all non-zero points
+    x, y, w, h = cv2.boundingRect(coords) # Find minimum spanning bounding box
+    rect = img[y:y+h, x:x+w] # Crop the image - note we do this on the original image
+    return rect
+            
