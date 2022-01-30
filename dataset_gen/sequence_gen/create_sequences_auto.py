@@ -17,6 +17,7 @@ MAX_ANCHOR_SIZE = 200
 FOVY = 60
 NEAR_CLIPPING_PLANE_DIST = 2
 FAR_CLIPPING_PLANE_DIST = 50
+VANISHING_POINT_TRANSLATION = 0.55
 
 SIGN_COORDS = {'x':1.5, 'y':1, 'height':0.5}      # Example world coordinates for rendered sign objects
 
@@ -29,24 +30,24 @@ class Anchor(object):
     A class that stores OpenCV pixel coordinates of the top left corner of the sign, 
     as well as the width and height of the sign in pixels.
     """
-    def __init__(self, bg_size, NDC_x, NDC_y, x_size, y_size, sign_z):
+    def __init__(self, bg_size, NDC_x, NDC_y, x_size, y_size):
         height, width, _ = bg_size
         x_size, y_size = x_size / 2, y_size / 2
         
         # Converting from normalized device coordinates to 0-1 range
-        NDC_x = (NDC_x + 1) / 2
-        NDC_x = min(max(NDC_x, 0), 1 - x_size)
+        x_prop = (NDC_x + 1) / 2
+        x_prop = min(max(x_prop, 0), 1 - x_size)
         
         # Converting from normalized device coordinates to 0-1 range and shifting
         # vanishing point vertically
-        NDC_y = 1 - ((NDC_y + 0.45) / 1.45)
-        NDC_y = min(max(NDC_y, 0), 1 - y_size)
+        y_prop = 1 - ((NDC_y + 1 - VANISHING_POINT_TRANSLATION) / (2 - VANISHING_POINT_TRANSLATION))
+        y_prop = min(max(y_prop, 0), 1 - y_size)
         
         # Converting from 0-1 range to pixel coordinates
         self.width = int(x_size * width)
         self.height = int(y_size * height)
-        self.screen_x = int(NDC_x * width)
-        self.screen_y = int(NDC_y * height)
+        self.screen_x = int(x_prop * width)
+        self.screen_y = int(y_prop * height)
         
     def __str__(self):
         return f"Anchor: {self.screen_x}, {self.screen_y}, {self.height}, {self.width}"
@@ -58,7 +59,7 @@ class SignObject(object):
     the method 'perspective_transform'
     """
     def __init__(self, x, y, z, dims):
-        height, width = dims
+        width, height = dims
         # Top left corner of sign
         self.x1 = x 
         self.y1 = y 
@@ -82,7 +83,7 @@ class SignObject(object):
         
         x_size = abs(x2f - x1f)
         y_size = abs(y2f - y1f)
-        return Anchor(bg_size, NDC_x=x1f, NDC_y=y1f, x_size=x_size, y_size=y_size, sign_z=self.z)
+        return Anchor(bg_size, NDC_x=x1f, NDC_y=y1f, x_size=x_size, y_size=y_size)
     
     
 def create_perspective(fovy, aspect, near, far):
@@ -154,24 +155,20 @@ def get_world_coords(aspect, x_prop, y_prop, z, fg_dims):
         coords: x proportion, y proportion, z value => where x and y coordinates are proportion to screen
         fg_dims: y size, x size => where sizes are proportional to screen
     """
-    y_size, x_size = fg_dims
+    x_size, y_size = fg_dims
     
     half_fovy = math.radians(FOVY) / 2
     top = z * math.tan(half_fovy)
     right = top * aspect
     
-    x_prop = x_prop * 2 - 1   # [0, 1] --> [-1, 1]
-    y_prop = y_prop * -2 + 1   # [0, 1] --> [1, -1]
+    NDC_x = x_prop * 2 - 1   # [0, 1] --> [-1, 1]
+    NDC_y = (1 - y_prop) * (2 - VANISHING_POINT_TRANSLATION) + VANISHING_POINT_TRANSLATION - 1
     
-    x_world = right * x_prop
-    y_world = top * y_prop
+    x_world = right * NDC_x
+    y_world = top * NDC_y
     
     y_wsize = 2 * top * y_size
     x_wsize = y_wsize * (x_size / y_size)
-    
-    # Top left coordinates of sign in world
-    x_world = min(max(x_world, -right), right - x_wsize)
-    y_world = min(max(y_world, -top + y_wsize), top)
     
     return x_world, y_world, x_wsize, y_wsize
     
