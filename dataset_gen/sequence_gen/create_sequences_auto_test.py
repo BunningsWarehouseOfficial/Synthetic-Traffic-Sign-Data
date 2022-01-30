@@ -31,9 +31,9 @@ class ShowAnchors(object):
         self.aspect_ratio = width / height
         
         self.x_prop = 0.75
-        self.y_prop = 0.3
+        self.y_prop = 0.45
         
-        self.__draw_anchors(0.75, 0.3)
+        self.__draw_anchors(0.75, 0.45)
         
         cv2.imwrite('overlayed_sequence_auto.png', self.display_img)
         cv2.createTrackbar('x', 'image', 0, X_TRACKBAR_MAX, self.__x_on_change)
@@ -45,8 +45,7 @@ class ShowAnchors(object):
         self.display_img = self.bg_img.copy()
         res = get_world_coords(self.aspect_ratio, x, y, self.min_dist, (SIZE, SIZE))
         world_x, world_y, x_wsize, y_wsize = res
-        print(res)
-        anchors = produce_anchors(self.bg_img.shape, world_x, world_y, (y_wsize, x_wsize), 
+        anchors = produce_anchors(self.bg_img.shape, world_x, world_y, (x_wsize, y_wsize), 
                                   self.min_dist, self.max_dist, self.num_frames)
         
         for anchor in anchors:
