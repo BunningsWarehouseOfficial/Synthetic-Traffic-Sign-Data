@@ -84,14 +84,22 @@ def prune_detections(detections_array, max_detections=50):
     return pruned_arr[:max_detections]
 
 
-def split_by_area(gt_arr, split_arr):
+def split_by_area(gt_arr, split_arr, round_areas=True):
     out_dict = defaultdict(list)
+    gt_dict = defaultdict(set)
     
     for i in range(len(split_arr)):
         id = int(split_arr[i, 0])
         area = gt_arr[id, 3] * gt_arr[id, 4]
-        area = round(area / 2500, 1) * 2500
+        if round_areas:
+            area = round(area / 2500, 1) * 2500
         out_dict[area].append(split_arr[i])
+        gt_dict[area].add(id)
+        
+    areas = list(gt_dict.keys())
+    for area in areas:
+        if len(gt_dict[area]) < 5:
+            out_dict.pop(area)
         
     areas, dist_arrs = zip(*out_dict.items())
     dist_arrs = np.array([np.array(dist_arrs[i]) for i in range(len(dist_arrs))], dtype=object)
