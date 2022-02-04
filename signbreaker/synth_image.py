@@ -1,8 +1,9 @@
 from datetime import datetime
 from pathlib import Path
+import numpy as np
 
 class SynthImage:
-    def __init__(self, fg_path, class_num, damage_type=None, damage_tag=None, damage_ratio=0.0,
+    def __init__(self, fg_path, class_num, damage_type=None, damage_tag=None, damage_ratio=0.0, sector_damage=None,
             transform_type=None, man_type=None, bg_path=None, bounding_axes=None):
         self.__check_class(class_num)
         self.__check_damage(damage_ratio)
@@ -19,6 +20,9 @@ class SynthImage:
         self.bg_path = bg_path
 
         self.bounding_axes = bounding_axes
+        
+        if sector_damage:
+            self.sector_damage = sector_damage
 
     def __repr__(self):
         return f"fg_path={self.fg_path}"
@@ -54,6 +58,7 @@ class SynthImage:
         if damage_labelling:
             labels_file.write(f"{self.fg_path} {bounds} class={self.class_num} "
                         f"{self.damage_type}={self.damage_tag} damage={self.damage_ratio} "
+                        f"sector_damage={self.sector_damage} "
                         f"transform_type={self.transform_type} man_type={self.man_type} "
                         f"bg={self.bg_path}\n")
         else:
@@ -67,7 +72,7 @@ class SynthImage:
             "id": id,
             "background_name": Path(self.bg_path).stem,
             "license": 1,
-            "file_name": '/'.join(Path(img_path).parts[1:]),    # Remove the root directory (SGTS_Dataset)
+            "file_name": '/'.join(Path(img_path).parts[1:]),
             "height": img_dims[0],
             "width": img_dims[1],
             "date_captured": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -83,7 +88,8 @@ class SynthImage:
         })
         if damage_labelling:
             labels_dict['annotations'][-1]['damage'] = self.damage_ratio
-            labels_dict['annotations'][-1]['damage_type'] = self.damage_type
+            labels_dict['annotations'][-1]['damage_type'] = self.damage_tag
+            labels_dict['annotations'][-1]['sector_damage'] = self.sector_damage
 
     def __check_class(self, class_num):
         if class_num < 0:

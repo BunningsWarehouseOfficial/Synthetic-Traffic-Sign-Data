@@ -9,7 +9,7 @@ import math
 import numpy as np
 import cv2 as cv
 from skimage import draw
-from utils import calc_damage_ssim, overlay, calc_damage, calc_damage_ssim, count_diff_pixels, count_pixels, calc_damage_quadrants, calc_ratio, remove_padding
+from utils import calc_damage_ssim, overlay, calc_damage, calc_damage_ssim, calc_damage_sectors, calc_ratio, remove_padding
 import ntpath
 from synth_image import SynthImage
 
@@ -19,11 +19,14 @@ attributes = {
     "damage_ratio"  : 0.0,     # Quantity of damage (0 for no damage, 1 for all damage)
     }
 
+params = {}
+
 def damage_image(image_path, output_dir, config):
     """Applies all the different types of damage to the imported image, saving each one"""
     damaged_images = []
     img = cv.imread(image_path, cv.IMREAD_UNCHANGED)
     img = img.astype('uint8')
+    params.update(config)
     
     # Create file writing info: filename, class number, output directory, and labels directory
     _, filename = ntpath.split(image_path)  # Remove parent directories to retrieve the image filename
@@ -41,7 +44,7 @@ def damage_image(image_path, output_dir, config):
         dmg_path = os.path.join(output_path, class_num + "_" + att["damage_type"] + ".png")
         cv.imwrite(dmg_path, dmg)
         damaged_images.append(SynthImage(
-            dmg_path, int(class_num), att["damage_type"], att["tag"], float(att["damage_ratio"])))
+            dmg_path, int(class_num), att["damage_type"], att["tag"], float(att["damage_ratio"]), att["sector_damage"]))
 
     # ORIGINAL UNDAMAGED
     if 'original' in types:
@@ -68,12 +71,12 @@ def damage_image(image_path, output_dir, config):
     # BEND
     bd_config = config['bend']
     if 'bend' in types:
-        dmgs, attrs = bend_vertical(img, axis_angle=bd_config['axis_angle'], bend_angle=bd_config['bend_angle'], beta_diff=0)
+        dmgs, attrs = bend_vertical(img, axis_angle=bd_config['axis_angle'], bend_angle=bd_config['bend_angle'], beta_diff=config['beta_diff'])
         for ii in range(len(dmgs)):
             dmg_path = os.path.join(output_path, class_num + "_" + attrs[ii]["damage_type"] + "_" + str(attrs[ii]["tag"]) + ".png")
             cv.imwrite(dmg_path, dmgs[ii])
             damaged_images.append(SynthImage(
-                dmg_path, int(class_num), attrs[ii]["damage_type"], attrs[ii]["tag"], float(attrs[ii]["damage_ratio"])))
+                dmg_path, int(class_num), attrs[ii]["damage_type"], attrs[ii]["tag"], float(attrs[ii]["damage_ratio"], attrs[ii]["sector_damage"])))
 
     # GRAFFITI
     g_conf = config['graffiti']
@@ -84,7 +87,7 @@ def damage_image(image_path, output_dir, config):
             dmg_path = os.path.join(output_path, class_num + "_" + attrs[ii]["damage_type"] + "_" + str(attrs[ii]["damage_ratio"]) + ".png")
             cv.imwrite(dmg_path, dmgs[ii])
             damaged_images.append(SynthImage(
-                dmg_path, int(class_num), attrs[ii]["damage_type"], attrs[ii]["tag"], float(attrs[ii]["damage_ratio"])))
+                dmg_path, int(class_num), attrs[ii]["damage_type"], attrs[ii]["tag"], float(attrs[ii]["damage_ratio"], attrs[ii]["sector_damage"])))
 
     # TINTED YELLOW
     # yellow = np.zeros((height,width,ch), dtype=np.uint8)
@@ -129,6 +132,7 @@ def no_damage(img):
     att["damage_type"] = "no_damage"
     att["tag"]    = "-1"
     att["damage_ratio"]  = str(calc_damage(dmg, img))  # This should be 0
+    att["sector_damages"] = calc_damage_sectors(dmg, img)
 
     return dmg, att
 
@@ -159,6 +163,7 @@ def remove_quadrant(img): #TODO: Have quadrant be input parameter, with -1 being
     att["damage_type"] = "quadrant"
     att["tag"]    = str(quad_num)
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))  # This should be around 0.25
+    att["sector_damage"] = calc_damage_sectors(dmg, img, num_damage_sectors=params["num_damage_sectors"])
 
     return dmg, att
 
@@ -186,6 +191,7 @@ def remove_hole(img):
     att["damage_type"] = "big_hole"
     att["tag"]    = "_".join((str(angle), str(radius), str(x), str(y)))
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
+    att["sector_damage"] = calc_damage_sectors(dmg, img, num_damage_sectors=params["num_damage_sectors"])
 
     return dmg, att
 
@@ -256,6 +262,7 @@ def bullet_holes(img, min_holes=7, max_holes=30, target=-1):
     att["damage_type"] = "bullet_holes"
     att["tag"]    = str(num_holes)
     att["damage_ratio"]  = "{:.3f}".format(ratio)
+    att["sector_damage"] = calc_damage_sectors(painted, img, num_damage_sectors=params["num_damage_sectors"])
 
     return dmg, att
 
@@ -358,6 +365,7 @@ def graffiti(img, color=(0,0,0), initial=0.1, final=0.4, step=0.1):
         att["tag"]    = str(round(targets[ii], 3))
         att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
         # att["damage_ratio"]  = "{:.3f}".format(ratio)
+        att["sector_damage"] = calc_damage_sectors(dmg, img, num_damage_sectors=params["num_damage_sectors"])
         attrs.append(att.copy())
 
         ii += 1
@@ -447,6 +455,7 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
         att["tag"]    = "{}".format(tag)
         original = cv.resize(remove_padding(img), dmg.shape[:2][::-1])
         att["damage_ratio"]  = "{:.3f}".format(calc_damage_ssim(dmg, original))
+        att["sector_damage"] = calc_damage_sectors(dmg, img, num_damage_sectors=params["num_damage_sectors"], method='ssim')
         attrs.append(att.copy())
         
     # Combine the right tilt with the original forward-facing image
