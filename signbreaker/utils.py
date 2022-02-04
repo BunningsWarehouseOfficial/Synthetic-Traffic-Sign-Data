@@ -424,7 +424,10 @@ def calc_damage_quadrants(new, original, method='ssim'):
     return [ratio_I, ratio_II, ratio_III, ratio_IV]
 
 
-def calc_damage_sectors(new, original, sector_dims=(2, 2), method='ssim'):
+def calc_damage_sectors(new, original, sector_dims=(2, 2), method='pixel_wise'):
+    """ Calculates a 2D grid of damage ratios with dimensions = sector_dims. Each grid 
+        tile has value equal to the damage ratio between new and original images at that
+        slice """
     num_vtiles, num_htiles = sector_dims
     m = new.shape[0] // num_vtiles
     n = new.shape[1] // num_htiles
@@ -438,27 +441,6 @@ def calc_damage_sectors(new, original, sector_dims=(2, 2), method='ssim'):
         elif method == 'ssim':
             ratios.append(calc_damage_ssim(new_img_sectors[i], original_img_sectors[i]))
     return np.reshape(ratios, sector_dims)
-    
-
-def append_labels(image_path, axes, class_id, dmg, labels_path):
-    """Append the label for an image to the labels/annotations file.
-    
-    Arguments:
-    image_path  -- file path to the image (with extension)
-    axes        -- list of integer bounding box axes [left, right, top, bottom]
-    class_id    -- integer class number
-    dmg         -- list of float damage values for each quadrant [I, II, III, IV]
-    labels_path -- file path to labels/annotations file
-    """
-    file = open(labels_path, "a")
-    
-    if True:
-        file.write("{0} {1},{2},{3},{4},{5},{6},{7},{8},{9}\n" \
-            .format(image_path, axes[0],axes[2],axes[1],axes[3], class_id, dmg[0],dmg[1],dmg[2],dmg[3]))
-    else:  # TODO: Only standard detection labels if damage info option set to false
-        file.write("{0} {1},{2},{3},{4},{5}\n" \
-            .format(image_path, axes[0],axes[2],axes[1],axes[3], class_id))
-    file.close()
 
 
 def remove_padding(img):
