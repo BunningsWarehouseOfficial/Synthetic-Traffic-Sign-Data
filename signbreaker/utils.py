@@ -424,6 +424,22 @@ def calc_damage_quadrants(new, original, method='ssim'):
     return [ratio_I, ratio_II, ratio_III, ratio_IV]
 
 
+def calc_damage_sectors(new, original, sector_dims=(2, 2), method='ssim'):
+    num_vtiles, num_htiles = sector_dims
+    m = new.shape[0] // num_vtiles
+    n = new.shape[1] // num_htiles
+    get_sectors = lambda im: [im[r:r+m,c:c+n] for r in range(0,im.shape[0],m) for c in range(0,im.shape[1],n)]
+    new_img_sectors = get_sectors(new)
+    original_img_sectors = get_sectors(original)
+    ratios = []
+    for i in range(len(new_img_sectors)):
+        if method == 'pixel_wise':
+            ratios.append(count_damaged_pixels(new_img_sectors[i], original_img_sectors[i]) / count_pixels(original_img_sectors[i]))
+        elif method == 'ssim':
+            ratios.append(calc_damage_ssim(new_img_sectors[i], original_img_sectors[i]))
+    return np.reshape(ratios, sector_dims)
+    
+
 def append_labels(image_path, axes, class_id, dmg, labels_path):
     """Append the label for an image to the labels/annotations file.
     
