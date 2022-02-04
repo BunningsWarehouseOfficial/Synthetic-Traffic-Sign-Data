@@ -4,6 +4,7 @@
 import cv2
 import numpy as np
 import os
+import math
 from PIL import Image, ImageOps
 
 def load_paths(directory):
@@ -424,13 +425,14 @@ def calc_damage_quadrants(new, original, method='ssim'):
     return [ratio_I, ratio_II, ratio_III, ratio_IV]
 
 
-def calc_damage_sectors(new, original, sector_dims=(2, 2), method='pixel_wise'):
-    """ Calculates a 2D grid of damage ratios with dimensions = sector_dims. Each grid 
-        tile has value equal to the damage ratio between new and original images at that
-        slice """
-    num_vtiles, num_htiles = sector_dims
-    m = new.shape[0] // num_vtiles
-    n = new.shape[1] // num_htiles
+def calc_damage_sectors(new, original, num_damage_sectors, method='pixel_wise'):
+    """ Calculates a list of damage ratios. Calling np.reshape(ratios, (math.sqrt(len(ratios)), math.sqrt(len(ratios))))
+        reconstructs the 2D sector damage array """
+    n = math.sqrt(num_damage_sectors)
+    if n != int(n):
+        raise ValueError('num_damage_sectors must be a perfect square')
+    m = new.shape[0] // n
+    n = new.shape[1] // n
     get_sectors = lambda im: [im[r:r+m,c:c+n] for r in range(0,im.shape[0],m) for c in range(0,im.shape[1],n)]
     new_img_sectors = get_sectors(new)
     original_img_sectors = get_sectors(original)
@@ -440,7 +442,7 @@ def calc_damage_sectors(new, original, sector_dims=(2, 2), method='pixel_wise'):
             ratios.append(count_damaged_pixels(new_img_sectors[i], original_img_sectors[i]) / count_pixels(original_img_sectors[i]))
         elif method == 'ssim':
             ratios.append(calc_damage_ssim(new_img_sectors[i], original_img_sectors[i]))
-    return np.reshape(ratios, sector_dims)
+    return ratios
 
 
 def remove_padding(img):
