@@ -447,9 +447,10 @@ def calc_damage_sectors(new, original, num_damage_sectors, method='pixel_wise'):
     ratios = []
     for i in range(len(new_img_sectors)):
         if method == 'pixel_wise':
-            ratios.append(count_damaged_pixels(new_img_sectors[i], original_img_sectors[i]) / count_pixels(original_img_sectors[i]))
+            dmg = count_damaged_pixels(new_img_sectors[i], original_img_sectors[i]) / count_pixels(original_img_sectors[i])
         elif method == 'ssim':
-            ratios.append(calc_damage_ssim(new_img_sectors[i], original_img_sectors[i]))
+            dmg = calc_damage_ssim(new_img_sectors[i], original_img_sectors[i])
+        ratios.append(max(min(dmg, 1.0), 0.0))
     return ratios
 
 
