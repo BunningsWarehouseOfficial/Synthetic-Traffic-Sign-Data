@@ -87,7 +87,7 @@ class SynthImage:
         })
         if damage_labelling:
             labels_dict['annotations'][-1]['damage'] = self.damage_ratio
-            labels_dict['annotations'][-1]['damage_type'] = self.damage_tag
+            labels_dict['annotations'][-1]['damage_type'] = self.damage_type
             labels_dict['annotations'][-1]['sector_damage'] = self.sector_damage
 
     def __check_class(self, class_num):
