@@ -1,27 +1,23 @@
 def main():
     import os
+    import sys
     import ntpath
     import shutil
-    import sys
     import argparse
     from datetime import datetime
     import random
 
-    import numpy as np
     import cv2
     import json
     from collections import defaultdict
-    from PIL import Image, ImageChops, ImageDraw, ImageOps, ImageFilter, ImageStat, ImageEnhance, ImageFile
-    from skimage import io, color, exposure
+    from PIL import ImageFile
     from pathlib import Path
     import glob
-    import math
 
-    from damage import no_damage, remove_quadrant, remove_hole, bullet_holes, graffiti, bend_vertical, damage_image
-    from utils import load_paths, load_files, scale_image, create_alpha, delete_background, to_png, dir_split, png_to_jpeg
+    from damage import damage_image
+    from utils import load_paths, load_files, scale_image, delete_background, to_png, dir_split
     import manipulate
     import generate
-    from synth_image import SynthImage
     
     current_dir = os.path.dirname(os.path.realpath(__file__))
     os.chdir(current_dir)
