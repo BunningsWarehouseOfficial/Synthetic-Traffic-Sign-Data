@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 
 class SynthImage:
-    def __init__(self, fg_path, class_num, damage_type=None, damage_tag=None, damage_ratio=0.0, sector_damage=None,
+    def __init__(self, fg_path, class_num, damage_type=None, damage_tag=None, damage_ratio=0.0, sector_damage=[],
             transform_type=None, man_type=None, bg_path=None, bounding_axes=None):
         self.__check_class(class_num)
         self.__check_damage(damage_ratio)
@@ -14,15 +14,13 @@ class SynthImage:
         self.damage_type = damage_type
         self.damage_tag = damage_tag  #TODO: Turn into dictionary?
         self.damage_ratio = damage_ratio
+        self.sector_damage = sector_damage
 
         self.transform_type = transform_type
         self.man_type = man_type
         self.bg_path = bg_path
 
         self.bounding_axes = bounding_axes
-        
-        if sector_damage:
-            self.sector_damage = sector_damage
 
     def __repr__(self):
         return f"fg_path={self.fg_path}"
@@ -44,12 +42,13 @@ class SynthImage:
 
     def clone(self):
         return SynthImage(
-            self.fg_path,
-            self.class_num,
-            self.damage_type,
-            self.damage_tag,
-            self.damage_ratio,
-            self.bg_path
+            fg_path=self.fg_path,
+            class_num=self.class_num,
+            damage_type=self.damage_type,
+            damage_tag=self.damage_tag,
+            damage_ratio=self.damage_ratio,
+            sector_damage=self.sector_damage,
+            bg_path=self.bg_path
         )
         
     def write_label_retinanet(self, labels_file, damage_labelling=True):
