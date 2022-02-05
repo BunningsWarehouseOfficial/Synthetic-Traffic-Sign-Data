@@ -344,7 +344,7 @@ def count_damaged_pixels(new, original):
             for jj in range(0, len(new[0])):
                 if original[ii][jj][3] > 0:  # The pixel in the original image must have been opaque
                     # Colour diff is weighted by alpha diff, as it's more important
-                    alpha_diff_ratio = abs(original[ii][jj][3] - new[ii][jj][3]) / 255
+                    alpha_diff_ratio = abs(int(original[ii][jj][3]) - int(new[ii][jj][3])) / 255
                     assert alpha_diff_ratio >= 0.0 and alpha_diff_ratio <= 1.0  # Will mostly be either 0.0 or 1.0
 
                     colour_diffs = [abs(int(original[ii][jj][x]) - int(new[ii][jj][x])) for x in range(0,3)]
@@ -425,14 +425,22 @@ def calc_damage_quadrants(new, original, method='ssim'):
     return [ratio_I, ratio_II, ratio_III, ratio_IV]
 
 
+def pad(img, h ,w):
+    top_pad = np.floor((h - img.shape[0]) / 2).astype(np.uint16)
+    bottom_pad = np.ceil((h - img.shape[0]) / 2).astype(np.uint16)
+    right_pad = np.ceil((w - img.shape[1]) / 2).astype(np.uint16)
+    left_pad = np.floor((w - img.shape[1]) / 2).astype(np.uint16)
+    return np.copy(np.pad(img, ((top_pad, bottom_pad), (left_pad, right_pad), (0, 0)), mode='constant', constant_values=0))
+
+
 def calc_damage_sectors(new, original, num_damage_sectors, method='pixel_wise'):
     """ Calculates a list of damage ratios. Calling np.reshape(ratios, (math.sqrt(len(ratios)), math.sqrt(len(ratios))))
         reconstructs the 2D sector damage array """
-    n = math.sqrt(num_damage_sectors)
-    if n != int(n):
+    l = math.sqrt(num_damage_sectors)
+    if l != int(l):
         raise ValueError('num_damage_sectors must be a perfect square')
-    m = new.shape[0] // n
-    n = new.shape[1] // n
+    m = math.ceil(new.shape[0] / l)
+    n = math.ceil(new.shape[1] / l)
     get_sectors = lambda im: [im[r:r+m,c:c+n] for r in range(0,im.shape[0],m) for c in range(0,im.shape[1],n)]
     new_img_sectors = get_sectors(new)
     original_img_sectors = get_sectors(original)
