@@ -9,7 +9,7 @@ import math
 import numpy as np
 import cv2 as cv
 from skimage import draw
-from utils import calc_damage_ssim, overlay, calc_damage, calc_damage_ssim, calc_damage_sectors, calc_ratio, remove_padding
+from utils import calc_damage_ssim, overlay, calc_damage, calc_damage_ssim, calc_damage_sectors, calc_ratio, remove_padding, pad
 import ntpath
 from synth_image import SynthImage
 
@@ -71,12 +71,12 @@ def damage_image(image_path, output_dir, config):
     # BEND
     bd_config = config['bend']
     if 'bend' in types:
-        dmgs, attrs = bend_vertical(img, axis_angle=bd_config['axis_angle'], bend_angle=bd_config['bend_angle'], beta_diff=config['beta_diff'])
+        dmgs, attrs = bend_vertical(img, axis_angle=bd_config['axis_angle'], bend_angle=bd_config['bend_angle'], beta_diff=bd_config['beta_diff'])
         for ii in range(len(dmgs)):
             dmg_path = os.path.join(output_path, class_num + "_" + attrs[ii]["damage_type"] + "_" + str(attrs[ii]["tag"]) + ".png")
             cv.imwrite(dmg_path, dmgs[ii])
             damaged_images.append(SynthImage(
-                dmg_path, int(class_num), attrs[ii]["damage_type"], attrs[ii]["tag"], float(attrs[ii]["damage_ratio"], attrs[ii]["sector_damage"])))
+                dmg_path, int(class_num), attrs[ii]["damage_type"], attrs[ii]["tag"], float(attrs[ii]["damage_ratio"]), attrs[ii]["sector_damage"]))
 
     # GRAFFITI
     g_conf = config['graffiti']
@@ -87,7 +87,7 @@ def damage_image(image_path, output_dir, config):
             dmg_path = os.path.join(output_path, class_num + "_" + attrs[ii]["damage_type"] + "_" + str(attrs[ii]["damage_ratio"]) + ".png")
             cv.imwrite(dmg_path, dmgs[ii])
             damaged_images.append(SynthImage(
-                dmg_path, int(class_num), attrs[ii]["damage_type"], attrs[ii]["tag"], float(attrs[ii]["damage_ratio"], attrs[ii]["sector_damage"])))
+                dmg_path, int(class_num), attrs[ii]["damage_type"], attrs[ii]["tag"], float(attrs[ii]["damage_ratio"]), attrs[ii]["sector_damage"]))
 
     # TINTED YELLOW
     # yellow = np.zeros((height,width,ch), dtype=np.uint8)
@@ -132,7 +132,7 @@ def no_damage(img):
     att["damage_type"] = "no_damage"
     att["tag"]    = "-1"
     att["damage_ratio"]  = str(calc_damage(dmg, img))  # This should be 0
-    att["sector_damages"] = calc_damage_sectors(dmg, img)
+    att["sector_damage"] = calc_damage_sectors(dmg, img, num_damage_sectors=params["num_damage_sectors"])
 
     return dmg, att
 
@@ -372,7 +372,7 @@ def graffiti(img, color=(0,0,0), initial=0.1, final=0.4, step=0.1):
     return dmgs, attrs
 
 
-### The following three functions are both for the 'bend' damage type ###
+### The following three functions for the 'bend' damage type ###
 
 def combine(img1, img2, beta_diff=-20):
     """Combine the left half of img1 with right half of img2 and returns the result."""
@@ -453,9 +453,15 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
         att = attributes
         att["damage_type"] = "bend"
         att["tag"]    = "{}".format(tag)
-        original = cv.resize(remove_padding(img), dmg.shape[:2][::-1])
+        
+        # Pad images to the same size to perform pixel comparison
+        pad_h = max(img.shape[0], dmg.shape[0])
+        pad_w = max(img.shape[1], dmg.shape[1])
+        original = pad(img, pad_h, pad_w)
+        dmg = pad(dmg, pad_h, pad_w)
+        
         att["damage_ratio"]  = "{:.3f}".format(calc_damage_ssim(dmg, original))
-        att["sector_damage"] = calc_damage_sectors(dmg, img, num_damage_sectors=params["num_damage_sectors"], method='ssim')
+        att["sector_damage"] = calc_damage_sectors(dmg, original, num_damage_sectors=params["num_damage_sectors"], method='ssim')
         attrs.append(att.copy())
         
     # Combine the right tilt with the original forward-facing image
