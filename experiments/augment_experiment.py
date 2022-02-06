@@ -4,6 +4,7 @@ import json
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+import plotly
 from tqdm import tqdm
 
 from damage_experiment import damage_experiment, distance_experiment, sequence_experiment
@@ -11,9 +12,9 @@ from damage_experiment import damage_experiment, distance_experiment, sequence_e
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/datasets/sgts_sequences_8/_single_annotations_array.npy', 
+parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/datasets/sgts_sequences/_single_annotations_array.npy', 
                     help='Ground truth annotations for dataset as a numpy file')
-parser.add_argument('--eval_files', default='/home/allenator/Pawsey-Internship/eval_dir/sgts_sequences_8/augments.json',
+parser.add_argument('--eval_files', default='/home/allenator/Pawsey-Internship/eval_dir/sgts_sequences/augments.json',
                     help='Json of augment_level:file_path pairs')
 parser.add_argument('--num_frames', default=8, type=int, help='Number of frames per sequence the dataset')
 parser.add_argument('--experiment', default='damage', choices=['damage', 'distance', 'sequence'] , help='Type of experiment to evaluate')
@@ -48,11 +49,18 @@ if __name__ == "__main__":
     fig = px.scatter(title=args.experiment.capitalize() + ' vs ' + args.metric)
     
     # Axis labels   
-    fig.update_yaxes(title=args.metric)
+    fig.update_yaxes(title=args.metric, title_font=dict(size=16))
     if is_damage_experiment or is_sequence_experiment:
-        fig.update_xaxes(title_text='Damage Ratio')
+        fig.update_xaxes(title_text='Damage Ratio', title_font=dict(size=18))
     elif is_distance_experiment:
-        fig.update_xaxes(title_text='Area of Sign in Pixels')
+        fig.update_xaxes(title_text='Area of Sign in Pixels', title_font=dict(size=18))
+        
+    fig.update_layout(
+        font_size=14,
+        font_family="Helvetica",
+        font_color="black",
+        title_font_size=20,
+    )
             
     # plot given experiment
     for aug in augment_dict:
@@ -63,6 +71,6 @@ if __name__ == "__main__":
         elif is_distance_experiment:
             fig = fig.add_trace(go.Scatter(x = df['Area'], y = df[args.metric], 
                                         name=aug, mode='lines+markers'))
-    fig.show()
+    plotly.io.write_image(fig, 'fig1.png', format='png', scale=2.5, width=1000, height=500)
     
             
