@@ -20,6 +20,12 @@ def main():
     import generate
     
     current_dir = os.path.dirname(os.path.realpath(__file__))
+    
+    parser = argparse.ArgumentParser(description='Create a synthetically generated traffic sign dataset')
+    parser.add_argument('--output_dir', type=str, default=os.path.join(current_dir, 'SGTS_Dataset'))
+    
+    args = parser.parse_args()
+    args.output_dir = os.path.abspath(args.output_dir)
     os.chdir(current_dir)
 
     #TODO: Add an example download link for a dataset of backgrounds that have no real signs on them
@@ -76,7 +82,7 @@ def main():
     transformed_dir = os.path.join(base_dir, "4_Transformed")
     manipulated_dir = os.path.join(base_dir, "5_Manipulated")
     bg_dir    = "Backgrounds"
-    final_dir = "SGTS_Dataset"  # SGTSD stands for "Synthetically Generated Traffic Sign Dataset"
+    final_dir = args.output_dir  # SGTSD stands for "Synthetically Generated Traffic Sign Dataset"
 
     # Create the output directories if they don't exist already
     if not os.path.exists(base_dir):
@@ -250,16 +256,17 @@ def main():
     ###############################
     images_dir = os.path.join(final_dir, "Images")
     labels_format = config['annotations']['type']
+    damage_labelling = config['annotations']['damage_labelling'] == 'true'
     
     if labels_format == 'retinanet':
         labels_path = os.path.join(final_dir, "labels.txt")
         
     elif labels_format == 'coco':
         labels_path = os.path.join(final_dir, "_annotations.coco.json")
-        classes = [Path(p).stem for p in glob.glob(f'{processed_dir}{os.path.sep}*.png')]
+        classes = [int(Path(p).stem) for p in glob.glob(f'{processed_dir}{os.path.sep}*.png')]
         labels_dict = {'categories': [], 'images': [], 'annotations': []}
         labels_dict["categories"] += [{"id": 0, "name": "signs", "supercategory": "none"}]
-        labels_dict["categories"] += [{'id:': int(c), 'name': c, 'supercategory': 'signs'} for c in classes]
+        labels_dict["categories"] += [{'id:': c, 'name': str(c), 'supercategory': 'signs'} for c in sorted(classes)]
     about_path = os.path.join(final_dir, "generated_images_about.txt")
 
     # Clean and recreate the parent images directory
@@ -284,18 +291,21 @@ def main():
             os.makedirs(class_dir)
         
         fg_path =  os.path.join(class_dir, f"{c_num}_{d_type}_{ii}")
-        final_fg_path = fg_path + ".jpg"  # It is assumed that the final .jpg -> .png conversion step is executed
+        final_fg_path = fg_path + ".jpg"
 
         image = generate.new_data(synth_image)
         if labels_format == 'retinanet':
-            synth_image.write_label_retinanet(labels_file)
+            synth_image.write_label_retinanet(labels_file, damage_labelling)
         elif labels_format == 'coco':
-            synth_image.write_label_coco(labels_dict, ii, final_fg_path, image.shape)
+            synth_image.write_label_coco(labels_dict, ii, 
+                        os.path.relpath(final_fg_path, final_dir), image.shape, damage_labelling)
         cv2.imwrite(final_fg_path, image, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
         ii += 1
     print(f"Generating files: 100.0%\r\n")
     
     if labels_format == "coco":
+        labels_dict['images'] = sorted(labels_dict['images'], key=lambda x: x['id'])
+        labels_dict['annotations'] = sorted(labels_dict['annotations'], key=lambda x: x['id'])
         json.dump(labels_dict, labels_file, indent=4)
     labels_file.close()
 
