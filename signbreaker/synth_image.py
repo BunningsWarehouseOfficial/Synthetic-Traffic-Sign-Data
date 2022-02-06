@@ -71,7 +71,7 @@ class SynthImage:
             "id": id,
             "background_name": Path(self.bg_path).stem,
             "license": 1,
-            "file_name": '/'.join(Path(img_path).parts[1:]),
+            "file_name": img_path,
             "height": img_dims[0],
             "width": img_dims[1],
             "date_captured": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
