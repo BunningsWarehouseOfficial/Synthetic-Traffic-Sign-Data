@@ -461,7 +461,7 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
         dmg = pad(dmg, pad_h, pad_w)
         
         att["damage_ratio"]  = "{:.3f}".format(calc_damage_ssim(dmg, original))
-        att["sector_damage"] = calc_damage_sectors(dmg, original, num_damage_sectors=params["num_damage_sectors"], method='ssim')
+        att["sector_damage"] = calc_damage_sectors(dmg, original, num_damage_sectors=params["num_damage_sectors"])
         attrs.append(att.copy())
         
     # Combine the right tilt with the original forward-facing image

@@ -40,14 +40,14 @@ seed: 457
 
 # Parameters for the bend damage type
 bend:
-  axis_angle: 15    # Clockwise rotation of the bending axis (in x-y plane)
-  bend_angle: 30   # Level of bending performed (from 0 to 90 degrees)
-  beta_diff: -10    # Beta difference between bent and unbent portions of sign
+  axis_angle: 0    # Clockwise rotation of the bending axis (in x-y plane)
+  bend_angle: 15   # Level of bending performed (from 0 to 90 degrees)
+  beta_diff: 0     # Beta difference between bent and unbent portions of sign
 
 # Prunes the dataset by using random.sample() to use a maximum of n images for each 
 # background+class+damage combination
 prune_dataset:
-  prune: 'false'
+  prune: 'true'
   max_images: 4
 
 annotations:
