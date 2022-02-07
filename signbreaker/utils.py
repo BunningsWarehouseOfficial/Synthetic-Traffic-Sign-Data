@@ -373,9 +373,32 @@ def count_damaged_pixels(new, original):
     # cv2.imshow("count_damaged_pixels", copy) ##for debug visual
     # cv2.waitKey(0) ##for debug visual
     # cv2.destroyAllWindows() ##for debug visual
-    ##
 
     return sum
+
+def count_damaged_pixels_vectorized(new, original):
+    if new.shape[2] != 4 or original.shape[2] != 4:
+        raise TypeError(f"The two images need 4 channels, but new has {new.shape[2]} and original has {original.shape[2]}")
+    new = new.astype(np.uint8)
+    original = original.astype(np.uint8)
+    
+    alpha_diffs = np.abs(new[...,3] - original[...,3]) / 255
+    col_diffs = np.sum(np.abs(new[...,:3] - original[...,:3]), axis=-1)
+    colour_diff_max = 255
+    col_diffs = np.minimum(col_diffs, colour_diff_max) / colour_diff_max
+    
+    diffs = np.where(original[...,3] > 0, col_diffs + alpha_diffs, 0)
+    
+    # For debug visualisations
+    # vis = np.ones(new.shape) * np.array([0, 255, 0, 255])
+    # vis[..., 1] = vis[..., 1] * diffs
+    # # For debug visualisations
+    # cv2.imshow("new", new) ##
+    # cv2.waitKey(0) 
+    # cv2.imshow("count_damaged_pixels_vectorized", vis)
+    # cv2.destroyAllWindows() 
+    
+    return np.sum(diffs)
 
 def calc_damage(new, original):
     """Calculate the ratio of damaged pixels between two versions of the same image."""
