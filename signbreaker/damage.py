@@ -37,57 +37,62 @@ def damage_image(image_path, output_dir, config):
     if (not os.path.exists(output_path)):
         os.makedirs(output_path)
 
-    types = config['damage_types']
+    num_damages = config['num_damaged']
 
-    def simple_damage(dmg, att):
+    def apply_damage(dmg, att):
         """Helper function to avoid repetition."""
-        dmg_path = os.path.join(output_path, class_num + "_" + att["damage_type"] + ".png")
+        dmg_path = os.path.join(output_path, f"{class_num}_{att['damage_type']}_{att['tag']}.png")
         cv.imwrite(dmg_path, dmg)
         damaged_images.append(SynthImage(
             dmg_path, int(class_num), att["damage_type"], att["tag"], float(att["damage_ratio"]), att["sector_damage"]))
 
     # ORIGINAL UNDAMAGED
-    if 'original' in types:
+    if num_damages['original'] > 0:
         dmg, att = no_damage(img)
-        simple_damage(dmg, att)
+        apply_damage(dmg, att)
 
     # QUADRANT
-    if 'quadrant' in types:
-        dmg, att = remove_quadrant(img)
-        simple_damage(dmg, att)
+    if num_damages['quadrant'] > 0:
+        quad_nums = rand.sample(range(1, 5), min(num_damages['quadrant'], 4))
+        for n in quad_nums:
+            dmg, att = remove_quadrant(img, n)
+            apply_damage(dmg, att)
     
     # BIG HOLE
-    if 'big_hole' in types:
-        dmg, att = remove_hole(img)
-        simple_damage(dmg, att)
+    if num_damages['big_hole'] > 0:
+        angles = rand.sample(
+            range(0, 360, 20), num_damages['big_hole'])
+        for a in angles:
+            dmg, att = remove_hole(img, a)
+            apply_damage(dmg, att)
     
     # RANDOMISED BULLET HOLES
     b_conf = config['bullet_holes']
-    if 'bullet_holes' in types:
-        dmg, att = bullet_holes(img, b_conf['min_holes'], b_conf['max_holes'], b_conf['target'])
-        simple_damage(dmg, att)
+    if num_damages['bullet_holes'] > 0:
+        hole_counts = rand.sample(
+            range(b_conf['min_holes'], b_conf['max_holes'], 5), num_damages['quadrant'])
+        for num_holes in hole_counts:
+            dmg, att = bullet_holes(img, int(num_holes), b_conf['target'])
+            apply_damage(dmg, att)
+            if 0 < b_conf['target'] < 1.0: break
 
     #TODO: Only feed unshaded (and bent) half of sign to damage calc for single bent? Idk about double bent
     # BEND
     bd_config = config['bend']
-    if 'bend' in types:
-        dmgs, attrs = bend_vertical(img, axis_angle=bd_config['axis_angle'], bend_angle=bd_config['bend_angle'], beta_diff=bd_config['beta_diff'])
-        for ii in range(len(dmgs)):
-            dmg_path = os.path.join(output_path, class_num + "_" + attrs[ii]["damage_type"] + "_" + str(attrs[ii]["tag"]) + ".png")
-            cv.imwrite(dmg_path, dmgs[ii])
-            damaged_images.append(SynthImage(
-                dmg_path, int(class_num), attrs[ii]["damage_type"], attrs[ii]["tag"], float(attrs[ii]["damage_ratio"]), attrs[ii]["sector_damage"]))
+    if num_damages['bend'] > 0:
+        for _ in range(num_damages['bend']):
+            axis = rand.randint(0, bd_config['max_axis'])
+            bend = rand.randint(0, bd_config['max_bend'])
+            dmg, att = bend_vertical(img, axis, bend, beta_diff=bd_config['beta_diff'])
+            apply_damage(dmg, att)
 
     # GRAFFITI
     g_conf = config['graffiti']
-    if 'graffiti' in types:
-        dmgs, attrs = graffiti(img, color=(0,0,0),
-                               initial=g_conf['initial'], final=g_conf['final'], step=g_conf['step'])
-        for ii in range(len(dmgs)):
-            dmg_path = os.path.join(output_path, class_num + "_" + attrs[ii]["damage_type"] + "_" + str(attrs[ii]["damage_ratio"]) + ".png")
-            cv.imwrite(dmg_path, dmgs[ii])
-            damaged_images.append(SynthImage(
-                dmg_path, int(class_num), attrs[ii]["damage_type"], attrs[ii]["tag"], float(attrs[ii]["damage_ratio"]), attrs[ii]["sector_damage"]))
+    if num_damages['graffiti'] > 0:
+        targets = np.linspace(g_conf['initial'], g_conf['final'], num_damages['graffiti'])
+        for t in targets:
+            dmg, att = graffiti(img, target=t, color=(0,0,0))
+            apply_damage(dmg, att)
 
     # TINTED YELLOW
     # yellow = np.zeros((height,width,ch), dtype=np.uint8)
@@ -130,13 +135,13 @@ def no_damage(img):
     # Assign labels
     att = attributes
     att["damage_type"] = "no_damage"
-    att["tag"]    = "-1"
+    att["tag"]    = ""
     att["damage_ratio"]  = str(calc_damage(dmg, img))  # This should be 0
     att["sector_damage"] = calc_damage_sectors(dmg, img, num_damage_sectors=params["num_damage_sectors"])
 
     return dmg, att
 
-def remove_quadrant(img): #TODO: Have quadrant be input parameter, with -1 being random
+def remove_quadrant(img, quad_num=-1):
     """Make one random quandrant transparent."""
     dmg = validate_sign(img)
     quadrant = dmg[:,:,3].copy()
@@ -145,7 +150,8 @@ def remove_quadrant(img): #TODO: Have quadrant be input parameter, with -1 being
     centre_x = int(round(width / 2))
     centre_y = int(round(height / 2))
 
-    quad_num = rand.randint(1, 4)  # For selecting which quadrant it will be
+    if quad_num == -1:
+        quad_num = rand.randint(1, 4)
     # Remove the quadrant: -1 offset is necessary to avoid damaging part of a wrong quadrant
     if quad_num == 1:         # top-right          centre
         cv.rectangle(quadrant, (width, 0), (centre_x, centre_y-1), (0,0,0), -1)
@@ -167,7 +173,7 @@ def remove_quadrant(img): #TODO: Have quadrant be input parameter, with -1 being
 
     return dmg, att
 
-def remove_hole(img):
+def remove_hole(img, angle):
     """Remove a circle-shaped region from the edge of the sign."""
     dmg = validate_sign(img)
     hole = dmg[:,:,3].copy()
@@ -177,7 +183,6 @@ def remove_hole(img):
     centre_x = int(round(width / 2))
     centre_y = int(round(height / 2))
 
-    angle = rand.randint(0, 359)  # Angle from x-axis, counter-clockwise through quadrant I
     radius = int(2 * height / 5)
     rad = -(angle * math.pi / 180)  # Radians
     x = centre_x + int(radius * math.cos(rad))   # x-coordinate of centre
@@ -189,13 +194,13 @@ def remove_hole(img):
     # Assign labels
     att = attributes
     att["damage_type"] = "big_hole"
-    att["tag"]    = "_".join((str(angle), str(radius), str(x), str(y)))
+    att["tag"]    = "_" + str(int(angle))
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
     att["sector_damage"] = calc_damage_sectors(dmg, img, num_damage_sectors=params["num_damage_sectors"])
 
     return dmg, att
 
-def bullet_holes(img, min_holes=7, max_holes=30, target=-1):
+def bullet_holes(img, num_holes=40, target=-1):
     """Create randomised bullet holes of varying sizes."""
     painted = validate_sign(img).copy()
     bullet_holes = painted[:,:,3].copy()
@@ -231,7 +236,6 @@ def bullet_holes(img, min_holes=7, max_holes=30, target=-1):
             num_holes += 1
     # Apply damage with a random number of holes within the specified min-max range
     else:
-        num_holes = rand.randint(min_holes, max_holes)  # Number of holes on sign
         for x in range(num_holes):
             # If the 'hole' (i.e. the imaginary bullet) misses the sign, get new coordinates
             alpha = 0
@@ -254,8 +258,6 @@ def bullet_holes(img, min_holes=7, max_holes=30, target=-1):
 
         dmg = cv.bitwise_and(painted, painted, mask=bullet_holes)
         ratio = round(calc_damage(painted, img), 3)
-    
-    # dmg = cv.bitwise_and(painted, painted, mask=bullet_holes)
 
     # Assign labels
     att = attributes
@@ -310,66 +312,43 @@ def draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color):
         yy, xx = draw.bezier_curve(y0+ii, x0+abs(ii), y1+ii, x1, y2+ii, x2-abs(ii), weight=1, shape=grft.shape)
         grft[yy, xx] = color + (alpha,)  # Modify the colour of the pixels that belong to the curve
 
-def graffiti(img, color=(0,0,0), initial=0.1, final=0.4, step=0.1):
+def graffiti(img, target=0.2, color=(0,0,0)):
     """Apply graffiti damage to sign.
        :param initial: the first target level of obscurity (0-1)
        :param final: the level of obscurity to stop at (0-1)
-       :param step: the step for the next level of obscurity
        :returns: a list containing the damaged images, and a list with the corresponding attributes"""
     validate_sign(img)
     height, width, _ = img.shape
     grft = np.zeros((height, width, 4), dtype=np.uint8)  # New blank image for drawing the graffiti on.
-    grfts = []   # To hold the graffiti layers
-    attrs = []   # To hold their corresponding attributes
-    targets = [] # To hold their corresponding targets
-    dmgs = []    # To hold the damaged signs
 
     ratio = 0.0
     x0, y0 = width//2, height//2  # Start drawing in the centre of the image
-    # Multiply by 100 to use integers in the for loop
-    initial = round(initial, 4)
-    final = round(final, 4)
-    step = round(step, 4)
-
-    # Loop for the number of target obscurities
-    target = initial
-    while target <= final:
-        # Keep drawing bezier curves until the obscurity hits the target
-        while ratio < target:
-            radius = width // 5  # Radius of max distance to the next point
-            x1, y1, x2, y2 = calc_points(img, x0, y0, radius)
-            thickness = int(round(width // 20))
-            draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color)
-            # Make the end point the starting point for the next curve
-            x0, y0 = x2, y2
-            ratio = round(calc_ratio(grft, img), 4)
-        # Add a copy to the list and continue layering more graffiti
-        grfts.append(grft.copy())
-        targets.append(target)
-
-        target += step
+    
+    # Keep drawing bezier curves until the obscurity hits the target
+    while ratio < target:
+        radius = width // 5  # Radius of max distance to the next point
+        x1, y1, x2, y2 = calc_points(img, x0, y0, radius)
+        thickness = int(round(width // 20))
+        draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color)
+        # Make the end point the starting point for the next curve
+        x0, y0 = x2, y2
+        ratio = round(calc_ratio(grft, img), 4)
+    # Add a copy to the list and continue layering more graffiti
     
     k = (int(round( width/20 )) // 2) * 2 + 1  # Kernel size must be odd
-    ii = 0
-    for grft in grfts:
-        # Apply a Gaussian blur to each image, to smooth the edges
-        grft = cv.GaussianBlur(grft, (k,k), 0)
-        # Combine with the original alpha channel to remove anything that spilt over the sign
-        grft[:,:,3] = cv.bitwise_and(grft[:,:,3], img[:,:,3])
-        dmg = overlay(grft, img)
-        dmgs.append(dmg.copy())
-        
-        # Assign labels
-        att = attributes
-        att["damage_type"] = "graffiti"
-        att["tag"]    = str(round(targets[ii], 3))
-        att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
-        # att["damage_ratio"]  = "{:.3f}".format(ratio)
-        att["sector_damage"] = calc_damage_sectors(dmg, img, num_damage_sectors=params["num_damage_sectors"])
-        attrs.append(att.copy())
-
-        ii += 1
-    return dmgs, attrs
+    # Apply a Gaussian blur to each image, to smooth the edges
+    grft = cv.GaussianBlur(grft, (k,k), 0)
+    # Combine with the original alpha channel to remove anything that spilt over the sign
+    grft[:,:,3] = cv.bitwise_and(grft[:,:,3], img[:,:,3])
+    dmg = overlay(grft, img)
+    
+    # Assign labels
+    att = attributes
+    att["damage_type"] = "graffiti"
+    att["tag"]    = str(round(target, 3))
+    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
+    att["sector_damage"] = calc_damage_sectors(dmg, img, num_damage_sectors=params["num_damage_sectors"])
+    return dmg, att
 
 
 ### The following three functions for the 'bend' damage type ###
@@ -393,25 +372,8 @@ def combine(img1, img2, beta_diff=-20):
 
     return result
 
-def tilt(img, angle, dims):                               
-        #                                           (dst)
-        #        0,0 ------> x                      *
-        #                                           |\
-        #      0,0    (src)                         | \  
-        #      |            (wd/2, 0)   (delta_y)-->|  \<--(d)        
-        #      |      *_______↓                     |﹍﹍\<---(angle)
-        #      |      |       |                     |↑___|_(delta_x)    
-        #             |       |     =========>      |    | 
-        #      y      |       |                     |    |
-        #             |       |                     |    |
-        #             |_______|                     |   /
-        #             *                             |  /
-        #             ↑                             | /
-        #            (0, ht-1)                      |/
-        #                                           * 
-        #                                           
+def tilt(img, angle, dims):                                                                     
         ht, wd = dims
-        angle = max(min(angle, 80), 0)  # Limit the angle to between 0 and 80 degrees
         angle = math.radians(angle)  # Convert to radians
         d = wd // 2 * math.cos(angle)  
         delta_x = int(d * math.cos(angle))
@@ -436,23 +398,20 @@ def tilt(img, angle, dims):
 def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
     """Apply perspective warp to tilt images and combine to produce bent signs.
        :param img: the image to use to produce damaged signs
-       :param axis_angle: the bearing of the axis of rotation in x-y plane
-       :returns: a list of bent signs and a list of corresponding attributes"""
-    bend_img = imutils.rotate_bound(img, axis_angle)
-    bend_img = remove_padding(bend_img)
-    ht, wd,_ = bend_img.shape  # Retrieve image dimentions
-    dmgs = []
-    attrs = []
-    left, right = tilt(bend_img, bend_angle, (ht, wd))
+       :param max_axis: the maximum bearing of the axis of rotation in x-y plane
+       :params max_bend: the maximum degree of inwards bending
+       :returns: a list of bent signs and a list of corresponding attributes""" 
+    rot_img = imutils.rotate_bound(img, axis_angle)
+    rot_img = remove_padding(rot_img)
+    ht, wd,_ = rot_img.shape  # Retrieve image dimentions
+    left, right = tilt(rot_img, bend_angle, (ht, wd))
 
     def apply_bend(left, right, tag):
+        #TODO: Would look more realistic with non-zero beta_diff, 
+        # but introduces too much complexity with exposure atm
         dmg = combine(left, right, beta_diff)
         dmg = imutils.rotate_bound(dmg, -axis_angle)
         dmg = remove_padding(dmg)
-        dmgs.append(dmg.copy())
-        att = attributes
-        att["damage_type"] = "bend"
-        att["tag"]    = "{}".format(tag)
         
         # Pad images to the same size to perform pixel comparison
         pad_h = max(img.shape[0], dmg.shape[0])
@@ -460,15 +419,18 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
         original = pad(img, pad_h, pad_w)
         dmg = pad(dmg, pad_h, pad_w)
         
+        att = attributes
+        att["damage_type"] = "bend"
+        att["tag"]    = "{}".format(bend_angle)
         att["damage_ratio"]  = "{:.3f}".format(calc_damage_ssim(dmg, original))
-        att["sector_damage"] = calc_damage_sectors(dmg, original, num_damage_sectors=params["num_damage_sectors"])
-        attrs.append(att.copy())
+        att["sector_damage"] = calc_damage_sectors(dmg, original, num_damage_sectors=params["num_damage_sectors"], method='ssim')
+        return dmg, att
         
-    # Combine the right tilt with the original forward-facing image
-    #TODO: Would look more realistic with non-zero beta_diff, but introduces too much complexity with exposure atm
-    apply_bend(bend_img, right, 'right')
-    # Combine the left tilt with the original forward-facing image
-    apply_bend(left, bend_img, 'left')
-    # Combine the left and right tilt
-    apply_bend(left, right, 'both')
-    return dmgs, attrs
+    opt = rand.choice(["left", "right", "both"])
+    if opt == "left":
+        dmg, att = apply_bend(rot_img, right, 'right')
+    elif opt == "right":
+        dmg, att = apply_bend(left, rot_img, 'left')
+    else:
+        dmg, att = apply_bend(left, right, 'both')
+    return dmg, att
