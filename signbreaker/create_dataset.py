@@ -53,7 +53,7 @@ def main():
         raise ValueError("Config error: must have 0 <= 'num_transform' <= 15.\n")
     if not config['man_method'] in valid_man:
         raise ValueError(f"Config error: 'man_method' must be either '{valid_man[0]}' or '{valid_man[1]}'.\n")
-    for dmg in config['damage_types']:
+    for dmg in config['num_damaged']:
         if not dmg in valid_dmg:
             raise ValueError(f"Config error: '{dmg}' is an invalid damage type.\n")
 

@@ -37,7 +37,7 @@ def damage_image(image_path, output_dir, config):
     if (not os.path.exists(output_path)):
         os.makedirs(output_path)
 
-    num_damages = config['num_damaged']
+    num_damages = config['num_damages']
 
     def apply_damage(dmg, att):
         """Helper function to avoid repetition."""
