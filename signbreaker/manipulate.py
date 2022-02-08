@@ -487,6 +487,8 @@ def find_useful_signs(manipulated_images, directory, damaged_dir):
         print(f"Removing useless signs: {float(pr) / float(pr_total):06.2%}", end='\r')
 
         image_path = manipulated.fg_path
+        
+        if not os.path.exists(image_path): continue
 
         # Find brightness
         img = Image.open(image_path).convert('RGBA')
