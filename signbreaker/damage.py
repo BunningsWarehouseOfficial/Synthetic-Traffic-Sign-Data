@@ -41,7 +41,11 @@ def damage_image(image_path, output_dir, config):
 
     def apply_damage(dmg, att):
         """Helper function to avoid repetition."""
-        dmg_path = os.path.join(output_path, f"{class_num}_{att['damage_type']}_{att['tag']}.png")
+        dmg_path = os.path.join(output_path, f"{class_num}_{att['damage_type']}")
+        if att['tag']:
+            dmg_path += f"_{att['tag']}.png"
+        else:
+            dmg_path += ".png"
         cv.imwrite(dmg_path, dmg)
         damaged_images.append(SynthImage(
             dmg_path, int(class_num), att["damage_type"], att["tag"], float(att["damage_ratio"]), att["sector_damage"]))
@@ -80,9 +84,10 @@ def damage_image(image_path, output_dir, config):
     # BEND
     bd_config = config['bend']
     if num_damages['bend'] > 0:
-        for _ in range(num_damages['bend']):
+        bend_angles = rand.sample(
+            range(10, max(bd_config['max_bend'] + 5, 15), 5), num_damages['bend'])
+        for bend in bend_angles:
             axis = rand.randint(0, bd_config['max_axis'])
-            bend = rand.randint(0, bd_config['max_bend'])
             dmg, att = bend_vertical(img, axis, bend, beta_diff=bd_config['beta_diff'])
             apply_damage(dmg, att)
 
@@ -194,7 +199,7 @@ def remove_hole(img, angle):
     # Assign labels
     att = attributes
     att["damage_type"] = "big_hole"
-    att["tag"]    = "_" + str(int(angle))
+    att["tag"]    = str(int(angle))
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
     att["sector_damage"] = calc_damage_sectors(dmg, img, num_damage_sectors=params["num_damage_sectors"])
 
