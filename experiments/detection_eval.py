@@ -9,6 +9,7 @@ Code from https://github.com/yfpeng/object_detection_metrics/blob/master/podm/po
 
 Copyright (c) 2020, Yifan Peng
 All rights reserved.
+Modified by Allen Antony
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -123,7 +124,7 @@ class Box:
 
 class BoundingBox(Box):
     def __init__(self, image_id: float, class_id: float, xtl: float, ytl: float, xbr: float, ybr: float,
-                 score=None):
+                 score=None, damages: List[float] = None):
         """Constructor.
         Args:
             image_id: the image name.
@@ -138,6 +139,7 @@ class BoundingBox(Box):
         self.image_id = image_id
         self.score = score
         self.class_id = class_id
+        self.damages = damages
         
         
 def calculate_all_points_average_precision(recall, precision):
@@ -183,17 +185,20 @@ class MetricPerClass:
         return np.average([m.ap for m in results.values() if m.num_groundtruth > 0])
     
 
-def get_pascal_voc_metrics(gold_standard: List[BoundingBox],
+def get_detection_metrics(gold_standard: List[BoundingBox],
                            predictions: List[BoundingBox],
-                           iou_threshold: float = 0.5) -> Dict[str, MetricPerClass]:
+                           iou_threshold: float = 0.5, 
+                           dmg_threshold: float = 0.2,
+                           correct_threshold: float = 2,
+                           method: str = 'object_detection') -> Dict[str, MetricPerClass]:
     """Get the metrics used by the VOC Pascal 2012 challenge.
     Args:
         gold_standard: ground truth bounding boxes;
         predictions: detected bounding boxes;
         iou_threshold: IOU threshold indicating which detections will be considered TP or FP (default value = 0.5);
-        method: It can be calculated as the implementation in the official PASCAL VOC toolkit (EveryPointInterpolation),
-            or applying the 11-point interpolation as described in the paper "The PASCAL Visual Object Classes(VOC)
-            Challenge" or AllPointsInterpolation" (ElevenPointInterpolation);
+        dmg_threshold: required damage level for sector to be marked as 'damaged';
+        correct_threshold: number of correctly damaged sectors required for tp;
+        method: Pascal VOC metrics or damage metrics
     Returns:
         A dictionary containing metrics of each class.
     """
@@ -244,9 +249,19 @@ def get_pascal_voc_metrics(gold_standard: List[BoundingBox],
                 tp_IOUs.append(max_iou)
                 # Add score of best detection for this ground truth
                 tp_scores.append(preds[i].score)
-                        
+            
+            if method == 'damage_detection':
+                pred_damages = np.array([1 if d >= dmg_threshold else 0 for d in preds[i].damages])
+                gt_damages = np.array([1 if d >= dmg_threshold else 0 for d in gt[mas_idx].damages])
+                num_correct = sum(pred_damages == gt_damages)
+                is_pred_tp = num_correct >= correct_threshold
+            elif method == 'object_detection':
+                is_pred_tp = max_iou >= iou_threshold
+            else: 
+                raise ValueError('Unknown method: {}'.format(method))
+                
             # Assign detection as true positive/don't care/false positive
-            if max_iou >= iou_threshold:
+            if is_pred_tp:
                 if counter[preds[i].image_id][mas_idx] == 0:
                     tps[i] = 1  # count as true positive
                     counter[preds[i].image_id][mas_idx] = 1  # flag as already 'seen'
