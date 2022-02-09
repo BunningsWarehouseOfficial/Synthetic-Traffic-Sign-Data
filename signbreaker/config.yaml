@@ -4,20 +4,20 @@
 sign_width: 200  # Default: 200
 
 # When to stop the program, in the case that not all of the sequential steps are required
-final_op: damage  # Either 'process', 'damage', 'transform', 'manipulate', or 'dataset'
+final_op: dataset  # Either 'process', 'damage', 'transform', 'manipulate', or 'dataset'
 
 # The number of transformations applied to each damaged sign template
-num_transform: 2  # Range: [0,15] | low: [1,5], medium: [6,10], high: [11,15]
+num_transform: 10  # Range: [0,15] | low: [1,5], medium: [6,10], high: [11,15]
 
 # Method of image manipulation: either 'exposure' or 'fade' (not implemented)
 man_method: exposure
 
 # The number of damages applied via each method
 num_damages: 
-  original: 1       # Max 1
-  quadrant: 2       # Max 4
-  big_hole: 2
-  bullet_holes: 2
+  original: 2       # Max 1
+  quadrant: 3       # Max 4
+  big_hole: 3
+  bullet_holes: 4
   graffiti: 4
   bend: 4
   # - tinted_yellow (not implemented)
@@ -32,7 +32,7 @@ bullet_holes:
 # Parameters for the graffiti damage type, each in range (0.0,1.0], recommended to be in increments of 0.1
 graffiti:
   initial: 0.2  # First target level of damage
-  final: 0.4    # Level of damage to stop at
+  final: 0.6    # Level of damage to stop at
 
 # Randomization seed
 seed: 457
@@ -40,14 +40,14 @@ seed: 457
 # Parameters for the bend damage type
 bend:
   max_axis: 60   # Clockwise rotation of the bending axis (in x-y plane)
-  max_bend: 45   # Level of bending performed (from 0 to 90 degrees)
+  max_bend: 60   # Level of bending performed (from 0 to 90 degrees)
   beta_diff: 0     # Beta difference between bent and unbent portions of sign
 
 # Prunes the dataset by using random.sample() to use a maximum of n images for each 
 # background+class+damage combination
 prune_dataset:
   prune: 'true'
-  max_images: 4
+  max_images: 10
 
 annotations:
   type: 'coco'
