@@ -49,13 +49,15 @@ if __name__ == "__main__":
     fig = px.scatter(title=args.experiment.capitalize() + ' vs ' + args.metric)
     
     # Axis labels   
-    fig.update_yaxes(title=args.metric, title_font=dict(size=16))
+    fig.update_yaxes(title='Mean Average Precision (mAP)', title_font=dict(size=16))
     if is_damage_experiment or is_sequence_experiment:
         fig.update_xaxes(title_text='Damage Ratio', title_font=dict(size=18))
     elif is_distance_experiment:
         fig.update_xaxes(title_text='Area of Sign in Pixels', title_font=dict(size=18))
         
     fig.update_layout(
+        legend=dict(
+            title='Proportion of synthetic images'),  
         font_size=14,
         font_family="Helvetica",
         font_color="black",

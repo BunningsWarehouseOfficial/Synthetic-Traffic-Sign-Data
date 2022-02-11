@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.express as px
 
 from collections import defaultdict
-from detection_eval import BoundingBox, get_pascal_voc_metrics, Box
+from detection_eval import BoundingBox, get_detection_metrics, Box
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -55,12 +55,12 @@ def get_metrics(gt, pred):
     """   
     columns = ['AP50', 'mAP', 'Mean IOU', 'Mean Score']
     metrics = np.zeros(len(columns))
-    AP40_metrics = get_pascal_voc_metrics(gt, pred, iou_threshold=0.4)
+    AP40_metrics = get_detection_metrics(gt, pred, iou_threshold=0.4)
     tp_IOUs = AP40_metrics.tp_IOUs
     tp_scores = AP40_metrics.tp_scores
     APs = []
     for threshold in np.arange(0.5, 1.0, 0.05):
-        APs.append(get_pascal_voc_metrics(gt, pred, iou_threshold=threshold).ap)
+        APs.append(get_detection_metrics(gt, pred, iou_threshold=threshold).ap)
     metrics[0] = APs[0]
     metrics[1] = np.mean(APs)
     metrics[2] = np.mean(tp_IOUs)
