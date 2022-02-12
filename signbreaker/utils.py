@@ -457,7 +457,7 @@ def pad(img, h ,w):
     return np.copy(np.pad(img, ((top_pad, bottom_pad), (left_pad, right_pad), (0, 0)), mode='constant', constant_values=0))
 
 
-def calc_damage_sectors(new, original, num_damage_sectors, method='ssim'):
+def calc_damage_sectors(new, original, num_damage_sectors=4, method='ssim'):
     """ Calculates a list of damage ratios. Calling np.reshape(ratios, (math.sqrt(len(ratios)), math.sqrt(len(ratios))))
         reconstructs the 2D sector damage array """
     l = math.sqrt(num_damage_sectors)
