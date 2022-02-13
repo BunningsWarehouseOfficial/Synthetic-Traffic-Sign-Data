@@ -389,18 +389,22 @@ def combine(img1, img2, beta_diff=-20):
     """Combine the left half of img1 with right half of img2 and returns the result."""
     _,wd,_ = img1.shape
     result = img1.copy()
+    right = img2.copy()
     # Save the alpha data (to replace later), as convertScaleAbs() will affect the transparency
-    alpha_ch = cv.split(result)[3]
+    result_alpha = cv.split(result)[3]
+    right_alpha = cv.split(right)[3]
     
     # Darken the entire image of the copy
     alpha = 1  # No change to contrast
-    beta = beta_diff  # Decrease brightness
+    beta = beta_diff / 2  # Decrease brightness
     cv.convertScaleAbs(result, result, alpha, beta)
+    cv.convertScaleAbs(right, right, alpha, -beta)
     # Replace the alpha data
-    result[:,:,3] = alpha_ch
+    result[:,:,3] = result_alpha
+    right[:,:,3] = right_alpha
     
     # Copy over the right half of img2 onto the darkened image
-    result[:,wd//2:wd] = img2[:,wd//2:wd]
+    result[:,wd//2:wd] = right[:,wd//2:wd]
 
     return result
 
