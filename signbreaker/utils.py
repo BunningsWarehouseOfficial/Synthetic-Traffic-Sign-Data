@@ -7,23 +7,25 @@ import os
 import math
 from PIL import Image, ImageOps
 
-def load_paths(directory):
+def load_paths(directory, ignored=['.npy']):
     """Returns a list with the paths of all files in the directory"""
     paths = []
     for filename in os.listdir(directory): # Retrieve names of files in directory
         # Concatenate filename with directory path, ignoring hidden files
         path = os.path.join(directory, filename)
-        if not filename.startswith('.'):
+        _, ext = os.path.splitext(filename)
+        if not filename.startswith('.') and ext not in ignored:
             paths.append(path)
     return paths
 
-def load_files(directory):
+def load_files(directory, ignored=['.npy']):
     """Returns a list with the paths of all non-directory files in the directory"""
     paths = []
     for filename in os.listdir(directory): # Retrieve names of files in directory
         # Concatenate filename with directory path, ignoring hidden files and directories
         path = os.path.join(directory, filename)
-        if os.path.isfile(path) and not filename.startswith('.'):
+        _, ext = os.path.splitext(filename)
+        if os.path.isfile(path) and not filename.startswith('.') and ext not in ignored:
             paths.append(path)
     return paths
 
