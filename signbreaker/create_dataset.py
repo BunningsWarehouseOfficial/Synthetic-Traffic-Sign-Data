@@ -14,8 +14,10 @@ def main():
     from pathlib import Path
     import glob
 
+    from bg_image import BgImage
     from damage import damage_image
     from utils import load_paths, load_files, scale_image, delete_background, to_png, dir_split
+    from detect_light_src import find_light_source
     import manipulate
     import generate
     
@@ -31,10 +33,6 @@ def main():
     #TODO: Add an example download link for a dataset of backgrounds that have no real signs on them
 
     #TODO: Documentation in the dataset readme for what the tag of each damage type means
-
-    #TODO: Add randomisation factor somehwere so that, if desired, a new image won't be generated for every
-    #      single class+damage+transformation+(manipulation+background) combination, with the factor being
-    #      introduced somewhere within the brackets
 
     # Open and validate config file
     import yaml
@@ -102,8 +100,19 @@ def main():
     # Seed the random number generator
     random.seed(config['seed'])
     
-       
+    
+    ##################################
+    ###  Background Preprocessing  ###
+    ##################################
+    background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True) + \
+        glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.jpg", recursive=True)
+    background_images = []
+    for ii, path in enumerate(background_paths):
+        print(f"Processing Background Images: {float(ii) / float(len(background_paths)):06.2%}", end='\r')
+        background_images.append(BgImage(path))
+    print(f"Processing Background Images: 100.00%\r\n")
 
+        
     #############################
     ###  IMAGE PREPROCESSING  ###
     #############################
@@ -145,7 +154,7 @@ def main():
     processed = load_files(processed_dir)
     for image_path in processed:
         print(f"Damaging signs: {float(ii) / float(len(processed)):06.2%}", end='\r')
-        damaged_data.append(damage_image(image_path, damaged_dir, config))
+        damaged_data.append(damage_image(image_path, damaged_dir, config, background_images))
         ii += 1
     print(f"Damaging signs: 100.0%\r\n")
     damaged_data = [cell for row in damaged_data for cell in row]  # Flatten the list
@@ -188,56 +197,21 @@ def main():
     ImageFile.LOAD_TRUNCATED_IMAGES = True  #TODO: Is this line needed?
     for bg_folders in load_paths(bg_dir):
         to_png(bg_folders)
-
-    #TODO: This mess of a loop could probably be cleaned up?
-    for dirs in load_paths(bg_dir):
-        if config['man_method'] == 'exposure':
-            for background in load_paths(dirs):
-                iniitial, subd, element = dir_split(background)
-                title, extension = element.split('.')
-
-                for signp in load_paths(transformed_dir):
-                    for sign in load_paths(signp):
-                        d, s, f, e = dir_split(sign)  # Eg. s=4_Transformed, f=9, e=9_BIG_HOLE
-
-                        #if (not os.path.exists(exp_dir + subd + sep + title + sep + "SIGN_" + f + sep + e)):
-                        sign_dir = os.path.join(manipulated_dir, subd, title, "SIGN_" + f, e)
-                        if not os.path.exists(sign_dir):
-                            os.makedirs(sign_dir)
-                            #os.makedirs(exp_dir + subd + sep + title + sep + "SIGN_" + f + sep + e)
-        else:
-            for signp in load_paths(transformed_dir):
-                for sign in load_paths(signp):
-                    d,s,f,e = dir_split(sign)
-
-                    sign_dir = os.path.join(manipulated_dir, "SIGN_" + f, e)
-                    if (not os.path.exists(sign_dir)):
-                        os.makedirs(sign_dir)
-
-    signs_paths = []
-    for p in load_paths(transformed_dir):
-        for d in load_paths(p):
-            signs_paths += load_paths(d)
-
-    background_paths = []  # Load the paths of the background images into a single list
-    for subfolder in load_paths(bg_dir):
-        background_paths += load_paths(subfolder)
-
+        
+    background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True)
+        
     #TODO: Can do checks for damage type in below functions to avoid funky results cancelling manipulation for just those types
-    
     if config['man_method'] == 'exposure':
         manipulated_data = manipulate.exposure_manipulation(transformed_data, background_paths, manipulated_dir)
-    else:
-        #TODO: Still need to do encapsulation here
-        None
-        #manipulated_data = manipulate.fade_manipulation(transformed_data, background_paths, manipulated_dir)
-
-    if config['man_method'] == 'exposure':
         manipulate.find_useful_signs(manipulated_data, manipulated_dir, damaged_dir) #TODO: MAKE SURE TO DO THIS, DELETING SYNTH_IMAGE OBJECTS ALONG THE WAY
+    else:
+        raise NotImplementedError('Only exposure method is currently implemented')
+        # manipulated_data = manipulate.fade_manipulation(transformed_data, background_paths, manipulated_dir)
 
     # Delete SynthImage objects for any signs that were removed
     manipulated_data[:] = [x for x in manipulated_data if os.path.exists(x.fg_path)]
     
+    # Prune dataset by randomly sampling from manipulated images
     if config['prune_dataset']['prune'] == 'true':
         max_images = config['prune_dataset']['max_images']
         images_dict = defaultdict(list)
