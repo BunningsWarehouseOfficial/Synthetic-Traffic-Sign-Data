@@ -227,19 +227,21 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
     background_exposures = find_image_exposures(background_paths, 4, "background")
 
     sign_paths = [transformed.fg_path for transformed in transformed_data]
-    signs_exposures = find_image_exposures(sign_paths, 4, "transformed sign")
     
-    pr = 0
     manipulated_images = []
-    for ii in range(0, len(background_paths)):
-        img = Image.open(background_exposures[ii][0])
-        bg_path = background_paths[ii]
+    for ii in range(len(sign_paths)):
+        original = transformed_data[ii]
+        sign_path = sign_paths[ii]
+        
+        print(f"Manipulating signs: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
+        
+        for jj in range(0, len(background_paths)):
+            bg_path = background_paths[jj]
 
-        jj = 0
-        for sign_path in sign_paths:
-            print(f"Manipulating signs: {float(pr) / float(len(background_paths) * len(sign_paths)):06.2%}", end='\r')
+            if original.bg_path is not None and original.bg_path != bg_path:
+                continue
 
-            dirc, sub, el = dir_split(background_exposures[ii][0])
+            dirc, sub, el = dir_split(background_exposures[jj][0])
             title, extension = el.rsplit('.', 1)
 
             parent_dir, sub_dir, folder, folder2, element = dir_split(sign_path)
@@ -277,7 +279,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             
             ### IMAGE MANIPULATION MAIN CODE STARTS ###
             # MINIMISE MARGIN BASED ON AVERAGE FOR TWO CHANNEL BRIGNESS VARIATION
-            margin = abs(avrg - float(background_exposures[ii][1]))
+            margin = abs(avrg - float(background_exposures[jj][1]))
             
             brightness_avrg = margin / avrg_ratio 
             
@@ -288,7 +290,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
 
             
             # MINIMISE MARGIN BASED ON ROOT MEAN SQUARE FOR TWO CHANNEL BRIGNESS VARIATION
-            margin = abs(rms - float(background_exposures[ii][2]))
+            margin = abs(rms - float(background_exposures[jj][2]))
 
             brightness_rms = margin / rms_ratio 
             
@@ -303,7 +305,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             stat2 = ImageStat.Stat(peak2)
             r, g, b, a = stat2.mean
             avrg_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
-            margin = abs(avrg_perceived - float(background_exposures[ii][3]))
+            margin = abs(avrg_perceived - float(background_exposures[jj][3]))
             
             brightness_avrg_perceived = margin / percieved_avrg_ratio 
             
@@ -319,7 +321,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             r, g, b, a = stat2.rms
             rms_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))
 
-            margin = abs(rms_perceived - float(background_exposures[ii][4]))
+            margin = abs(rms_perceived - float(background_exposures[jj][4]))
 
             brightness_rms_perceived = margin / percieved_rms_ratio 
 
@@ -337,7 +339,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
 
             """
             #FUSION OF THE TWO AVERAGING METHODS
-            margin = abs(avrg2-float(background_exposures[ii][1]))
+            margin = abs(avrg2-float(background_exposures[jj][1]))
             brightness_avrg2 = margin/avrg2_ratio 
             enhancer = ImageEnhance.Brightness(peak2)
             avrg_bright2 = enhancer.enhance(brightness_avrg2)
@@ -348,7 +350,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             
             """
             #FUSION OF THE TWO RMS METHODS
-            margin = abs(rms2-float(background_exposures[ii][2]))
+            margin = abs(rms2-float(background_exposures[jj][2]))
             brightness_rms2 = margin/rms2_ratio 
             enhancer = ImageEnhance.Brightness(peak2)
             rms_bright2 = enhancer.enhance(brightness_rms2)
@@ -366,7 +368,9 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             
 
             def save_synth(man_img, man_type, original_synth):
-                save_path = os.path.join(exp_dir,sub,title,"SIGN_"+folder,folder2,head+"_"+man_type+"."+tail)
+                save_dir = os.path.join(exp_dir,sub,title,"SIGN_"+folder,folder2)
+                os.makedirs(save_dir, exist_ok=True)
+                save_path = os.path.join(save_dir, head+"_"+man_type+"."+tail)
                 man_img.save(save_path)
                 man_image = original_synth.clone()
                 man_image.fg_path = save_path
@@ -374,17 +378,12 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
                 man_image.bg_path = bg_path
                 return man_image
 
-            original = transformed_data[jj]
             manipulated_images.append(save_synth(avrg_bright,           'AVERAGE', original))
             manipulated_images.append(save_synth(rms_bright,            'RMS', original))
             manipulated_images.append(save_synth(avrg_bright_perceived, 'AVERAGE_PERCEIVED', original))
             manipulated_images.append(save_synth(rms_bright_perceived,  'RMS_PERCEIVED', original))
             # manipulated_images.append(save_synth(avrg_bright2,          'AVERAGE2', original))
             # manipulated_images.append(save_synth(rms_bright2,           'RMS2', original))
-
-            jj += 1
-            pr += 1
-
     print("Manipulating signs: 100.0%\r\n")
     return manipulated_images
 
