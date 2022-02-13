@@ -13,6 +13,7 @@ def main():
     from PIL import ImageFile
     from pathlib import Path
     import glob
+    import numpy as np
 
     from bg_image import BgImage
     from damage import damage_image
@@ -141,26 +142,29 @@ def main():
     #########################
     ###  APPLYING DAMAGE  ###
     #########################
-    # Remove any old output and recreate the output directory
-    # reusable = config['reuse_damage']  #TODO: Implement optional damage reuse or any dir reuse (check downstream first)
-    # if not reusable:
-    #     shutil.rmtree(damaged_dir)
-    if os.path.exists(damaged_dir):
-        shutil.rmtree(damaged_dir) ##
-    #if not os.path.exists(damaged_dir):
-    os.mkdir(damaged_dir)
-    damaged_data = []
+    reusable = config['reuse']['damage']
+    data_file_path = os.path.join(damaged_dir, "damaged_data.npy")
+    if not reusable:
+        shutil.rmtree(damaged_dir)
+        if os.path.exists(damaged_dir):
+            shutil.rmtree(damaged_dir)
+        os.mkdir(damaged_dir)
+        damaged_data = []
 
-    ii = 0
-    processed = load_files(processed_dir)
-    for image_path in processed:
-        print(f"Damaging signs: {float(ii) / float(len(processed)):06.2%}", end='\r')
-        damaged_data.append(damage_image(image_path, damaged_dir, config, background_images))
-        ii += 1
-    print(f"Damaging signs: 100.0%\r\n")
-    damaged_data = [cell for row in damaged_data for cell in row]  # Flatten the list
-    # else:
-    #     print("Reusing pre-existing damaged signs")
+        ii = 0
+        processed = load_files(processed_dir)
+        for image_path in processed:
+            print(f"Damaging signs: {float(ii) / float(len(processed)):06.2%}", end='\r')
+            damaged_data.append(damage_image(image_path, damaged_dir, config, background_images))
+            ii += 1
+        print(f"Damaging signs: 100.0%\r\n")
+        damaged_data = [cell for row in damaged_data for cell in row]  # Flatten the list
+        np.save(data_file_path, damaged_data, allow_pickle=True)
+    elif os.path.exists(data_file_path):
+        damaged_data = np.load(os.path.join(damaged_dir, "damaged_data.npy"), allow_pickle=True)
+        print("Reusing pre-existing damaged signs")
+    else:
+        raise FileNotFoundError(f"Error: data file does not exist - cannot reuse.\n")
 
     if config['final_op'] == 'damage':
         return
@@ -191,26 +195,35 @@ def main():
     ####################################
     ###  MANIPULATING EXPOSURE/FADE  ###
     ####################################
-    if os.path.exists(manipulated_dir):
-        shutil.rmtree(manipulated_dir)
-    os.mkdir(manipulated_dir)
+    reusable = config['reuse']['manipulate']
+    data_file_path = os.path.join(damaged_dir, "manipulated_data.npy")
+    if not reusable:
+        if os.path.exists(manipulated_dir):
+            shutil.rmtree(manipulated_dir)
+        os.mkdir(manipulated_dir)
 
-    ImageFile.LOAD_TRUNCATED_IMAGES = True  #TODO: Is this line needed?
-    for bg_folders in load_paths(bg_dir):
-        to_png(bg_folders)
-        
-    background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True)
-        
-    #TODO: Can do checks for damage type in below functions to avoid funky results cancelling manipulation for just those types
-    if config['man_method'] == 'exposure':
-        manipulated_data = manipulate.exposure_manipulation(transformed_data, background_paths, manipulated_dir)
-        manipulate.find_useful_signs(manipulated_data, manipulated_dir, damaged_dir) #TODO: MAKE SURE TO DO THIS, DELETING SYNTH_IMAGE OBJECTS ALONG THE WAY
+        ImageFile.LOAD_TRUNCATED_IMAGES = True  #TODO: Is this line needed?
+        for bg_folders in load_paths(bg_dir):
+            to_png(bg_folders)
+            
+        background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True)
+            
+        #TODO: Can do checks for damage type in below functions to avoid funky results cancelling manipulation for just those types
+        if config['man_method'] == 'exposure':
+            manipulated_data = manipulate.exposure_manipulation(transformed_data, background_paths, manipulated_dir)
+            manipulate.find_useful_signs(manipulated_data, manipulated_dir, damaged_dir) #TODO: MAKE SURE TO DO THIS, DELETING SYNTH_IMAGE OBJECTS ALONG THE WAY
+        else:
+            raise NotImplementedError('Only exposure method is currently implemented')
+            # manipulated_data = manipulate.fade_manipulation(transformed_data, background_paths, manipulated_dir)
+
+        # Delete SynthImage objects for any signs that were removed
+        manipulated_data[:] = [x for x in manipulated_data if os.path.exists(x.fg_path)]
+        np.save(data_file_path, manipulated_data, allow_pickle=True)
+    elif os.path.exists(data_file_path):
+        manipulated_data = np.load(data_file_path, allow_pickle=True)
+        print("Reusing pre-existing manipulated signs")
     else:
-        raise NotImplementedError('Only exposure method is currently implemented')
-        # manipulated_data = manipulate.fade_manipulation(transformed_data, background_paths, manipulated_dir)
-
-    # Delete SynthImage objects for any signs that were removed
-    manipulated_data[:] = [x for x in manipulated_data if os.path.exists(x.fg_path)]
+        raise FileNotFoundError(f"Error: data file does not exist - cannot reuse.\n")
     
     # Prune dataset by randomly sampling from manipulated images
     if config['prune_dataset']['prune']:
