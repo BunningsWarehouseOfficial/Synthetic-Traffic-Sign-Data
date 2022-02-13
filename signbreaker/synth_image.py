@@ -1,10 +1,10 @@
 from datetime import datetime
 from pathlib import Path
-import numpy as np
+import random
 
 class SynthImage:
     def __init__(self, fg_path, class_num, damage_type=None, damage_tag=None, damage_ratio=0.0, sector_damage=[],
-            transform_type=None, man_type=None, bg_path=None, bounding_axes=None):
+            transform_type=None, man_type=None, bg_path=None, bounding_axes=None, fg_coords=None, fg_size=None):
         self.__check_class(class_num)
         self.__check_damage(damage_ratio)
 
@@ -21,6 +21,8 @@ class SynthImage:
         self.bg_path = bg_path
 
         self.bounding_axes = bounding_axes
+        self.fg_coords = fg_coords
+        self.fg_size = fg_size
 
     def __repr__(self):
         return f"fg_path={self.fg_path}"
@@ -48,7 +50,9 @@ class SynthImage:
             damage_tag=self.damage_tag,
             damage_ratio=self.damage_ratio,
             sector_damage=self.sector_damage,
-            bg_path=self.bg_path
+            bg_path=self.bg_path,
+            fg_coords=self.fg_coords,
+            fg_size=self.fg_size
         )
         
     def write_label_retinanet(self, labels_file, damage_labelling=True):
@@ -105,3 +109,21 @@ class SynthImage:
     def __check_manipulation(self, man_type):
         if man_type is None:
             raise TypeError(f"man_type={man_type} is invalid: must be valid string")
+        
+    @staticmethod
+    def gen_sign_coords(bg_dims, fg_dims):
+        bg_height, bg_width = bg_dims
+        _, fg_width = fg_dims
+        
+        current_ratio = fg_width / bg_width  
+        target_ratio = random.uniform(0.033, 0.066)  
+        scale_factor = target_ratio / current_ratio
+        new_size = int(fg_width * scale_factor)
+        
+        # Randomise sign placement within middle third of background
+        fg_x = random.randint(0, bg_width - new_size)
+        third = bg_height // 3
+        fg_y = random.randint(third, bg_height - third)
+        
+        return fg_x, fg_y, new_size
+        
