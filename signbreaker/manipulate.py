@@ -241,10 +241,10 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             if original.bg_path is not None and original.bg_path != bg_path:
                 continue
 
-            dirc, sub, el = dir_split(background_exposures[jj][0])
-            title, extension = el.rsplit('.', 1)
+            _, sub, el = dir_split(background_exposures[jj][0])
+            title, _ = el.rsplit('.', 1)
 
-            parent_dir, sub_dir, folder, folder2, element = dir_split(sign_path)
+            _, _, folder, folder2, element = dir_split(sign_path)
             head, tail = element.rsplit('.', 1)
 
             
@@ -258,15 +258,10 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
 
             # abs(desired_brightness - actual_brightness) / abs(brightness_float_value) = ratio
             avrg_ratio = 11.0159464507
-
             rms_ratio = 8.30320014372
-
             percieved_avrg_ratio = 3.85546373056
-
             percieved_rms_ratio = 35.6344530649
-
             avrg2_ratio = 1.20354549572
-
             rms2_ratio = 40.1209106864
 
             peak1 = Image.open(sign_path).convert('LA')
@@ -312,8 +307,8 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             enhancer = ImageEnhance.Brightness(peak2)
             avrg_bright_perceived = enhancer.enhance(brightness_avrg_perceived)
             stat2 = ImageStat.Stat(avrg_bright_perceived)
-            r, g ,b, a = stat2.mean
-            avrg_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))        
+            r, g ,b, _ = stat2.mean
+            avrg_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))     
 
 
             # MINIMISE MARGIN BASED ON RMS FOR RGBA ("PERCEIVED BRIGHNESS")
@@ -328,7 +323,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             enhancer = ImageEnhance.Brightness(peak2)
             rms_bright_perceived = enhancer.enhance(brightness_rms_perceived)
             stat2 = ImageStat.Stat(rms_bright_perceived)
-            r, g, b, a = stat2.rms
+            r, g, b, _ = stat2.rms
             rms_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))        
 
             
@@ -359,25 +354,25 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             """
 
 
-            avrg_bright = avrg_bright.resize((150,150), Image.ANTIALIAS) #TODO: Shouldn't this be 'sign_width' ?? Check for resizing
-            rms_bright = rms_bright.resize((150,150), Image.ANTIALIAS)
-            avrg_bright_perceived = avrg_bright_perceived.resize((150,150), Image.ANTIALIAS)
-            rms_bright_perceived = rms_bright_perceived.resize((150,150), Image.ANTIALIAS)
-            # avrg_bright2 = avrg_bright2.resize((150,150), Image.ANTIALIAS)
-            # rms_bright2 = rms_bright2.resize((150,150), Image.ANTIALIAS)
+            # avrg_bright = avrg_bright.resize((150,150), Image.ANTIALIAS) #TODO: Shouldn't this be 'sign_width' ?? Check for resizing
+            # rms_bright = rms_bright.resize((150,150), Image.ANTIALIAS)
+            # avrg_bright_perceived = avrg_bright_perceived.resize((150,150), Image.ANTIALIAS)
+            # rms_bright_perceived = rms_bright_perceived.resize((150,150), Image.ANTIALIAS)
+            # # avrg_bright2 = avrg_bright2.resize((150,150), Image.ANTIALIAS)
+            # # rms_bright2 = rms_bright2.resize((150,150), Image.ANTIALIAS)
             
 
             def save_synth(man_img, man_type, original_synth):
-                save_dir = os.path.join(exp_dir,sub,title,"SIGN_"+folder,folder2)
+                save_dir = os.path.join(exp_dir, sub, title, "SIGN_" + folder, folder2)
                 os.makedirs(save_dir, exist_ok=True)
-                save_path = os.path.join(save_dir, head+"_"+man_type+"."+tail)
+                save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
                 man_img.save(save_path)
                 man_image = original_synth.clone()
                 man_image.fg_path = save_path
                 man_image.set_manipulation(man_type)
                 man_image.bg_path = bg_path
                 return man_image
-
+            
             manipulated_images.append(save_synth(avrg_bright,           'AVERAGE', original))
             manipulated_images.append(save_synth(rms_bright,            'RMS', original))
             manipulated_images.append(save_synth(avrg_bright_perceived, 'AVERAGE_PERCEIVED', original))
