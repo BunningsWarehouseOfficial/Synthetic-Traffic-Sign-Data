@@ -18,7 +18,6 @@ def main():
     from bg_image import BgImage
     from damage import damage_image
     from utils import load_paths, load_files, scale_image, delete_background, to_png, dir_split
-    from detect_light_src import find_light_source
     import manipulate
     import generate
     
@@ -142,7 +141,7 @@ def main():
     #########################
     ###  APPLYING DAMAGE  ###
     #########################
-    reusable = config['reuse']['damage']
+    reusable = config['reuse_data']
     data_file_path = os.path.join(damaged_dir, "damaged_data.npy")
     if not reusable:
         shutil.rmtree(damaged_dir)
@@ -164,7 +163,7 @@ def main():
         damaged_data = np.load(os.path.join(damaged_dir, "damaged_data.npy"), allow_pickle=True)
         print("Reusing pre-existing damaged signs")
     else:
-        raise FileNotFoundError(f"Error: data file does not exist - cannot reuse.\n")
+        raise FileNotFoundError(f"Error: Damaged data file does not exist - cannot reuse.\n")
 
     if config['final_op'] == 'damage':
         return
@@ -195,7 +194,7 @@ def main():
     ####################################
     ###  MANIPULATING EXPOSURE/FADE  ###
     ####################################
-    reusable = config['reuse']['manipulate']
+    reusable = config['reuse_data']
     data_file_path = os.path.join(damaged_dir, "manipulated_data.npy")
     if not reusable:
         if os.path.exists(manipulated_dir):
@@ -223,7 +222,7 @@ def main():
         manipulated_data = np.load(data_file_path, allow_pickle=True)
         print("Reusing pre-existing manipulated signs")
     else:
-        raise FileNotFoundError(f"Error: data file does not exist - cannot reuse.\n")
+        raise FileNotFoundError(f"Error: Manipulated data file does not exist - cannot reuse.\n")
     
     # Prune dataset by randomly sampling from manipulated images
     if config['prune_dataset']['prune']:

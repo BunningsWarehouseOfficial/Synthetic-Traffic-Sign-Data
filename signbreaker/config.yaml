@@ -64,6 +64,4 @@ detect_light_src: False
 
 # Whether to reuse .npy file in the 'damage' or 'manipulate' intermediate folders. Only put True if 
 # the .npy file exists (generated automatically during normal pass through)
-reuse: 
-  damage: False
-  manipulate: False
+reuse_data: True
