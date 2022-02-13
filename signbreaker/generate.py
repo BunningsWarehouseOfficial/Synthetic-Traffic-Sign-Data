@@ -8,6 +8,8 @@ import imutils
 import cv2
 import random
 
+from synth_image import SynthImage
+
 def __has_opaque_pixel(line):
     """Checks if a line of pixels contains a pixel above a transparency threshold"""
     opaque = False
@@ -78,21 +80,13 @@ def new_data(synth_image):
     fg_path = synth_image.fg_path
     bg = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
     fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
-    bg_height, bg_width, _ = bg.shape
-    fg_height, fg_width, _ = fg.shape
 
-    # Rescaling the sign to correct its size relative to the background
-    # NOTE: Assumes background aspect ratio somewhat close to 16:9 (1.778)
-    current_ratio = fg_width / bg_width  # Ratio of sign width to the background width
-    target_ratio = random.uniform(0.033, 0.066)  # Aiming for between 3.3% and 6.6% of bg width
-    scale_factor = target_ratio / current_ratio
-    new_size = int(fg_width * scale_factor)
+    if synth_image.fg_coords is not None and synth_image.fg_size is not None:
+        x, y = synth_image.fg_coords
+        new_size = synth_image.fg_size
+    else:
+        x, y, new_size = SynthImage.gen_sign_coords(bg.shape[:2], fg.shape[:2])
     fg = cv2.resize(fg, (new_size, new_size))
-
-    # Randomise sign placement within middle third of background
-    x = random.randint(0, bg_width - fg_width)
-    third = bg_height // 3
-    y = random.randint(third, bg_height - third)
 
     axes = __bounding_axes(fg)  # Retrieve bounding axes of the sign image
     axes[0] += x  # Adjusting bounding axis to make it relative to the whole bg image
