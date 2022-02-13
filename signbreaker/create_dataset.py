@@ -107,10 +107,11 @@ def main():
     background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True) + \
         glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.jpg", recursive=True)
     background_images = []
-    for ii, path in enumerate(background_paths):
-        print(f"Processing Background Images: {float(ii) / float(len(background_paths)):06.2%}", end='\r')
-        background_images.append(BgImage(path))
-    print(f"Processing Background Images: 100.00%\r\n")
+    if config['detect_light_src']:
+        for ii, path in enumerate(background_paths):
+            print(f"Processing Background Images: {float(ii) / float(len(background_paths)):06.2%}", end='\r')
+            background_images.append(BgImage(path))
+        print(f"Processing Background Images: 100.00%\r\n")
 
         
     #############################
@@ -212,7 +213,7 @@ def main():
     manipulated_data[:] = [x for x in manipulated_data if os.path.exists(x.fg_path)]
     
     # Prune dataset by randomly sampling from manipulated images
-    if config['prune_dataset']['prune'] == 'true':
+    if config['prune_dataset']['prune']:
         max_images = config['prune_dataset']['max_images']
         images_dict = defaultdict(list)
         for img in manipulated_data:
@@ -230,7 +231,7 @@ def main():
     ###############################
     images_dir = os.path.join(final_dir, "Images")
     labels_format = config['annotations']['type']
-    damage_labelling = config['annotations']['damage_labelling'] == 'true'
+    damage_labelling = config['annotations']['damage_labelling'] == True
     
     if labels_format == 'retinanet':
         labels_path = os.path.join(final_dir, "labels.txt")

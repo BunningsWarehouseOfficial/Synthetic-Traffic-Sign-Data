@@ -46,11 +46,13 @@ bend:
 # Prunes the dataset by using random.sample() to use a maximum of n images for each 
 # background+class+damage combination
 prune_dataset:
-  prune: 'true'
+  prune: True
   max_images: 10
 
 annotations:
   type: 'coco'
-  damage_labelling: 'true'
+  damage_labelling: True
 
 num_damage_sectors: 4
+
+detect_light_src: True
