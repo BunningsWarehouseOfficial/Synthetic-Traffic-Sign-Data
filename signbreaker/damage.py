@@ -6,11 +6,12 @@ import os
 import imutils
 import random as rand
 import math
+import ntpath
 import numpy as np
 import cv2 as cv
+from pathlib import Path
 from skimage import draw
 from utils import calc_damage_ssim, overlay, calc_damage, calc_damage_ssim, calc_damage_sectors, calc_ratio, remove_padding, pad
-import ntpath
 from synth_image import SynthImage
 
 attributes = {
@@ -20,7 +21,7 @@ attributes = {
     }
 
 
-def damage_image(image_path, output_dir, config):
+def damage_image(image_path, output_dir, config, backgrounds=[]):
     """Applies all the different types of damage to the imported image, saving each one"""
     damaged_images = []
     img = cv.imread(image_path, cv.IMREAD_UNCHANGED)
@@ -82,12 +83,40 @@ def damage_image(image_path, output_dir, config):
     # BEND
     bd_config = config['bend']
     if num_damages['bend'] > 0:
+        num_bends = max(1, num_damages['bend'] // (len(backgrounds) or 1))
         bend_angles = rand.sample(
-            range(10, max(bd_config['max_bend'] + 5, 15), 5), num_damages['bend'])
+            range(10, max(bd_config['max_bend'] + 5, 15), 5), num_bends)
+        
         for bend in bend_angles:
             axis = rand.randint(0, bd_config['max_axis'])
-            dmg, att = bend_vertical(img, axis, bend, beta_diff=bd_config['beta_diff'])
-            apply_damage(dmg, att)
+            if len(backgrounds) == 0:
+                dmg, att = bend_vertical(img, axis, bend, beta_diff=0)
+                apply_damage(dmg, att)
+            else:
+                for bg in backgrounds:
+                    light_x, light_y = bg.light_coords
+                    intensity = bg.light_intensity
+                    fg_height, fg_width = img.shape[:2]
+                    fg_x, fg_y, fg_size = SynthImage.gen_sign_coords(bg.shape[:2], (fg_height, fg_width))
+                    
+                    # Calculate beta difference
+                    vec1 = np.array([math.cos(math.radians(90-axis)), math.sin(math.radians(90-axis))])
+                    vec2 = np.array([fg_x - light_x, fg_y - light_y])
+                    angle = math.acos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
+                    beta_diff = math.copysign(1, vec2[0]) * math.sin(angle) * intensity * (bend / 90) * 4
+                    
+                    # Apply bending damage
+                    dmg, att = bend_vertical(img, axis, bend, beta_diff=beta_diff)
+                    
+                    # Create SynthImage
+                    dmg_path = os.path.join(
+                        output_path, f"{class_num}_{att['damage_type']}_{att['tag']}_{Path(bg.path).stem}.png")
+                    cv.imwrite(dmg_path, dmg)
+                    damaged_images.append(SynthImage(
+                        dmg_path, int(class_num), att["damage_type"], att["tag"], float(att["damage_ratio"]), 
+                        att["sector_damage"], bg_path=bg.path, fg_coords=(fg_x, fg_y), fg_size=fg_size))
+                    
+                    
 
     # GRAFFITI
     g_conf = config['graffiti']
