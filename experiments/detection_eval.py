@@ -185,12 +185,9 @@ class MetricPerClass:
         return np.average([m.ap for m in results.values() if m.num_groundtruth > 0])
     
 
-def get_detection_metrics(gold_standard: List[BoundingBox],
+def get_voc_metrics(gold_standard: List[BoundingBox],
                            predictions: List[BoundingBox],
-                           iou_threshold: float = 0.5, 
-                           dmg_threshold: float = 0.2,
-                           correct_threshold: float = 2,
-                           method: str = 'object_detection') -> Dict[str, MetricPerClass]:
+                           iou_threshold: float = 0.5) -> Dict[str, MetricPerClass]:
     """Get the metrics used by the VOC Pascal 2012 challenge.
     Args:
         gold_standard: ground truth bounding boxes;
@@ -250,18 +247,8 @@ def get_detection_metrics(gold_standard: List[BoundingBox],
                 # Add score of best detection for this ground truth
                 tp_scores.append(preds[i].score)
             
-            if method == 'damage_detection':
-                pred_damages = np.array([1 if d >= dmg_threshold else 0 for d in preds[i].damages])
-                gt_damages = np.array([1 if d >= dmg_threshold else 0 for d in gt[mas_idx].damages])
-                num_correct = sum(pred_damages == gt_damages)
-                is_pred_tp = num_correct >= correct_threshold
-            elif method == 'object_detection':
-                is_pred_tp = max_iou >= iou_threshold
-            else: 
-                raise ValueError('Unknown method: {}'.format(method))
-                
             # Assign detection as true positive/don't care/false positive
-            if is_pred_tp:
+            if max_iou >= iou_threshold:
                 if counter[preds[i].image_id][mas_idx] == 0:
                     tps[i] = 1  # count as true positive
                     counter[preds[i].image_id][mas_idx] = 1  # flag as already 'seen'
