@@ -69,6 +69,13 @@ def main():
             raise ValueError(f"Config error: must have 0.0 < 'graffiti:{g_param}' <= 1.0.\n")
     if g_params['initial'] > g_params['final']:
         raise ValueError("Config error: 'graffiti:initial' must be <= 'graffiti:final'.\n")
+    
+    if not config['reuse_data']['damage'] and config['reuse_data']['manipulate']:
+        raise ValueError("Config error: 'reuse_data:damage' must be true if 'reuse_data:manipulate' is true.\n")
+    if config['reuse_data']['damage'] and not os.path.exists(os.path.join(damaged_dir, 'damaged_data.npy')):
+        raise FileNotFoundError('Config error: damaged_data.npy does not exist. Cannot re-use data\n')
+    if config['reuse_data']['manipulate'] and not os.path.exists(os.path.join(manipulated_dir, 'manipulated_data.npy')):
+        raise FileNotFoundError('Config error: manipulated_data.npy does not exist. Cannot re-use data\n')
 
     print("Generating dataset using the 'config.yaml' configuration.\n")
 
@@ -141,7 +148,7 @@ def main():
     #########################
     ###  APPLYING DAMAGE  ###
     #########################
-    reusable = config['reuse_data']
+    reusable = config['reuse_data']['damage']
     data_file_path = os.path.join(damaged_dir, "damaged_data.npy")
     if not reusable:
         shutil.rmtree(damaged_dir)
@@ -194,8 +201,8 @@ def main():
     ####################################
     ###  MANIPULATING EXPOSURE/FADE  ###
     ####################################
-    reusable = config['reuse_data']
-    data_file_path = os.path.join(damaged_dir, "manipulated_data.npy")
+    reusable = config['reuse_data']['manipulate']
+    data_file_path = os.path.join(manipulated_dir, "manipulated_data.npy")
     if not reusable:
         if os.path.exists(manipulated_dir):
             shutil.rmtree(manipulated_dir)
@@ -218,11 +225,9 @@ def main():
         # Delete SynthImage objects for any signs that were removed
         manipulated_data[:] = [x for x in manipulated_data if os.path.exists(x.fg_path)]
         np.save(data_file_path, manipulated_data, allow_pickle=True)
-    elif os.path.exists(data_file_path):
+    else:
         manipulated_data = np.load(data_file_path, allow_pickle=True)
         print("Reusing pre-existing manipulated signs")
-    else:
-        raise FileNotFoundError(f"Error: Manipulated data file does not exist - cannot reuse.\n")
     
     # Prune dataset by randomly sampling from manipulated images
     if config['prune_dataset']['prune']:
@@ -314,6 +319,10 @@ def main():
 
     with open(about_path, "w") as text_file:
         text_file.write(string)
+    
+    # Save config file in dataset
+    with open(os.path.join(final_dir, 'config.yaml'), 'w') as f:
+        yaml.dump(config, f, default_flow_style=False)
 
 
 
