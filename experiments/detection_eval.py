@@ -186,8 +186,8 @@ class MetricPerClass:
     
 
 def get_voc_metrics(gold_standard: List[BoundingBox],
-                           predictions: List[BoundingBox],
-                           iou_threshold: float = 0.5) -> Dict[str, MetricPerClass]:
+                    predictions: List[BoundingBox],
+                    iou_threshold: float = 0.5) -> Dict[str, MetricPerClass]:
     """Get the metrics used by the VOC Pascal 2012 challenge.
     Args:
         gold_standard: ground truth bounding boxes;
