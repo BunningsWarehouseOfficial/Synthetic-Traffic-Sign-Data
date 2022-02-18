@@ -7,19 +7,19 @@ sign_width: 200  # Default: 200
 final_op: dataset  # Either 'process', 'damage', 'transform', 'manipulate', or 'dataset'
 
 # The number of transformations applied to each damaged sign template
-num_transform: 10  # Range: [0,15] | low: [1,5], medium: [6,10], high: [11,15]
+num_transform: 6  # Range: [0,15] | low: [1,5], medium: [6,10], high: [11,15]
 
 # Method of image manipulation: either 'exposure' or 'fade' (not implemented)
 man_method: exposure
 
 # The number of damages applied via each method
 num_damages: 
-  original: 2       # Max 1
-  quadrant: 3       # Max 4
-  big_hole: 3
-  bullet_holes: 4
-  graffiti: 4
-  bend: 4
+  original: 1       # Max 1
+  quadrant: 1       # Max 4
+  big_hole: 1
+  bullet_holes: 1
+  graffiti: 2
+  bend: 2
   # - tinted_yellow (not implemented)
   # - grey (not implemented)
 
@@ -35,7 +35,8 @@ graffiti:
   final: 0.6    # Level of damage to stop at
 
 # Randomization seed
-seed: 457
+# seed: 457   # For Training
+seed: 500     # For Eval
 
 # Parameters for the bend damage type
 bend:
@@ -43,11 +44,11 @@ bend:
   max_bend: 60   # Level of bending performed (from 0 to 90 degrees)
   beta_diff: 0     # Beta difference between bent and unbent portions of sign
 
-# Prunes the dataset by using random.sample() to use a maximum of n images for each 
-# background+class+damage combination
+# Prunes the dataset by using a maximum of n images for each 
+# background+class+damage combination, selected randomly.
 prune_dataset:
   prune: True
-  max_images: 10
+  max_images: 6
 
 # Paramaters defining the annotation type, and whether damage labelling is used
 annotations:
@@ -59,9 +60,10 @@ num_damage_sectors: 4
 
 # A setting that uses an algorithm to find the light source locations and intensities
 # in each background image, and adjusts relative exposure between bent and unbent portions of
-# a sign.
+# a sign to mimic a shadow. Turn off until manipulate stops saturating images.
 detect_light_src: False
 
-# Whether to reuse .npy file in the 'damage' or 'manipulate' intermediate folders. Only put True if 
-# the .npy file exists (generated automatically during normal pass through)
-reuse_data: True
+# Whether to reuse .npy file in the 'damage' or 'manipulate' intermediate folders.
+reuse_data: 
+  damage: False
+  manipulate: False
