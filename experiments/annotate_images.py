@@ -4,7 +4,7 @@ import argparse
 import json
 import numpy as np
 
-from damage_experiment import split_by_damage
+from experiments.detection_experiments import split_by_damage
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
