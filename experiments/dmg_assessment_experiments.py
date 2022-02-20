@@ -3,7 +3,7 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-from damage_eval import BoundingBox, get_all_metrics, get_roc_metrics, get_ap_metrics
+from experiments.damage_assessment_eval import BoundingBox, get_all_metrics, get_roc_metrics, get_ap_metrics
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 os.chdir(current_dir)
