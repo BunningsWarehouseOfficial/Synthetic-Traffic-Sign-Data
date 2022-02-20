@@ -29,9 +29,9 @@ class MetricPerClass:
         self.fp_rates = fp_rates
         self.roc_auc = auc
         
-    def update_basic_metrics(self, mae, rmae, mbe):
+    def update_basic_metrics(self, mae, rmse, mbe):
         self.mae = mae
-        self.rmae = rmae
+        self.rmse = rmse
         self.mbe = mbe
 
     @staticmethod
@@ -90,22 +90,22 @@ def get_roc_metrics(gt_pred_map, num_thres=50):
         tp_rates.append(tp_rate)
         fp_rates.append(fp_rate)
     
-    # TODO: Figure out why auc is 'nan'
     coords_dict = dict(zip(fp_rates, tp_rates))     # Remove identical instances of x coords  
-    coords = sorted(coords_dict.items(), key=lambda x: x[0])    # Ensure x values are monatonic
+    coords = sorted(coords_dict.items(), key=lambda x: x[0])    # Ensure x values are monotonic
     fp_rates, tp_rates = zip(*coords)
     auc = metrics.auc(np.array(fp_rates), np.array(tp_rates))
     return fp_rates, tp_rates, auc
 
 
+# Get basic error metrics
 def get_basic_metrics(gt_pred_map):
     gt_damages, pred_damages = zip(*gt_pred_map)
     gt_damages = np.array(gt_damages)
     pred_damages = np.array(pred_damages)
     mae = np.mean(np.abs(gt_damages - pred_damages))
-    rmae = np.sqrt(np.mean(np.abs(gt_damages - pred_damages)))
+    rmse = np.sqrt(np.mean((gt_damages - pred_damages) ** 2))
     mbe = np.mean(gt_damages - pred_damages)
-    return mae, rmae, mbe
+    return mae, rmse, mbe
 
 
 def get_all_metrics(gold_standard: List[BoundingBox],
@@ -180,8 +180,8 @@ def get_all_metrics(gold_standard: List[BoundingBox],
             r.update_roc_metrics(tp_rates, fp_rates, auc)
         if 'basic' in metrics:
             print('Computing basic metrics')
-            mae, rmae, mbe = get_basic_metrics(gt_pred_map)
-            r.update_basic_metrics(mae, rmae, mbe)
+            mae, rmse, mbe = get_basic_metrics(gt_pred_map)
+            r.update_basic_metrics(mae, rmse, mbe)
         
     if len(ret.keys()) == 1:
         ret = list(ret.values())[0]
