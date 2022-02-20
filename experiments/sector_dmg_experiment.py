@@ -1,19 +1,16 @@
 import os
-import cv2
 import argparse
-import json
 import numpy as np
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from damage_eval import BoundingBox, get_detection_metrics
+from damage_eval import BoundingBox, get_all_metrics, get_roc_metrics, get_ap_metrics
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
+os.chdir(current_dir)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset_dir', default='/home/allenator/Pawsey-Internship/datasets/SGTS_Dataset')
 parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/datasets/SGTS_Dataset/_single_annotations_array.npy')
-parser.add_argument('--eval_file', default='/home/allenator/Pawsey-Internship/eval_dir/SGTS_Dataset_dmg_assess/SGTS_Dataset_efficientdet-d2.npy')
+parser.add_argument('--eval_file', default='/home/allenator/Pawsey-Internship/eval_dir/SGTS_Dataset_dmg_assess/dmg_net_d2.npy')
 parser.add_argument('--out_dir', default='.')
 
 
@@ -32,16 +29,42 @@ if __name__ == '__main__':
     gt_arr = np.load(args.gt_file)
     pred_arr = np.load(args.eval_file)
     gt_boxes, pred_boxes = get_bounding_boxes(gt_arr, pred_arr)
-    metrics = get_detection_metrics(gt_boxes, pred_boxes, dmg_threshold=0.1)
+    metrics = get_all_metrics(gt_boxes, pred_boxes, dmg_threshold=0.2, num_sectors=4)
     
-    x_vals = metrics.interpolated_recall
-    y_vals = metrics.interpolated_precision
+    real_roc_x = metrics.fp_rates
+    real_roc_y = metrics.tp_rates
     
-    plt.plot(x_vals, y_vals, label='Precision vs Recall for threshold = 3')
-    plt.ylabel('Interpolated Precision')
-    plt.xlabel('Interpolated Recall')
-    plt.show()
+    real_pre = metrics.precision
+    real_rec = metrics.recall
     
-    print(metrics.ap)
+    # Random ROC curve
+    gt_damages, pred_damages = zip(*metrics.gt_pred_map)
+    random_damages =  np.random.rand(len(gt_damages), 4)
+    random_map = list(zip(gt_damages, random_damages))
+    
+    fake_roc_x, fake_roc_y, rand_roc_auc = get_roc_metrics(random_map)
+    fake_ap, _, _, fake_pre, fake_rec = get_ap_metrics(random_map, num_sectors=4, dmg_threshold=0.2)
+    
+    plt.plot(real_roc_x, real_roc_y, label='EfficientDet (AUC: {:.2f})'.format(metrics.roc_auc))
+    plt.plot(fake_roc_x, fake_roc_y, label='Random (AUC: {:.2f})'.format(rand_roc_auc))
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+    plt.legend()
+    plt.title('Receiver Operating Characteristic (ROC) Curve')
+    plt.savefig('ROC Curve', dpi=300)
+    
+    plt.clf()
+    plt.plot(real_rec, real_pre, label='EfficientDet (AP: {:.2f})'.format(metrics.ap))
+    plt.plot(fake_rec, fake_pre, label='Random (AP: {:.2f})'.format(fake_ap))
+    plt.ylabel('Precision')
+    plt.xlabel('Recall')
+    plt.legend()
+    plt.title('Precision-Recall Curve')
+    plt.savefig('Precision-Recall Curve', dpi=300)
+    
+    mean_pred_damage = np.mean(pred_damages)
+    mean_gt_damage = np.mean(gt_damages)
+    
+    print(f'MAE: {metrics.mae}\nRMSE: {metrics.rmse}\nMBE: {metrics.mbe}\nMean Predicted Damage {mean_pred_damage}\nMean Ground Truth Damage {mean_gt_damage}')
     
     
