@@ -57,6 +57,8 @@ annotations:
 
 # Number of sectors on each sign, over which damage is calculated
 num_damage_sectors: 4
+# use structural similarity (ssim) or pixel-wise obscurity (pixel_wise) to calculate sign damage
+damage_measure_method: 'pixel_wise'     
 
 # A setting that uses an algorithm to find the light source locations and intensities
 # in each background image, and adjusts relative exposure between bent and unbent portions of

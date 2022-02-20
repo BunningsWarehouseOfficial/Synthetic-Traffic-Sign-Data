@@ -378,6 +378,7 @@ def count_damaged_pixels(new, original):
 
     return sum
 
+
 # TODO: Figure out why this isn't working properly
 def count_damaged_pixels_vectorized(new, original):
     if new.shape[2] != 4 or original.shape[2] != 4:
@@ -400,7 +401,8 @@ def count_damaged_pixels_vectorized(new, original):
     
     return np.sum(diffs)
 
-def calc_damage(new, original, method='ssim'):
+
+def calc_damage(new, original, method):
     """Calculate the ratio of damaged pixels between two versions of the same image."""
     ## For debug
     # dmg = count_damaged_pixels(new, original)
@@ -410,8 +412,10 @@ def calc_damage(new, original, method='ssim'):
     ##
     if method == 'ssim':
         return calc_damage_ssim(new, original)
-    else:
+    elif method == 'pixel_wise':
         return count_damaged_pixels(new, original) / count_pixels(original)
+    else:
+        raise ValueError(f"Method {method} not recognised. Choose between <ssim> and <pixel_wise>")
 
 
 def calc_damage_ssim(new, original):
@@ -439,15 +443,10 @@ def calc_damage_quadrants(new, original, method='ssim'):
     original_IV  = original[centre_y:height, centre_x:width]
 
     if method=='pixel_wise':
-        ratio_I   = count_damaged_pixels(new_I, original_I) / count_pixels(original_I)
-        ratio_II  = count_damaged_pixels(new_II, original_II) / count_pixels(original_II)
-        ratio_III = count_damaged_pixels(new_III, original_III) / count_pixels(original_III)
-        ratio_IV  = count_damaged_pixels(new_IV, original_IV) / count_pixels(original_IV)
-    elif method=='ssim':
-        ratio_I   = calc_damage_ssim(new_I, original_I)
-        ratio_II  = calc_damage_ssim(new_II, original_II)
-        ratio_III = calc_damage_ssim(new_III, original_III)
-        ratio_IV  = calc_damage_ssim(new_IV, original_IV)
+        ratio_I   = calc_damage(new_I, original_I, method=method)
+        ratio_II  = calc_damage(new_II, original_II, method=method)
+        ratio_III = calc_damage(new_III, original_III, method=method)
+        ratio_IV  = calc_damage(new_IV, original_IV, method=method)
     return [ratio_I, ratio_II, ratio_III, ratio_IV]
 
 
@@ -459,7 +458,7 @@ def pad(img, h ,w):
     return np.copy(np.pad(img, ((top_pad, bottom_pad), (left_pad, right_pad), (0, 0)), mode='constant', constant_values=0))
 
 
-def calc_damage_sectors(new, original, num_damage_sectors=4, method='ssim'):
+def calc_damage_sectors(new, original, num_damage_sectors=4, method='pixel_wise'):
     """ Calculates a list of damage ratios. Calling np.reshape(ratios, (math.sqrt(len(ratios)), math.sqrt(len(ratios))))
         reconstructs the 2D sector damage array """
     l = math.sqrt(num_damage_sectors)
@@ -472,10 +471,7 @@ def calc_damage_sectors(new, original, num_damage_sectors=4, method='ssim'):
     original_img_sectors = get_sectors(original)
     ratios = []
     for i in range(len(new_img_sectors)):
-        if method == 'pixel_wise':
-            dmg = count_damaged_pixels(new_img_sectors[i], original_img_sectors[i]) / count_pixels(original_img_sectors[i])
-        elif method == 'ssim':
-            dmg = calc_damage_ssim(new_img_sectors[i], original_img_sectors[i])
+        dmg = calc_damage(new_img_sectors[i], original_img_sectors[i], method=method)
         ratios.append(max(min(dmg, 1.0), 0.0))
     return ratios
 

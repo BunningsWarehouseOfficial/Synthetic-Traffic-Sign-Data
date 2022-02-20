@@ -20,6 +20,8 @@ attributes = {
     "damage_ratio"  : 0.0,     # Quantity of damage (0 for no damage, 1 for all damage)
     }
 
+dmg_measure = "pixel_wise"
+
 
 def damage_image(image_path, output_dir, config, backgrounds=[]):
     """Applies all the different types of damage to the imported image, saving each one"""
@@ -37,6 +39,7 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
         os.makedirs(output_path)
 
     num_damages = config['num_damages']
+    global dmg_measure; dmg_measure = config['damage_measure_method']
 
     def apply_damage(dmg, att):
         """Helper function to avoid repetition."""
@@ -168,8 +171,8 @@ def no_damage(img):
     att = attributes
     att["damage_type"] = "no_damage"
     att["tag"]    = ""
-    att["damage_ratio"]  = str(calc_damage(dmg, img))  # This should be 0
-    att["sector_damage"] = calc_damage_sectors(dmg, img)
+    att["damage_ratio"]  = str(calc_damage(dmg, img, dmg_measure))  # This should be 0
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure)
 
     return dmg, att
 
@@ -200,8 +203,8 @@ def remove_quadrant(img, quad_num=-1):
     att = attributes
     att["damage_type"] = "quadrant"
     att["tag"]    = str(quad_num)
-    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))  # This should be around 0.25
-    att["sector_damage"] = calc_damage_sectors(dmg, img)
+    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))  # This should be around 0.25
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure)
 
     return dmg, att
 
@@ -227,8 +230,8 @@ def remove_hole(img, angle):
     att = attributes
     att["damage_type"] = "big_hole"
     att["tag"]    = str(int(angle))
-    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
-    att["sector_damage"] = calc_damage_sectors(dmg, img)
+    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure)
 
     return dmg, att
 
@@ -264,7 +267,7 @@ def bullet_holes(img, num_holes=40, target=-1):
                 cv.circle(bullet_holes, (x,y), size, (0,0,0), -1)
                 dmg = cv.bitwise_and(painted, painted, mask=bullet_holes)
             
-            ratio = round(calc_damage(painted, img), 3)
+            ratio = round(calc_damage(painted, img, dmg_measure), 3)
             num_holes += 1
     # Apply damage with a random number of holes within the specified min-max range
     else:
@@ -289,14 +292,14 @@ def bullet_holes(img, num_holes=40, target=-1):
                 cv.circle(bullet_holes, (x,y), size, (0,0,0), -1)
 
         dmg = cv.bitwise_and(painted, painted, mask=bullet_holes)
-        ratio = round(calc_damage(painted, img), 3)
+        ratio = round(calc_damage(painted, img, dmg_measure), 3)
 
     # Assign labels
     att = attributes
     att["damage_type"] = "bullet_holes"
     att["tag"]    = str(num_holes)
     att["damage_ratio"]  = "{:.3f}".format(ratio)
-    att["sector_damage"] = calc_damage_sectors(painted, img)
+    att["sector_damage"] = calc_damage_sectors(painted, img, method=dmg_measure)
 
     return dmg, att
 
@@ -378,8 +381,8 @@ def graffiti(img, target=0.2, color=(0,0,0)):
     att = attributes
     att["damage_type"] = "graffiti"
     att["tag"]    = str(round(target, 3))
-    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img))
-    att["sector_damage"] = calc_damage_sectors(dmg, img)
+    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure)
     return dmg, att
 
 
@@ -458,8 +461,8 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
         att = attributes
         att["damage_type"] = "bend"
         att["tag"]    = "{}".format(bend_angle)
-        att["damage_ratio"]  = "{:.3f}".format(calc_damage_ssim(dmg, original))
-        att["sector_damage"] = calc_damage_sectors(dmg, original, method='ssim')
+        att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, original, dmg_measure))
+        att["sector_damage"] = calc_damage_sectors(dmg, original, method=dmg_measure)
         return dmg, att
         
     opt = rand.choice(["left", "right", "both"])
