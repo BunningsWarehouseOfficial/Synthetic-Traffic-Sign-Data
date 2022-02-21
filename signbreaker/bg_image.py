@@ -16,7 +16,7 @@ class BgImage:
         
         
     def find_light_source(self, img):
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)[10:-10, 10:-10]
         luminance = 0.2126 * img[:, :, 0] + 0.7152 * img[:, :, 1] + 0.0722 * img[:, :, 2]
         _, width = luminance.shape
         luminance = np.reshape(luminance, (-1)) # Flatten
