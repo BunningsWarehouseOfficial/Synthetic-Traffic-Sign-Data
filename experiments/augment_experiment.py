@@ -7,7 +7,7 @@ import plotly.express as px
 import plotly
 from tqdm import tqdm
 
-from experiments.detection_experiments import damage_experiment, distance_experiment, sequence_experiment
+from experiments.detection_experiment import damage_experiment, distance_experiment, sequence_experiment
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
