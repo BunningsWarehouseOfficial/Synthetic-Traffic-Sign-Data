@@ -151,7 +151,6 @@ def main():
     reusable = config['reuse_data']['damage']
     data_file_path = os.path.join(damaged_dir, "damaged_data.npy")
     if not reusable:
-        shutil.rmtree(damaged_dir)
         if os.path.exists(damaged_dir):
             shutil.rmtree(damaged_dir)
         os.mkdir(damaged_dir)
