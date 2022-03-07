@@ -1,5 +1,6 @@
 """
-Extended from create_sequences.py
+Extended from create_sequences.py. A module containing functions used to generate a sequence of images through
+interpolation of a foreground over a background via perspective projection. Creates the illusion of changing distance.
 
 Script for generating sequences of traffic sign detection training data. Imitates how a moving camera would capture
 multiple frames of a scene where the target object is at slightly different distances from the camera in each frame.

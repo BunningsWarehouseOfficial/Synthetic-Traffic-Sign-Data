@@ -1,3 +1,5 @@
+"""Testing script to compare the performance of datasets at different augmentation levels."""
+
 import os
 import argparse
 import json

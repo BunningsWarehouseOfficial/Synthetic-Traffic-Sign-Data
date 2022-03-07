@@ -1,3 +1,8 @@
+"""Module that contains a set of functions to evaluate predicted damages against ground truth damages to return a
+metrics object. Metrics include average precision (AP), receiver operating curve (roc), and basic error
+metrics (MAE, RMSE, MBE).
+"""
+
 import sys
 import sklearn.metrics as metrics
 from collections import Counter, defaultdict

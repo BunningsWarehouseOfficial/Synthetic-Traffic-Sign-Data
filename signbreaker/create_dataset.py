@@ -23,16 +23,13 @@ def main():
     
     current_dir = os.path.dirname(os.path.realpath(__file__))
     
-    parser = argparse.ArgumentParser(description='Create a synthetically generated traffic sign dataset')
+    parser = argparse.ArgumentParser(description='Create a synthetically generated traffic sign dataset.')
+    # SGTSD stands for "Synthetically Generated Traffic Sign Dataset"
     parser.add_argument('--output_dir', type=str, default=os.path.join(current_dir, 'SGTS_Dataset'))
     
     args = parser.parse_args()
     args.output_dir = os.path.abspath(args.output_dir)
     os.chdir(current_dir)
-
-    #TODO: Add an example download link for a dataset of backgrounds that have no real signs on them
-
-    #TODO: Documentation in the dataset readme for what the tag of each damage type means
 
     # Open and validate config file
     import yaml
@@ -87,7 +84,7 @@ def main():
     transformed_dir = os.path.join(base_dir, "4_Transformed")
     manipulated_dir = os.path.join(base_dir, "5_Manipulated")
     bg_dir    = "Backgrounds"
-    final_dir = args.output_dir  # SGTSD stands for "Synthetically Generated Traffic Sign Dataset"
+    final_dir = args.output_dir
 
     # Create the output directories if they don't exist already
     if not os.path.exists(base_dir):
@@ -107,9 +104,10 @@ def main():
     # Seed the random number generator
     random.seed(config['seed'])
     
-    
+
+
     ##################################
-    ###  Background Preprocessing  ###
+    ###  BACKGROUND PREPROCESSING  ###
     ##################################
     background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True) + \
         glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.jpg", recursive=True)
@@ -117,10 +115,11 @@ def main():
     if config['detect_light_src']:
         for ii, path in enumerate(background_paths):
             print(f"Processing Background Images: {float(ii) / float(len(background_paths)):06.2%}", end='\r')
-            background_images.append(BgImage(path))
+            background_images.append(BgImage(path))  # Detect light sources in each image
         print(f"Processing Background Images: 100.00%\r\n")
 
-        
+
+
     #############################
     ###  IMAGE PREPROCESSING  ###
     #############################
@@ -131,9 +130,6 @@ def main():
         name, extension = filename.rsplit('.', 1)
         
         img = scale_image(path, config['sign_width']) # Rescale the image
-
-        # Remove the extension and save as a png
-        
         save_path = os.path.join(processed_dir, name) + ".png"
         img.save(save_path)
 
@@ -151,7 +147,7 @@ def main():
     reusable = config['reuse_data']['damage']
     data_file_path = os.path.join(damaged_dir, "damaged_data.npy")
     if not reusable:
-        if os.path.exists(damaged_dir):
+        if os.path.exists(damaged_dir):  # Remove any old output
             shutil.rmtree(damaged_dir)
         os.mkdir(damaged_dir)
         damaged_data = []
@@ -176,7 +172,7 @@ def main():
 
 
 
-    #FIXME: 'transform_type' final label keeps having value None despite synth_image.set_transformation() working
+    #FIXME(old): 'transform_type' final label keeps having value None despite synth_image.set_transformation() working
     ##################################
     ###  APPLYING TRANSFORMATIONS  ###
     ##################################
@@ -207,16 +203,15 @@ def main():
             shutil.rmtree(manipulated_dir)
         os.mkdir(manipulated_dir)
 
-        ImageFile.LOAD_TRUNCATED_IMAGES = True  #TODO: Is this line needed?
+        ImageFile.LOAD_TRUNCATED_IMAGES = True
         for bg_folders in load_paths(bg_dir):
             to_png(bg_folders)
             
         background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True)
             
-        #TODO: Can do checks for damage type in below functions to avoid funky results cancelling manipulation for just those types
         if config['man_method'] == 'exposure':
             manipulated_data = manipulate.exposure_manipulation(transformed_data, background_paths, manipulated_dir)
-            manipulate.find_useful_signs(manipulated_data, manipulated_dir, damaged_dir) #TODO: MAKE SURE TO DO THIS, DELETING SYNTH_IMAGE OBJECTS ALONG THE WAY
+            manipulate.find_useful_signs(manipulated_data, manipulated_dir, damaged_dir)
         else:
             raise NotImplementedError('Only exposure method is currently implemented')
             # manipulated_data = manipulate.fade_manipulation(transformed_data, background_paths, manipulated_dir)
@@ -234,6 +229,7 @@ def main():
         images_dict = defaultdict(list)
         for img in manipulated_data:
             images_dict[os.path.dirname(img.fg_path)].append(img)
+        # Sample manipulated-transformed images for each background/class/damage
         images_dict = {k:random.sample(v, max_images) for k,v in images_dict.items() if len(v) > max_images}
         manipulated_data = [img for images_list in images_dict.values() for img in images_list]
 
@@ -249,9 +245,9 @@ def main():
     labels_format = config['annotations']['type']
     damage_labelling = config['annotations']['damage_labelling'] == True
     
+    # Initialise annotation files according to config parameters
     if labels_format == 'retinanet':
         labels_path = os.path.join(final_dir, "labels.txt")
-        
     elif labels_format == 'coco':
         labels_path = os.path.join(final_dir, "_annotations.coco.json")
         classes = [int(Path(p).stem) for p in glob.glob(f'{processed_dir}{os.path.sep}*.png')]
@@ -319,7 +315,7 @@ def main():
     with open(about_path, "w") as text_file:
         text_file.write(string)
     
-    # Save config file in dataset
+    # Save config file with dataset
     with open(os.path.join(final_dir, 'config.yaml'), 'w') as f:
         yaml.dump(config, f, default_flow_style=False)
 

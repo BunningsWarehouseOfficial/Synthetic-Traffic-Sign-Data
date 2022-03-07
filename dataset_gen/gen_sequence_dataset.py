@@ -1,3 +1,7 @@
+"""Module to generate a dataset consisting of sequences. Each sequence is a set of images where a foreground (sign) is
+interpolated across a background to mimic changing distance.
+"""
+
 import argparse
 from ast import parse
 import os

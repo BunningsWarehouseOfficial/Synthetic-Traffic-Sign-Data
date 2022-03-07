@@ -1,4 +1,4 @@
-"""Module of functions for generating a synthetic manipulated sign dataset"""
+"""Module of functions for generating a synthetic manipulated sign dataset."""
 # Authors: Kristian Rados
 
 import os
@@ -11,7 +11,7 @@ import random
 from synth_image import SynthImage
 
 def __has_opaque_pixel(line):
-    """Checks if a line of pixels contains a pixel above a transparency threshold"""
+    """Checks if a line of pixels contains a pixel above a transparency threshold."""
     opaque = False
     for pixel in line:
         # Check if pixel is opaque
@@ -21,7 +21,7 @@ def __has_opaque_pixel(line):
     return opaque
 
 def __bounding_axes(img):
-    """Returns the bounding axes of an image with a transparent background"""
+    """Returns the bounding axes of an image with a transparent background."""
     # Top axis
     y_top = 0
     for row in img:  # Iterate through each row of pixels, starting at top-left

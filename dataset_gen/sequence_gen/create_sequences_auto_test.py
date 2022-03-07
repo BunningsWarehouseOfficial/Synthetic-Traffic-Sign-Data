@@ -1,3 +1,7 @@
+"""Testing module to view a sequence of foregrounds interpolated over the same background, and interactively change
+parameters.
+"""
+
 import os
 import sys
 import cv2

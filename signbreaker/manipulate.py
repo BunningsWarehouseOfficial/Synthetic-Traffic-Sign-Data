@@ -354,6 +354,8 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             """
 
 
+            # TODO: DEPRECATED, consider removing
+            #       ALlen: "Don't resize image (waste of processing time)"
             # avrg_bright = avrg_bright.resize((150,150), Image.ANTIALIAS) #TODO: Shouldn't this be 'sign_width' ?? Check for resizing
             # rms_bright = rms_bright.resize((150,150), Image.ANTIALIAS)
             # avrg_bright_perceived = avrg_bright_perceived.resize((150,150), Image.ANTIALIAS)
@@ -364,7 +366,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
 
             def save_synth(man_img, man_type, original_synth):
                 save_dir = os.path.join(exp_dir, sub, title, "SIGN_" + folder, folder2)
-                os.makedirs(save_dir, exist_ok=True)
+                os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
                 save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
                 man_img.save(save_path)
                 man_image = original_synth.clone()

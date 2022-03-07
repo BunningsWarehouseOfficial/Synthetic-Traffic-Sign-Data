@@ -1,3 +1,6 @@
+"""A wrapper object to find the location coordinates and intensity of the most predominant light source in an image via
+Monte Carlo sampling, storing them as instance variables."""
+
 import cv2
 import numpy as np
 from collections import Counter
@@ -14,7 +17,8 @@ class BgImage:
         self.shape = image.shape[:2]
         self.find_light_source(image)
         
-        
+
+    # TODO: At some point make sure this works for images other than the GTSDB ones we have been using for development
     def find_light_source(self, img):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)[10:-10, 10:-10]
         luminance = 0.2126 * img[:, :, 0] + 0.7152 * img[:, :, 1] + 0.0722 * img[:, :, 2]
@@ -26,7 +30,7 @@ class BgImage:
         sample_size = int(img.shape[0] * img.shape[1] * SAMPLING_CONSTANT)
         maxima_counter = Counter()
 
-        # Use Montecarlo sampling to find maxima
+        # Use Monte Carlo sampling to find maxima
         for _ in range(NUM_ITERATIONS):
             samples = np.random.choice(indices, sample_size)
             max_ind = max(samples, key=luminance.__getitem__)

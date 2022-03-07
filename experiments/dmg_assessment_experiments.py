@@ -1,3 +1,7 @@
+"""Script that uses damage_assessment_eval.py to generate a set of metrics by evaluating prediction data against ground
+truth data. Creates matplotlib plot of precision vs. recall (with AP displayed), plot of the ROC curve with (AUC
+displayed), and misc. metrics such as MAE, RMSE, MBE."""
+
 import os
 import argparse
 import numpy as np

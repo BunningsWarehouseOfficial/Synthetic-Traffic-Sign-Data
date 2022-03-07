@@ -1,8 +1,9 @@
+"""Utility functions to generate COCO annotations."""
+
 import os
 import json
 import numpy as np
 from datetime import datetime
-
 
 def initialise_coco_anns(classes):
     labels = {}
@@ -94,6 +95,3 @@ def convert_to_single_label(dataset_path, original_annotations, new_annotations,
             
         with open(os.path.join(dataset_path, '_single_annotations_array.npy'), 'wb') as f:
             np.save(f, annotations_array)
-
-
-

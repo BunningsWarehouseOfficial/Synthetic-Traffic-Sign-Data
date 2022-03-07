@@ -1,3 +1,7 @@
+"""Module to generate a dataset consisting of the original dataset augmented with images from the augment dataset.
+Used to augment a real dataset with synthetic images.
+"""
+
 import argparse
 import os
 import json

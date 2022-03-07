@@ -46,7 +46,8 @@ def dir_split(path):
 
 
 def scale_image(image_path, width):
-    """Rescales and pads the source image with whitespace to be a perfect square of fixed width"""
+    """Rescales and pads the source image with whitespace to be a perfect square of fixed width.
+    Works with RGBA, RGB, LA, and L images."""
     # https://jdhao.github.io/2017/11/06/resize-image-to-square-with-padding/
     # Resize the image
     img = Image.open(image_path)
@@ -141,7 +142,7 @@ def png_to_jpeg(filepath):
     png = Image.open(filepath)
     png.load()  # Required for png.split()
     background = Image.new("RGB", png.size, (255, 255, 255))
-    background.paste(png, mask=png.split()[-1])  # 3 is the alpha channel
+    background.paste(png, mask=png.split()[-1])  # -1 is alpha channel
     background.save(string, 'JPEG', quality=100)
     os.remove(filepath)
 
@@ -346,7 +347,7 @@ def count_damaged_pixels(new, original):
             for jj in range(0, len(new[0])):
                 if original[ii][jj][3] > 0:  # The pixel in the original image must have been opaque
                     # Colour diff is weighted by alpha diff, as it's more important
-                    alpha_diff_ratio = abs(int(original[ii][jj][3]) - int(new[ii][jj][3])) / 255
+                    alpha_diff_ratio = abs(int(original[ii][jj][3]) - int(new[ii][jj][3])) / 255  # int() to prevent ubyte overflow
                     assert alpha_diff_ratio >= 0.0 and alpha_diff_ratio <= 1.0  # Will mostly be either 0.0 or 1.0
 
                     colour_diffs = [abs(int(original[ii][jj][x]) - int(new[ii][jj][x])) for x in range(0,3)]
@@ -419,6 +420,10 @@ def calc_damage(new, original, method):
 
 
 def calc_damage_ssim(new, original):
+    """Use structural similarity as an option to determine damage ratio, since it is a commonly utilised benchmark for
+    image similarity. Also, it is less impacted by image distortion (e.g. bending) since n x n blocks are compared
+    rather than individual pixels.
+    """
     from skimage.metrics import structural_similarity as compare_ssim
     grayA = cv2.cvtColor(new, cv2.COLOR_BGR2GRAY)
     grayB = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
@@ -426,41 +431,37 @@ def calc_damage_ssim(new, original):
     return 1 - (score + 1) / 2
 
 
-def calc_damage_quadrants(new, original, method='ssim'):
-    """Calculate the ratio of damaged pixels between two versions of the same image for each quadrant."""
-    height, width, _ = original.shape
-    centre_x = int(round( width / 2 ))
-    centre_y = int(round( height / 2 ))
+# TODO: DEPRECATED, consider removing in future
+# def calc_damage_quadrants(new, original, method='ssim'):
+#     """Calculate the ratio of damaged pixels between two versions of the same image for each quadrant."""
+#     height, width, _ = original.shape
+#     centre_x = int(round( width / 2 ))
+#     centre_y = int(round( height / 2 ))
 
-    # Divide both images into quadrants
-    new_I   = new[0:centre_y, centre_x:width]
-    new_II  = new[0:centre_y, 0:centre_x]
-    new_III = new[centre_y:height, 0:centre_x]
-    new_IV  = new[centre_y:height, centre_x:width]
-    original_I   = original[0:centre_y, centre_x:width]
-    original_II  = original[0:centre_y, 0:centre_x]
-    original_III = original[centre_y:height, 0:centre_x]
-    original_IV  = original[centre_y:height, centre_x:width]
+#     # Divide both images into quadrants
+#     new_I   = new[0:centre_y, centre_x:width]
+#     new_II  = new[0:centre_y, 0:centre_x]
+#     new_III = new[centre_y:height, 0:centre_x]
+#     new_IV  = new[centre_y:height, centre_x:width]
+#     original_I   = original[0:centre_y, centre_x:width]
+#     original_II  = original[0:centre_y, 0:centre_x]
+#     original_III = original[centre_y:height, 0:centre_x]
+#     original_IV  = original[centre_y:height, centre_x:width]
 
-    if method=='pixel_wise':
-        ratio_I   = calc_damage(new_I, original_I, method=method)
-        ratio_II  = calc_damage(new_II, original_II, method=method)
-        ratio_III = calc_damage(new_III, original_III, method=method)
-        ratio_IV  = calc_damage(new_IV, original_IV, method=method)
-    return [ratio_I, ratio_II, ratio_III, ratio_IV]
-
-
-def pad(img, h ,w):
-    top_pad = np.floor((h - img.shape[0]) / 2).astype(np.uint16)
-    bottom_pad = np.ceil((h - img.shape[0]) / 2).astype(np.uint16)
-    right_pad = np.ceil((w - img.shape[1]) / 2).astype(np.uint16)
-    left_pad = np.floor((w - img.shape[1]) / 2).astype(np.uint16)
-    return np.copy(np.pad(img, ((top_pad, bottom_pad), (left_pad, right_pad), (0, 0)), mode='constant', constant_values=0))
+#     if method=='pixel_wise':
+#         ratio_I   = calc_damage(new_I, original_I, method=method)
+#         ratio_II  = calc_damage(new_II, original_II, method=method)
+#         ratio_III = calc_damage(new_III, original_III, method=method)
+#         ratio_IV  = calc_damage(new_IV, original_IV, method=method)
+#     return [ratio_I, ratio_II, ratio_III, ratio_IV]
 
 
+# TODO: num_damage_sectors, which should be equal to the eponymous config parameter, isn't used by any functions yet
 def calc_damage_sectors(new, original, num_damage_sectors=4, method='pixel_wise'):
-    """ Calculates a list of damage ratios. Calling np.reshape(ratios, (math.sqrt(len(ratios)), math.sqrt(len(ratios))))
-        reconstructs the 2D sector damage array """
+    """Calculates a list of damage ratios for an arbitrary number of sectors.
+    Call np.reshape(ratios, (math.sqrt(len(ratios)), math.sqrt(len(ratios)))) to reconstruct the 2D sector damage array.
+    The ordering of damages for 4 sectors is [tl, tr, bl, br].
+    """
     l = math.sqrt(num_damage_sectors)
     if l != int(l):
         raise ValueError('num_damage_sectors must be a perfect square')
@@ -476,11 +477,19 @@ def calc_damage_sectors(new, original, num_damage_sectors=4, method='pixel_wise'
     return ratios
 
 
+def pad(img, h, w):
+    """Centre-pad an image to the specified height and width."""
+    top_pad = np.floor((h - img.shape[0]) / 2).astype(np.uint16)
+    bottom_pad = np.ceil((h - img.shape[0]) / 2).astype(np.uint16)
+    right_pad = np.ceil((w - img.shape[1]) / 2).astype(np.uint16)
+    left_pad = np.floor((w - img.shape[1]) / 2).astype(np.uint16)
+    return np.copy(np.pad(img, ((top_pad, bottom_pad), (left_pad, right_pad), (0, 0)), mode='constant', constant_values=0))
+
 def remove_padding(img):
     opaque_pixels = img[:, :, -1] > 0
     opaque_pixels = opaque_pixels.astype(np.uint8) * 255
-    coords = cv2.findNonZero(opaque_pixels) # Find all non-zero points
-    x, y, w, h = cv2.boundingRect(coords) # Find minimum spanning bounding box
-    rect = img[y:y+h, x:x+w] # Crop the image - note we do this on the original image
+    coords = cv2.findNonZero(opaque_pixels)  # Find all non-zero points
+    x, y, w, h = cv2.boundingRect(coords)  # Find minimum spanning bounding box
+    rect = img[y:y+h, x:x+w]  # Crop the image - note we do this on the original image
     return rect
             

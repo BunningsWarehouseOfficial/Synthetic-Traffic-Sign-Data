@@ -29,22 +29,23 @@ bullet_holes:
   max_holes: 30  # Not relevant if target != -1
   target: -1   # The target level of damage, either -1 or in range (0.0,1.0), <= 0.50 is recommended
 
-# Parameters for the graffiti damage type, each in range (0.0,1.0], recommended to be in increments of 0.1
-graffiti:
+# Parameters for the graffiti damage type, each in range (0.0,1.0]
+graffiti:  # The step size of intermediate damage levels is determined by num_damages above
   initial: 0.2  # First target level of damage
   final: 0.6    # Level of damage to stop at
+  # TODO: What happens when num_damages/graffiti = 1?
 
 # Randomization seed
 # seed: 457   # For Training
 seed: 500     # For Eval
 
 # Parameters for the bend damage type
-bend:
+bend:  # Bend may randomly be either a single-sided or double-sided bend
   max_axis: 60   # Clockwise rotation of the bending axis (in x-y plane)
   max_bend: 60   # Level of bending performed (from 0 to 90 degrees)
-  beta_diff: 0     # Beta difference between bent and unbent portions of sign
+  beta_diff: 0   # Beta difference between bent and unbent portions of sign
 
-# Prunes the dataset by using a maximum of n images for each 
+# Prunes the dataset by using a maximum of n images for each
 # background+class+damage combination, selected randomly.
 prune_dataset:
   prune: True
@@ -52,18 +53,20 @@ prune_dataset:
 
 # Paramaters defining the annotation type, and whether damage labelling is used
 annotations:
-  type: 'coco'
+  type: 'coco'  # Either 'retinanet' or 'coco'
   damage_labelling: True
 
 # Number of sectors on each sign, over which damage is calculated
-num_damage_sectors: 4
-# use structural similarity (ssim) or pixel-wise obscurity (pixel_wise) to calculate sign damage
+num_damage_sectors: 4  # TODO: Not yet used by program
+# Use structural similarity (ssim) or pixel-wise obscurity (pixel_wise) to calculate sign damage
 damage_measure_method: 'pixel_wise'     
 
 # A setting that uses an algorithm to find the light source locations and intensities
 # in each background image, and adjusts relative exposure between bent and unbent portions of
 # a sign to mimic a shadow. Turn off until manipulate stops saturating images.
 detect_light_src: False
+# TODO: Fix manipulate function to use gamma rather than contrast for RGBA adjustments
+# TODO: Fix find_useful_signs to detect partial whiteend sections
 
 # Whether to reuse .npy file in the 'damage' or 'manipulate' intermediate folders.
 reuse_data: 

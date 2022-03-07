@@ -1,3 +1,9 @@
+"""A module that uses web-scraping to download sign templates from Wikipedia. By default, it downloads all
+sign_templates. Since there are often hundreds, there is an argument (--categories_file) that uses a line separated list
+of sign categories to specify the signs to download (by considering the max similarity of the description of any
+Wikipedia sign to any category in the categories_file).
+"""
+
 import os
 import sys
 import argparse

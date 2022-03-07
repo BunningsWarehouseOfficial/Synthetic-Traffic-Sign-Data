@@ -1,3 +1,15 @@
+"""Functions to define three experiments to apply on prediction data against ground truth data (note: evaluation dataset
+must have only 1 ground truth annotation per image):
+
+- sequence experiment: evaluates metrics of different sequences separately; rounds average sequence damage to nearest
+  0.1; averages metrics for sequences with the same rounded damage level; plots metric vs damage curve. Only applicable
+  if the evaluation dataset is a sequences dataset.
+- distance experiment: calculates metrics for detections split by the ground truth bounding box area; plots metrics vs.
+  area curve.
+- damage experiment: calculate metrics for detections split by ground truth damage (rounded to nearest 0.1); plots
+  metrics vs damage curve.
+"""
+
 import os
 import argparse
 import math

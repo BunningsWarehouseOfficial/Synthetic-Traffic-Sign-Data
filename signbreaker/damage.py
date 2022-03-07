@@ -82,7 +82,6 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
             apply_damage(dmg, att)
             if 0 < b_conf['target'] < 1.0: break
 
-    #TODO: Only feed unshaded (and bent) half of sign to damage calc for single bent? Idk about double bent
     # BEND
     bd_config = config['bend']
     if num_damages['bend'] > 0:
@@ -92,11 +91,12 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
         
         for bend in bend_angles:
             axis = rand.randint(0, bd_config['max_axis'])
-            if len(backgrounds) == 0:
+            if len(backgrounds) == 0:  # i.e. if detect_light_src == False
                 dmg, att = bend_vertical(img, axis, bend, beta_diff=0)
                 apply_damage(dmg, att)
             else:
-                for bg in backgrounds:
+                # Create different bent sign image for each background
+                for bg in backgrounds:  # TODO Allen: "could be refactored so it looks a bit less ugly"
                     light_x, light_y = bg.light_coords
                     intensity = bg.light_intensity
                     fg_height, fg_width = img.shape[:2]
@@ -351,7 +351,8 @@ def graffiti(img, target=0.2, color=(0,0,0)):
     """Apply graffiti damage to sign.
        :param initial: the first target level of obscurity (0-1)
        :param final: the level of obscurity to stop at (0-1)
-       :returns: a list containing the damaged images, and a list with the corresponding attributes"""
+       :returns: a list containing the damaged images, and a list with the corresponding attributes
+    """
     validate_sign(img)
     height, width, _ = img.shape
     grft = np.zeros((height, width, 4), dtype=np.uint8)  # New blank image for drawing the graffiti on.
@@ -386,7 +387,7 @@ def graffiti(img, target=0.2, color=(0,0,0)):
     return dmg, att
 
 
-### The following three functions for the 'bend' damage type ###
+### The following three functions are for the 'bend' damage type ###
 
 def combine(img1, img2, beta_diff=-20):
     """Combine the left half of img1 with right half of img2 and returns the result."""
@@ -435,19 +436,22 @@ def tilt(img, angle, dims):
         return left, right
 
 def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
-    """Apply perspective warp to tilt images and combine to produce bent signs.
+    """Apply perspective warp to tilt images and combine to produce bent signs. Bend along a specified axis by rotating
+    the image by the axis angle before performing horizontal bending, and then rotating by the axis angle in the
+    opposite direction.
        :param img: the image to use to produce damaged signs
        :param max_axis: the maximum bearing of the axis of rotation in x-y plane
        :params max_bend: the maximum degree of inwards bending
-       :returns: a list of bent signs and a list of corresponding attributes""" 
+       :returns: a list of bent signs and a list of corresponding attributes
+    """ 
     rot_img = imutils.rotate_bound(img, axis_angle)
     rot_img = remove_padding(rot_img)
     ht, wd,_ = rot_img.shape  # Retrieve image dimentions
     left, right = tilt(rot_img, bend_angle, (ht, wd))
 
     def apply_bend(left, right, tag):
-        #TODO: Would look more realistic with non-zero beta_diff, 
-        # but introduces too much complexity with exposure atm
+        # TODO: Would look more realistic with non-zero beta_diff, 
+        #      but introduces too much complexity with exposure at the moment
         dmg = combine(left, right, beta_diff)
         dmg = imutils.rotate_bound(dmg, -axis_angle)
         dmg = remove_padding(dmg)

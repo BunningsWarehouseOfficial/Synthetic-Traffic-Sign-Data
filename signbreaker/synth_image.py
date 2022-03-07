@@ -12,7 +12,7 @@ class SynthImage:
         self.class_num = class_num
 
         self.damage_type = damage_type
-        self.damage_tag = damage_tag  #TODO: Turn into dictionary?
+        self.damage_tag = damage_tag  #TODO(old): Turn into dictionary?
         self.damage_ratio = damage_ratio
         self.sector_damage = sector_damage
 
@@ -104,7 +104,7 @@ class SynthImage:
 
     def __check_transformation(self, transform_type):
         if transform_type < 0:
-            raise TypeError(f"transform_type={transform_type} is invalid: must be >= 0") #TODO: Check
+            raise TypeError(f"transform_type={transform_type} is invalid: must be >= 0") #TODO(old): Check
 
     def __check_manipulation(self, man_type):
         if man_type is None:
@@ -112,11 +112,12 @@ class SynthImage:
         
     @staticmethod
     def gen_sign_coords(bg_dims, fg_dims):
+        """Randomly generate sign coordinates and sign size."""
         bg_height, bg_width = bg_dims
         _, fg_width = fg_dims
         
         current_ratio = fg_width / bg_width  
-        target_ratio = random.uniform(0.033, 0.066)  
+        target_ratio = random.uniform(0.033, 0.066)
         scale_factor = target_ratio / current_ratio
         new_size = int(fg_width * scale_factor)
         
@@ -126,4 +127,3 @@ class SynthImage:
         fg_y = random.randint(third, bg_height - third)
         
         return fg_x, fg_y, new_size
-        

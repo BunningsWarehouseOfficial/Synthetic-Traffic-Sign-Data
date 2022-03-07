@@ -179,6 +179,8 @@ def main():
 
 
 def show_anchors(bg_path, fg_path, num_frames):
+    """Test function to overlay the interpolated foregrounds on the same image in the UI to view sequence behavior for
+    that single image."""
     bg_img = cv2.imread(bg_path)
     fg_img = cv2.imread(fg_path)
     anchors = select_anchor_points([bg_path], 1)
@@ -209,8 +211,10 @@ def show_anchors(bg_path, fg_path, num_frames):
 
 
 if __name__ == "__main__":
-    #main()
-    current_dir = os.path.dirname(os.path.realpath(__file__))
-    bg_path = os.path.join(current_dir, 'Backgrounds/GTSDB/00049.png')
-    sign_path = os.path.join(current_dir, 'Signs/0.jpg')
-    show_anchors(bg_path, sign_path, 8)
+    main()
+
+    # # Test code
+    # current_dir = os.path.dirname(os.path.realpath(__file__))
+    # bg_path = os.path.join(current_dir, 'Backgrounds/GTSDB/00049.png')
+    # sign_path = os.path.join(current_dir, 'Sign_Templates/1_Input/0.jpg')
+    # show_anchors(bg_path, sign_path, 8)

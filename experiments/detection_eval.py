@@ -1,3 +1,5 @@
+"""Third party module that implements the VOC 2012 AP measurement to evaluate object detection predictions."""
+
 import sys
 from collections import Counter, defaultdict
 from typing import List, Dict
