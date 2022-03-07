@@ -9,3 +9,5 @@ signbreaker/Signs
 *.zip
 *.jpg
 *.html
+*.txt
+*.json

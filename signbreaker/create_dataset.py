@@ -409,7 +409,6 @@ def main():
 
         Adapted Damage Code:
             kristian.rados@student.curtin.edu.au
-            seana.dale@student.curtin.edu.au
 
 
     ----------------------------------------------
