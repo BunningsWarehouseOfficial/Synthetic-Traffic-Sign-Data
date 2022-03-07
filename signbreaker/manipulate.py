@@ -1,5 +1,6 @@
 """Module of functions to apply transformations to sign images."""
-# Authors: Kristian Rados, Alexandros Stergiou
+# Extended from original code by Alexandros Stergiou:
+# (https://github.com/alexandrosstergiou/Traffic-Sign-Recognition-basd-on-Synthesised-Training-Data)
 
 import cv2
 import numpy as np

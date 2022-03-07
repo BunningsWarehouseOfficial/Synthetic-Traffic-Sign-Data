@@ -1,6 +1,5 @@
 """Module of functions to apply damage to signs."""
-# Authors: Kristian Rados, Seana Dale, Jack Downes
-# https://github.com/ai-research-students-at-curtin/sign_augmentation
+# Extended from original functions by Jack Downes: https://github.com/ai-research-students-at-curtin/sign_augmentation
 
 import os
 import imutils

@@ -1,5 +1,4 @@
 """Module of functions for generating a synthetic manipulated sign dataset."""
-# Authors: Kristian Rados
 
 import os
 from utils import load_paths, dir_split, overlay

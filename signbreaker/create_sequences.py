@@ -5,7 +5,6 @@ An interactive window opens where the user selects two anchor points for each ba
 and size of the foreground image at the start and end of the sequence, with intermediary frames add between according to
 the user specified sequence length.
 """
-# Author: Kristian Rados
 
 # TODO: Perhaps anchors would be better represented by list of objects?
 # TODO: Progress bar (if needed)

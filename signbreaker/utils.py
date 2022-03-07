@@ -1,5 +1,5 @@
 """Utility functions for manipulating images."""
-# Coauthors: Kristian Rados, Seana Dale, Jack Downes
+# Extended from original functions by Jack Downes: https://github.com/ai-research-students-at-curtin/sign_augmentation
 
 import cv2
 import numpy as np
