@@ -157,11 +157,11 @@ def main():
             fg_name, _ = fg_filename.split('.')  # Remove file extension
             
             start_size = anchors[count][0][2]
-            size_diff  = anchors[count][1][2] - start_size  # Diff between anchor point sizes
+            size_diff  = anchors[count][1][2] - start_size  
 
             start_x = anchors[count][0][0]
             start_y = anchors[count][0][1]
-            x_diff = anchors[count][1][0] - start_x  # Diff between anchor point coordinates
+            x_diff = anchors[count][1][0] - start_x  
             y_diff = anchors[count][1][1] - start_y
 
             for frame in range(sequence_len):
@@ -177,5 +177,44 @@ def main():
                 cv2.imwrite(img_new_path, img_new)
         count += 1
 
+
+def show_anchors(bg_path, fg_path, num_frames):
+    """Test function to overlay the interpolated foregrounds on the same image in the UI to view sequence behavior for
+    that single image."""
+    bg_img = cv2.imread(bg_path)
+    fg_img = cv2.imread(fg_path)
+    anchors = select_anchor_points([bg_path], 1)
+        
+    start_size = anchors[0][0][2]
+    size_diff = anchors[0][1][2] - start_size
+    
+    start_x = anchors[0][0][0]
+    start_y = anchors[0][0][1]
+    
+    x_diff = anchors[0][1][0] - start_x  
+    y_diff = anchors[0][1][1] - start_y
+    
+    seq_ratio = 1 / (num_frames - 1)
+    for frame in range(num_frames - 1, -1, -1):
+        diff_ratio = frame * seq_ratio
+        size = int(start_size + (diff_ratio * size_diff))
+        x = int(start_x + (diff_ratio * x_diff))
+        y = int(start_y + (diff_ratio * y_diff))
+
+        fg_img_new = cv2.resize(fg_img, (size,size))
+        bg_img = overlay(fg_img_new, bg_img, x, y)
+    cv2.imwrite('overlayed_sequence_manual.jpg', bg_img)
+    cv2.imshow('Manually selected sequence', bg_img)
+    cv2.waitKey(0)
+
+
+
+
 if __name__ == "__main__":
     main()
+
+    # # Test code
+    # current_dir = os.path.dirname(os.path.realpath(__file__))
+    # bg_path = os.path.join(current_dir, 'Backgrounds/GTSDB/00049.png')
+    # sign_path = os.path.join(current_dir, 'Sign_Templates/1_Input/0.jpg')
+    # show_anchors(bg_path, sign_path, 8)

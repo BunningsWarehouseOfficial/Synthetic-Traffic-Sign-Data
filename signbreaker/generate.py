@@ -1,14 +1,17 @@
-"""Module of functions for generating a synthetic manipulated sign dataset"""
+"""Module of functions for generating a synthetic manipulated sign dataset."""
 # Authors: Kristian Rados
 
 import os
 from utils import load_paths, dir_split, overlay
+from datetime import datetime
 import imutils
 import cv2
 import random
 
+from synth_image import SynthImage
+
 def __has_opaque_pixel(line):
-    """Checks if a line of pixels contains a pixel above a transparency threshold"""
+    """Checks if a line of pixels contains a pixel above a transparency threshold."""
     opaque = False
     for pixel in line:
         # Check if pixel is opaque
@@ -18,7 +21,7 @@ def __has_opaque_pixel(line):
     return opaque
 
 def __bounding_axes(img):
-    """Returns the bounding axes of an image with a transparent background"""
+    """Returns the bounding axes of an image with a transparent background."""
     # Top axis
     y_top = 0
     for row in img:  # Iterate through each row of pixels, starting at top-left
@@ -71,27 +74,19 @@ def __bounding_axes(img):
 
     return [x_left, x_right, y_top, y_bottom]
 
-def new_data(synth_image, labels_file):
+def new_data(synth_image):
     """Blends a synthetic sign with its corresponding background."""
     bg_path = synth_image.bg_path
     fg_path = synth_image.fg_path
     bg = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
     fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
-    bg_height, bg_width, _ = bg.shape
-    fg_height, fg_width, _ = fg.shape
 
-    # Rescaling the sign to correct its size relative to the background
-    # NOTE: Assumes background aspect ratio somewhat close to 16:9 (1.778)
-    current_ratio = fg_width / bg_width  # Ratio of sign width to the background width
-    target_ratio = random.uniform(0.033, 0.066)  # Aiming for between 3.3% and 6.6% of bg width
-    scale_factor = target_ratio / current_ratio
-    new_size = int(fg_width * scale_factor)
+    if synth_image.fg_coords is not None and synth_image.fg_size is not None:
+        x, y = synth_image.fg_coords
+        new_size = synth_image.fg_size
+    else:
+        x, y, new_size = SynthImage.gen_sign_coords(bg.shape[:2], fg.shape[:2])
     fg = cv2.resize(fg, (new_size, new_size))
-
-    # Randomise sign placement within middle third of background
-    x = random.randint(0, bg_width - fg_width)
-    third = bg_height // 3
-    y = random.randint(third, bg_height - third)
 
     axes = __bounding_axes(fg)  # Retrieve bounding axes of the sign image
     axes[0] += x  # Adjusting bounding axis to make it relative to the whole bg image
@@ -99,9 +94,6 @@ def new_data(synth_image, labels_file):
     axes[2] += y
     axes[3] += y
     synth_image.bounding_axes = axes
-
-    label = synth_image.get_label()
-    labels_file.write(label)
     image = overlay(fg, bg, x, y)
     return image
 

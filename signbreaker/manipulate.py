@@ -227,22 +227,24 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
     background_exposures = find_image_exposures(background_paths, 4, "background")
 
     sign_paths = [transformed.fg_path for transformed in transformed_data]
-    signs_exposures = find_image_exposures(sign_paths, 4, "transformed sign")
     
-    pr = 0
     manipulated_images = []
-    for ii in range(0, len(background_paths)):
-        img = Image.open(background_exposures[ii][0])
-        bg_path = background_paths[ii]
+    for ii in range(len(sign_paths)):
+        original = transformed_data[ii]
+        sign_path = sign_paths[ii]
+        
+        print(f"Manipulating signs: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
+        
+        for jj in range(0, len(background_paths)):
+            bg_path = background_paths[jj]
 
-        jj = 0
-        for sign_path in sign_paths:
-            print(f"Manipulating signs: {float(pr) / float(len(background_paths) * len(sign_paths)):06.2%}", end='\r')
+            if original.bg_path is not None and original.bg_path != bg_path:
+                continue
 
-            dirc, sub, el = dir_split(background_exposures[ii][0])
-            title, extension = el.rsplit('.', 1)
+            _, sub, el = dir_split(background_exposures[jj][0])
+            title, _ = el.rsplit('.', 1)
 
-            parent_dir, sub_dir, folder, folder2, element = dir_split(sign_path)
+            _, _, folder, folder2, element = dir_split(sign_path)
             head, tail = element.rsplit('.', 1)
 
             
@@ -256,15 +258,10 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
 
             # abs(desired_brightness - actual_brightness) / abs(brightness_float_value) = ratio
             avrg_ratio = 11.0159464507
-
             rms_ratio = 8.30320014372
-
             percieved_avrg_ratio = 3.85546373056
-
             percieved_rms_ratio = 35.6344530649
-
             avrg2_ratio = 1.20354549572
-
             rms2_ratio = 40.1209106864
 
             peak1 = Image.open(sign_path).convert('LA')
@@ -277,7 +274,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             
             ### IMAGE MANIPULATION MAIN CODE STARTS ###
             # MINIMISE MARGIN BASED ON AVERAGE FOR TWO CHANNEL BRIGNESS VARIATION
-            margin = abs(avrg - float(background_exposures[ii][1]))
+            margin = abs(avrg - float(background_exposures[jj][1]))
             
             brightness_avrg = margin / avrg_ratio 
             
@@ -288,7 +285,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
 
             
             # MINIMISE MARGIN BASED ON ROOT MEAN SQUARE FOR TWO CHANNEL BRIGNESS VARIATION
-            margin = abs(rms - float(background_exposures[ii][2]))
+            margin = abs(rms - float(background_exposures[jj][2]))
 
             brightness_rms = margin / rms_ratio 
             
@@ -303,15 +300,15 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             stat2 = ImageStat.Stat(peak2)
             r, g, b, a = stat2.mean
             avrg_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
-            margin = abs(avrg_perceived - float(background_exposures[ii][3]))
+            margin = abs(avrg_perceived - float(background_exposures[jj][3]))
             
             brightness_avrg_perceived = margin / percieved_avrg_ratio 
             
             enhancer = ImageEnhance.Brightness(peak2)
             avrg_bright_perceived = enhancer.enhance(brightness_avrg_perceived)
             stat2 = ImageStat.Stat(avrg_bright_perceived)
-            r, g ,b, a = stat2.mean
-            avrg_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))        
+            r, g ,b, _ = stat2.mean
+            avrg_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))     
 
 
             # MINIMISE MARGIN BASED ON RMS FOR RGBA ("PERCEIVED BRIGHNESS")
@@ -319,14 +316,14 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             r, g, b, a = stat2.rms
             rms_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))
 
-            margin = abs(rms_perceived - float(background_exposures[ii][4]))
+            margin = abs(rms_perceived - float(background_exposures[jj][4]))
 
             brightness_rms_perceived = margin / percieved_rms_ratio 
 
             enhancer = ImageEnhance.Brightness(peak2)
             rms_bright_perceived = enhancer.enhance(brightness_rms_perceived)
             stat2 = ImageStat.Stat(rms_bright_perceived)
-            r, g, b, a = stat2.rms
+            r, g, b, _ = stat2.rms
             rms_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))        
 
             
@@ -337,7 +334,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
 
             """
             #FUSION OF THE TWO AVERAGING METHODS
-            margin = abs(avrg2-float(background_exposures[ii][1]))
+            margin = abs(avrg2-float(background_exposures[jj][1]))
             brightness_avrg2 = margin/avrg2_ratio 
             enhancer = ImageEnhance.Brightness(peak2)
             avrg_bright2 = enhancer.enhance(brightness_avrg2)
@@ -348,7 +345,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             
             """
             #FUSION OF THE TWO RMS METHODS
-            margin = abs(rms2-float(background_exposures[ii][2]))
+            margin = abs(rms2-float(background_exposures[jj][2]))
             brightness_rms2 = margin/rms2_ratio 
             enhancer = ImageEnhance.Brightness(peak2)
             rms_bright2 = enhancer.enhance(brightness_rms2)
@@ -357,34 +354,33 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             """
 
 
-            avrg_bright = avrg_bright.resize((150,150), Image.ANTIALIAS) #TODO: Shouldn't this be 'sign_width' ?? Check for resizing
-            rms_bright = rms_bright.resize((150,150), Image.ANTIALIAS)
-            avrg_bright_perceived = avrg_bright_perceived.resize((150,150), Image.ANTIALIAS)
-            rms_bright_perceived = rms_bright_perceived.resize((150,150), Image.ANTIALIAS)
-            # avrg_bright2 = avrg_bright2.resize((150,150), Image.ANTIALIAS)
-            # rms_bright2 = rms_bright2.resize((150,150), Image.ANTIALIAS)
+            # TODO: DEPRECATED, consider removing
+            #       ALlen: "Don't resize image (waste of processing time)"
+            # avrg_bright = avrg_bright.resize((150,150), Image.ANTIALIAS) #TODO: Shouldn't this be 'sign_width' ?? Check for resizing
+            # rms_bright = rms_bright.resize((150,150), Image.ANTIALIAS)
+            # avrg_bright_perceived = avrg_bright_perceived.resize((150,150), Image.ANTIALIAS)
+            # rms_bright_perceived = rms_bright_perceived.resize((150,150), Image.ANTIALIAS)
+            # # avrg_bright2 = avrg_bright2.resize((150,150), Image.ANTIALIAS)
+            # # rms_bright2 = rms_bright2.resize((150,150), Image.ANTIALIAS)
             
 
             def save_synth(man_img, man_type, original_synth):
-                save_path = os.path.join(exp_dir,sub,title,"SIGN_"+folder,folder2,head+"_"+man_type+"."+tail)
+                save_dir = os.path.join(exp_dir, sub, title, "SIGN_" + folder, folder2)
+                os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
+                save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
                 man_img.save(save_path)
                 man_image = original_synth.clone()
                 man_image.fg_path = save_path
                 man_image.set_manipulation(man_type)
                 man_image.bg_path = bg_path
                 return man_image
-
-            original = transformed_data[jj]
+            
             manipulated_images.append(save_synth(avrg_bright,           'AVERAGE', original))
             manipulated_images.append(save_synth(rms_bright,            'RMS', original))
             manipulated_images.append(save_synth(avrg_bright_perceived, 'AVERAGE_PERCEIVED', original))
             manipulated_images.append(save_synth(rms_bright_perceived,  'RMS_PERCEIVED', original))
             # manipulated_images.append(save_synth(avrg_bright2,          'AVERAGE2', original))
             # manipulated_images.append(save_synth(rms_bright2,           'RMS2', original))
-
-            jj += 1
-            pr += 1
-
     print("Manipulating signs: 100.0%\r\n")
     return manipulated_images
 
@@ -487,6 +483,8 @@ def find_useful_signs(manipulated_images, directory, damaged_dir):
         print(f"Removing useless signs: {float(pr) / float(pr_total):06.2%}", end='\r')
 
         image_path = manipulated.fg_path
+        
+        if not os.path.exists(image_path): continue
 
         # Find brightness
         img = Image.open(image_path).convert('RGBA')

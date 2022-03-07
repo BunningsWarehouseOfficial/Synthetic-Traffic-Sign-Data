@@ -4,25 +4,28 @@
 import cv2
 import numpy as np
 import os
+import math
 from PIL import Image, ImageOps
 
-def load_paths(directory):
+def load_paths(directory, ignored=['.npy']):
     """Returns a list with the paths of all files in the directory"""
     paths = []
     for filename in os.listdir(directory): # Retrieve names of files in directory
         # Concatenate filename with directory path, ignoring hidden files
         path = os.path.join(directory, filename)
-        if not filename.startswith('.'):
+        _, ext = os.path.splitext(filename)
+        if not filename.startswith('.') and ext not in ignored:
             paths.append(path)
     return paths
 
-def load_files(directory):
+def load_files(directory, ignored=['.npy']):
     """Returns a list with the paths of all non-directory files in the directory"""
     paths = []
     for filename in os.listdir(directory): # Retrieve names of files in directory
         # Concatenate filename with directory path, ignoring hidden files and directories
         path = os.path.join(directory, filename)
-        if os.path.isfile(path) and not filename.startswith('.'):
+        _, ext = os.path.splitext(filename)
+        if os.path.isfile(path) and not filename.startswith('.') and ext not in ignored:
             paths.append(path)
     return paths
 
@@ -43,7 +46,8 @@ def dir_split(path):
 
 
 def scale_image(image_path, width):
-    """Rescales and pads the source image with whitespace to be a perfect square of fixed width"""
+    """Rescales and pads the source image with whitespace to be a perfect square of fixed width.
+    Works with RGBA, RGB, LA, and L images."""
     # https://jdhao.github.io/2017/11/06/resize-image-to-square-with-padding/
     # Resize the image
     img = Image.open(image_path)
@@ -56,8 +60,8 @@ def scale_image(image_path, width):
     delta_w = width - new_size[0]
     delta_h = width - new_size[1]
     padding = (delta_w // 2, delta_h // 2, delta_w - (delta_w // 2), delta_h - (delta_h // 2))
-    new_img = ImageOps.expand(img, padding, (255,255,255))
-    
+    fill = (255, 0) if img.mode[0] == 'L' else (255, 255, 255, 0)
+    new_img = ImageOps.expand(img, padding, fill=fill)
     return new_img
 
 def create_alpha(img, alpha_channel):
@@ -138,7 +142,7 @@ def png_to_jpeg(filepath):
     png = Image.open(filepath)
     png.load()  # Required for png.split()
     background = Image.new("RGB", png.size, (255, 255, 255))
-    background.paste(png, mask=png.split()[3])  # 3 is the alpha channel
+    background.paste(png, mask=png.split()[-1])  # -1 is alpha channel
     background.save(string, 'JPEG', quality=100)
     os.remove(filepath)
 
@@ -343,7 +347,7 @@ def count_damaged_pixels(new, original):
             for jj in range(0, len(new[0])):
                 if original[ii][jj][3] > 0:  # The pixel in the original image must have been opaque
                     # Colour diff is weighted by alpha diff, as it's more important
-                    alpha_diff_ratio = abs(original[ii][jj][3] - new[ii][jj][3]) / 255
+                    alpha_diff_ratio = abs(int(original[ii][jj][3]) - int(new[ii][jj][3])) / 255  # int() to prevent ubyte overflow
                     assert alpha_diff_ratio >= 0.0 and alpha_diff_ratio <= 1.0  # Will mostly be either 0.0 or 1.0
 
                     colour_diffs = [abs(int(original[ii][jj][x]) - int(new[ii][jj][x])) for x in range(0,3)]
@@ -372,11 +376,34 @@ def count_damaged_pixels(new, original):
     # cv2.imshow("count_damaged_pixels", copy) ##for debug visual
     # cv2.waitKey(0) ##for debug visual
     # cv2.destroyAllWindows() ##for debug visual
-    ##
 
     return sum
 
-def calc_damage(new, original):
+
+# TODO: Figure out why this isn't working properly
+def count_damaged_pixels_vectorized(new, original):
+    if new.shape[2] != 4 or original.shape[2] != 4:
+        raise TypeError(f"The two images need 4 channels, but new has {new.shape[2]} and original has {original.shape[2]}")
+    alpha_diffs = np.abs(new[...,3] - original[...,3]) / 255
+    col_diffs = np.sum(np.abs(new[...,:3] - original[...,:3]), axis=-1)
+    colour_diff_max = 255
+    col_diffs = np.minimum(col_diffs, colour_diff_max) / colour_diff_max
+    
+    diffs = np.where(original[...,3] > 0, col_diffs + alpha_diffs, 0)
+    
+    # For debug visualisations
+    # vis = np.ones(new.shape) * np.array([0, 255, 0, 255])
+    # vis[..., 1] = vis[..., 1] * diffs
+    # # For debug visualisations
+    # cv2.imshow("new", new) ##
+    # cv2.waitKey(0) 
+    # cv2.imshow("count_damaged_pixels_vectorized", vis)
+    # cv2.destroyAllWindows() 
+    
+    return np.sum(diffs)
+
+
+def calc_damage(new, original, method):
     """Calculate the ratio of damaged pixels between two versions of the same image."""
     ## For debug
     # dmg = count_damaged_pixels(new, original)
@@ -384,48 +411,85 @@ def calc_damage(new, original):
     # print(f"damage = count_damaged_pixels / count_pixels = {dmg} / {total} = {dmg / total}")
     # return dmg / total
     ##
-    return count_damaged_pixels(new, original) / count_pixels(original)
-
-def calc_damage_quadrants(new, original):
-    """Calculate the ratio of damaged pixels between two versions of the same image for each quadrant."""
-    height, width, _ = original.shape
-    centre_x = int(round( width / 2 ))
-    centre_y = int(round( height / 2 ))
-
-    # Divide both images into quadrants
-    new_I   = new[0:centre_y, centre_x:width]
-    new_II  = new[0:centre_y, 0:centre_x]
-    new_III = new[centre_y:height, 0:centre_x]
-    new_IV  = new[centre_y:height, centre_x:width]
-    original_I   = original[0:centre_y, centre_x:width]
-    original_II  = original[0:centre_y, 0:centre_x]
-    original_III = original[centre_y:height, 0:centre_x]
-    original_IV  = original[centre_y:height, centre_x:width]
-
-    ratio_I   = count_damaged_pixels(new_I, original_I) / count_pixels(original_I)
-    ratio_II  = count_damaged_pixels(new_II, original_II) / count_pixels(original_II)
-    ratio_III = count_damaged_pixels(new_III, original_III) / count_pixels(original_III)
-    ratio_IV  = count_damaged_pixels(new_IV, original_IV) / count_pixels(original_IV)
-
-    return [ratio_I, ratio_II, ratio_III, ratio_IV]
+    if method == 'ssim':
+        return calc_damage_ssim(new, original)
+    elif method == 'pixel_wise':
+        return count_damaged_pixels(new, original) / count_pixels(original)
+    else:
+        raise ValueError(f"Method {method} not recognised. Choose between <ssim> and <pixel_wise>")
 
 
-def append_labels(image_path, axes, class_id, dmg, labels_path):
-    """Append the label for an image to the labels/annotations file.
-    
-    Arguments:
-    image_path  -- file path to the image (with extension)
-    axes        -- list of integer bounding box axes [left, right, top, bottom]
-    class_id    -- integer class number
-    dmg         -- list of float damage values for each quadrant [I, II, III, IV]
-    labels_path -- file path to labels/annotations file
+def calc_damage_ssim(new, original):
+    """Use structural similarity as an option to determine damage ratio, since it is a commonly utilised benchmark for
+    image similarity. Also, it is less impacted by image distortion (e.g. bending) since n x n blocks are compared
+    rather than individual pixels.
     """
-    file = open(labels_path, "a")
-    
-    if True:
-        file.write("{0} {1},{2},{3},{4},{5},{6},{7},{8},{9}\n" \
-            .format(image_path, axes[0],axes[2],axes[1],axes[3], class_id, dmg[0],dmg[1],dmg[2],dmg[3]))
-    else:  # TODO: Only standard detection labels if damage info option set to false
-        file.write("{0} {1},{2},{3},{4},{5}\n" \
-            .format(image_path, axes[0],axes[2],axes[1],axes[3], class_id))
-    file.close()
+    from skimage.metrics import structural_similarity as compare_ssim
+    grayA = cv2.cvtColor(new, cv2.COLOR_BGR2GRAY)
+    grayB = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
+    score, _ = compare_ssim(grayA, grayB, win_size=3, full=True)
+    return 1 - (score + 1) / 2
+
+
+# TODO: DEPRECATED, consider removing in future
+# def calc_damage_quadrants(new, original, method='ssim'):
+#     """Calculate the ratio of damaged pixels between two versions of the same image for each quadrant."""
+#     height, width, _ = original.shape
+#     centre_x = int(round( width / 2 ))
+#     centre_y = int(round( height / 2 ))
+
+#     # Divide both images into quadrants
+#     new_I   = new[0:centre_y, centre_x:width]
+#     new_II  = new[0:centre_y, 0:centre_x]
+#     new_III = new[centre_y:height, 0:centre_x]
+#     new_IV  = new[centre_y:height, centre_x:width]
+#     original_I   = original[0:centre_y, centre_x:width]
+#     original_II  = original[0:centre_y, 0:centre_x]
+#     original_III = original[centre_y:height, 0:centre_x]
+#     original_IV  = original[centre_y:height, centre_x:width]
+
+#     if method=='pixel_wise':
+#         ratio_I   = calc_damage(new_I, original_I, method=method)
+#         ratio_II  = calc_damage(new_II, original_II, method=method)
+#         ratio_III = calc_damage(new_III, original_III, method=method)
+#         ratio_IV  = calc_damage(new_IV, original_IV, method=method)
+#     return [ratio_I, ratio_II, ratio_III, ratio_IV]
+
+
+# TODO: num_damage_sectors, which should be equal to the eponymous config parameter, isn't used by any functions yet
+def calc_damage_sectors(new, original, num_damage_sectors=4, method='pixel_wise'):
+    """Calculates a list of damage ratios for an arbitrary number of sectors.
+    Call np.reshape(ratios, (math.sqrt(len(ratios)), math.sqrt(len(ratios)))) to reconstruct the 2D sector damage array.
+    The ordering of damages for 4 sectors is [tl, tr, bl, br].
+    """
+    l = math.sqrt(num_damage_sectors)
+    if l != int(l):
+        raise ValueError('num_damage_sectors must be a perfect square')
+    m = math.ceil(new.shape[0] / l)
+    n = math.ceil(new.shape[1] / l)
+    get_sectors = lambda im: [im[r:r+m,c:c+n] for r in range(0,im.shape[0],m) for c in range(0,im.shape[1],n)]
+    new_img_sectors = get_sectors(new)
+    original_img_sectors = get_sectors(original)
+    ratios = []
+    for i in range(len(new_img_sectors)):
+        dmg = calc_damage(new_img_sectors[i], original_img_sectors[i], method=method)
+        ratios.append(max(min(dmg, 1.0), 0.0))
+    return ratios
+
+
+def pad(img, h, w):
+    """Centre-pad an image to the specified height and width."""
+    top_pad = np.floor((h - img.shape[0]) / 2).astype(np.uint16)
+    bottom_pad = np.ceil((h - img.shape[0]) / 2).astype(np.uint16)
+    right_pad = np.ceil((w - img.shape[1]) / 2).astype(np.uint16)
+    left_pad = np.floor((w - img.shape[1]) / 2).astype(np.uint16)
+    return np.copy(np.pad(img, ((top_pad, bottom_pad), (left_pad, right_pad), (0, 0)), mode='constant', constant_values=0))
+
+def remove_padding(img):
+    opaque_pixels = img[:, :, -1] > 0
+    opaque_pixels = opaque_pixels.astype(np.uint8) * 255
+    coords = cv2.findNonZero(opaque_pixels)  # Find all non-zero points
+    x, y, w, h = cv2.boundingRect(coords)  # Find minimum spanning bounding box
+    rect = img[y:y+h, x:x+w]  # Crop the image - note we do this on the original image
+    return rect
+            
