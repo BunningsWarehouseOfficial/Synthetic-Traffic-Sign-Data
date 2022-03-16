@@ -1,5 +1,3 @@
-# TODO: Some or all of these may be command line parameters in the future
-
 # The width of the square to which sign images will be scaled
 sign_width: 200  # Default: 200
 
@@ -33,7 +31,6 @@ bullet_holes:
 graffiti:  # The step size of intermediate damage levels is determined by num_damages above
   initial: 0.2  # First target level of damage
   final: 0.6    # Level of damage to stop at
-  # TODO: What happens when num_damages/graffiti = 1?
 
 # Randomization seed
 # seed: 457   # For Training
@@ -47,6 +44,8 @@ bend:  # Bend may randomly be either a single-sided or double-sided bend
 
 # Prunes the dataset by using a maximum of n images for each
 # background+class+damage combination, selected randomly.
+# In other words, how many images of the same sign class with the same damage
+# but varying shading and angle do you want over the same background image?
 prune_dataset:
   prune: True
   max_images: 6

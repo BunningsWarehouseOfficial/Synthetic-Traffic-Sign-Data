@@ -11,3 +11,4 @@ signbreaker/Signs
 *.html
 *.txt
 *.json
+signbreaker/*/*.yaml

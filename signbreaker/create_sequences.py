@@ -130,7 +130,7 @@ def main():
     if (not os.path.exists(OUT_DIR)):
         out_dir = OUT_DIR
     else:
-        timestamp = datetime.now().strftime("_%d%m%Y_%H%M%S")
+        timestamp = datetime.now().strftime("_%Y-%m-%d_%H-%M-%S")
         out_dir = OUT_DIR + timestamp
     os.mkdir(out_dir)
 

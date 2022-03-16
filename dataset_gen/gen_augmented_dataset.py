@@ -15,13 +15,13 @@ from utils import initialise_coco_anns, convert_to_single_label
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--orig_dataset', default=None, help='Path to dataset to be augmented')
-parser.add_argument('--orig_annotations', default=None, help='Annotations for original dataset')
-parser.add_argument('--augment_dataset', default=None, help='Path to dataset that will be used to augment the original dataset')
-parser.add_argument('--augment_annotations', default=None, help='Annotations for augment dataset')
-parser.add_argument('--datasets_dir', default=None, help='Path to directory storing the dataset')
-parser.add_argument('--augmentation', default=0.25, help='Proportion of the original dataset to be augmented')
-parser.add_argument('--seed', default=0, help='Seed for random.sample function')
+parser.add_argument('--orig_dataset', default=None, help='Path to dataset to be augmented', required=True)
+parser.add_argument('--orig_annotations', default=None, help='Annotations for original dataset', required=True)
+parser.add_argument('--augment_dataset', default=None, help='Path to dataset that will be used to augment the original dataset', required=True)
+parser.add_argument('--augment_annotations', default=None, help='Annotations for augment dataset', required=True)
+parser.add_argument('--datasets_dir', default=None, help='Path to directory storing the dataset', required=True)
+parser.add_argument('--augmentation', default=0.25, help='Proportion of the original dataset to be augmented (default: 0.25)')
+parser.add_argument('--seed', default=0, help='Seed for random.sample function (default: 0)')
 
 
 def extend_annotations(final_annotations, image_paths, annotations):
