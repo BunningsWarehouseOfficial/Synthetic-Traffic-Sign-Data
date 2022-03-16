@@ -41,6 +41,7 @@ def main():
     valid_final = ['process', 'damage', 'transform', 'manipulate', 'dataset']
     valid_man = ['exposure', 'fade']
     valid_dmg = ['original', 'quadrant', 'big_hole', 'bullet_holes', 'graffiti', 'bend', 'tinted_yellow', 'grey']
+    valid_ann = ['retinanet', 'coco']
     if config['sign_width'] <= 0:
         raise ValueError("Config error: 'sign_width' must be > 0.\n")
     if not config['final_op'] in valid_final:
@@ -52,6 +53,8 @@ def main():
     for dmg in config['num_damages']:
         if not dmg in valid_dmg:
             raise ValueError(f"Config error: '{dmg}' is an invalid damage type.\n")
+    if not config['annotations']['type'] in valid_ann:
+        raise ValueError(f"Config error: '{config['annotations']['type']}' is an invalid annotation type.\n")
 
     b_params = config['bullet_holes']
     if b_params['min_holes'] <= 0 or b_params['max_holes'] <= 0:
