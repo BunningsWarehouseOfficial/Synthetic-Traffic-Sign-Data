@@ -366,7 +366,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             
 
             def save_synth(man_img, man_type, original_synth):
-                save_dir = os.path.join(exp_dir, sub, title, "SIGN_" + folder, folder2)
+                save_dir = os.path.join(exp_dir, sub, "BG_" + title, "SIGN_" + folder, folder2)
                 os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
                 save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
                 man_img.save(save_path)

@@ -322,102 +322,102 @@ def main():
 
 
 
-    ###############################
-    ###  CREATE DATASET README  ###
-    ###############################
-    content = '''
-    -----------------------------------------------
-    |                     -*-                     |
-    |Synthetically Generated Traffic Sign Dataset |
-    |                     -*-                     |
-    -----------------------------------------------
+    # ###############################
+    # ###  CREATE DATASET README  ###
+    # ###############################
+    # content = '''
+    # -----------------------------------------------
+    # |                     -*-                     |
+    # |Synthetically Generated Traffic Sign Dataset |
+    # |                     -*-                     |
+    # -----------------------------------------------
 
-    This directory contains the generated training
-    set used for training a Convolutional Neural
-    Network (CNN) to detect traffic signs.
+    # This directory contains the generated training
+    # set used for training a Convolutional Neural
+    # Network (CNN) to detect traffic signs.
 
-    It may be used for any detector desired and it
-    is not limited to a specific set of traffic
-    sign templates.
+    # It may be used for any detector desired and it
+    # is not limited to a specific set of traffic
+    # sign templates.
     
 
-    ----------------------------------------------
-    Content
-    ----------------------------------------------
+    # ----------------------------------------------
+    # Content
+    # ----------------------------------------------
 
-    The number of examples is based on the number:
-    - of traffic signs that were used as templates
-    - of damage types applied to images
-    - of transformations in image manipulations
-    - of the brightness variation values used
-    - of blending procedures
-    - of background images used
-
-
-    ----------------------------------------------
-    Image format and naming
-    ----------------------------------------------
-
-    The images created are of "jpg" format
-    with RGBA channels.
-
-    XXX/XXX_YYY/XXX_YYY_ZZZ.jpg
-
-    (X) is used to distinguish the sign class, (Y)
-    is used to distinguish the damage type and (Z)
-    is used to indicate the example number.
+    # The number of examples is based on the number:
+    # - of traffic signs that were used as templates
+    # - of damage types applied to images
+    # - of transformations in image manipulations
+    # - of the brightness variation values used
+    # - of blending procedures
+    # - of background images used
 
 
-    ----------------------------------------------
-    Label tags for each damage type
-    ----------------------------------------------
+    # ----------------------------------------------
+    # Image format and naming
+    # ----------------------------------------------
 
-    original:
-        'no_damage=-1', meaning no damage.
+    # The images created are of "jpg" format
+    # with RGBA channels.
 
-    quadrant:
-        'quadrant=XXX', where (X) is the missing
-        quadrant with range [1,4].
+    # XXX/XXX_YYY/XXX_YYY_ZZZ.jpg
 
-    big_hole:
-        'big_hole=AAA_BBB_CCC_DDD, where (A) is
-        the angle of placement, (B) is the radius
-        of the hole, and the x and y coordinates
-        of the hole's centre are (C) and (D).
-
-    bullet_holes:
-        'bullet_holes=NNN', where (N) is the
-        number of holes made in the sign.
-
-    graffiti:
-        'graffiti=TTT', where (T) is the *target*
-        damage. As can be seen in the labels, the
-        actual damage may be higher or lower.
-
-    bend:
-        'bend=LLL_RRR', where (L) and (R) are the
-        angle of bending on the left and right
-        sides of the sign respectively.
+    # (X) is used to distinguish the sign class, (Y)
+    # is used to distinguish the damage type and (Z)
+    # is used to indicate the example number.
 
 
-    ----------------------------------------------
-    Additional information
-    ----------------------------------------------
+    # ----------------------------------------------
+    # Label tags for each damage type
+    # ----------------------------------------------
 
-    Contact Emails:
-        Original Code:
-            asterga@essex.ac.uk
+    # original:
+    #     'no_damage=-1', meaning no damage.
 
-        Adapted Damage Code:
-            kristian.rados@student.curtin.edu.au
+    # quadrant:
+    #     'quadrant=XXX', where (X) is the missing
+    #     quadrant with range [1,4].
+
+    # big_hole:
+    #     'big_hole=AAA_BBB_CCC_DDD, where (A) is
+    #     the angle of placement, (B) is the radius
+    #     of the hole, and the x and y coordinates
+    #     of the hole's centre are (C) and (D).
+
+    # bullet_holes:
+    #     'bullet_holes=NNN', where (N) is the
+    #     number of holes made in the sign.
+
+    # graffiti:
+    #     'graffiti=TTT', where (T) is the *target*
+    #     damage. As can be seen in the labels, the
+    #     actual damage may be higher or lower.
+
+    # bend:
+    #     'bend=LLL_RRR', where (L) and (R) are the
+    #     angle of bending on the left and right
+    #     sides of the sign respectively.
 
 
-    ----------------------------------------------
-    '''
+    # ----------------------------------------------
+    # Additional information
+    # ----------------------------------------------
 
-    text_file = open(os.path.join(final_dir, "Readme_Images.txt"), "w")
-    text_file.write(content)
-    text_file.close()
+    # Contact Emails:
+    #     Original Code:
+    #         asterga@essex.ac.uk
+
+    #     Adapted Damage Code:
+    #         kristian.rados@student.curtin.edu.au
+
+
+    # ----------------------------------------------
+    # '''
+
+    # text_file = open(os.path.join(final_dir, "Readme_Images.txt"), "w")
+    # text_file.write(content)
+    # text_file.close()
 
 if __name__ == "__main__":
     try:
