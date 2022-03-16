@@ -61,7 +61,7 @@ def get_ap_metrics(gt_pred_map, num_sectors, dmg_threshold):
         # fp if sector is damaged in pred but not in gt
         fps[i, :] = np.bitwise_and(pred_damages, np.invert(gt_damages))
     
-    # compute precision, recall and average precision
+    # Compute precision, recall and average precision
     tps = np.reshape(tps, -1)
     fps = np.reshape(fps, -1)
     cumulative_fps = np.cumsum(fps)
@@ -86,17 +86,17 @@ def get_roc_metrics(gt_pred_map, num_thres=50):
             gt, pred = gt_pred_map[i]
             pred_damages = np.array([d > thres for d in pred])
             gt_damages = np.array([d > thres for d in gt])
-            tps += np.sum(np.bitwise_and(pred_damages, gt_damages)) # true positive
+            tps += np.sum(np.bitwise_and(pred_damages, gt_damages))  # true positive
             fns += np.sum(np.bitwise_and(np.invert(pred_damages), gt_damages))  # false negative
             fps += np.sum(np.bitwise_and(pred_damages, np.invert(gt_damages)))  # false positive
-            tns += np.sum(np.bitwise_and(np.invert(pred_damages), np.invert(gt_damages)))   # true negative
+            tns += np.sum(np.bitwise_and(np.invert(pred_damages), np.invert(gt_damages)))  # true negative
         tp_rate = tps / (tps + fns) if (tps + fns) > 0 else 0
         fp_rate = tps / (tps + fps) if (tps + fps) > 0 else 0
         tp_rates.append(tp_rate)
         fp_rates.append(fp_rate)
     
-    coords_dict = dict(zip(fp_rates, tp_rates))     # Remove identical instances of x coords  
-    coords = sorted(coords_dict.items(), key=lambda x: x[0])    # Ensure x values are monotonic
+    coords_dict = dict(zip(fp_rates, tp_rates))  # Remove identical instances of x coords  
+    coords = sorted(coords_dict.items(), key=lambda x: x[0])  # Ensure x values are monotonic
     fp_rates, tp_rates = zip(*coords)
     auc = metrics.auc(np.array(fp_rates), np.array(tp_rates))
     return fp_rates, tp_rates, auc
@@ -140,10 +140,10 @@ def get_all_metrics(gold_standard: List[BoundingBox],
         golds = [b for b in gold_standard if b.class_id == c]  # type: List[BoundingBox]
         gt_pred_map = []
 
-        # sort detections by decreasing confidence
+        # Sort detections by decreasing confidence
         preds = sorted(preds, key=lambda b: b.score, reverse=True)
 
-        # create dictionary with amount of gts for each image
+        # Create dictionary with amount of gts for each image
         counter = Counter([cc.image_id for cc in golds])
         for key, val in counter.items():
             counter[key] = np.zeros(val)
@@ -168,13 +168,13 @@ def get_all_metrics(gold_standard: List[BoundingBox],
             if counter[preds[i].image_id][mas_idx] == 0:
                 # Append to output list
                 gt_pred_map.append((gt[mas_idx].damages, preds[i].damages))
-                counter[preds[i].image_id][mas_idx] = 1  # flag as already 'seen'
+                counter[preds[i].image_id][mas_idx] = 1  # Flag as already 'seen'
         
-        # add class result in the dictionary to be returned
+        # Add class result in the dictionary to be returned
         r = MetricPerClass(c, len(golds), len(preds), gt_pred_map)
         ret[c] = r
         
-        # calculate metrics
+        # Calculate metrics
         if 'ap' in metrics:
             print('Calculating AP metrics')
             ap, mpre, mrec, precisions, recalls = get_ap_metrics(gt_pred_map, num_sectors, dmg_threshold)

@@ -16,7 +16,7 @@ from synth_image import SynthImage
 attributes = {
     "damage_type" : "None",
     "tag"    : "-1",  # Set of parameters used to generate damage as string 
-    "damage_ratio"  : 0.0,     # Quantity of damage (0 for no damage, 1 for all damage)
+    "damage_ratio"  : 0.0, # Quantity of damage (0 for no damage, 1 for all damage)
     }
 
 dmg_measure = "pixel_wise"
@@ -136,11 +136,11 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
     # cv.imwrite(os.path.join(output_path, class_num + damage_types[4] + ".png"), dmg4)
     
     # GREY
-    # dmg7 = cv.cvtColor(img, cv.COLOR_BGRA2GRAY)   # Convert to greyscale
+    # dmg7 = cv.cvtColor(img, cv.COLOR_BGRA2GRAY)  # Convert to greyscale
     # # Threshold the image to get a uniform saturation
     # _, dmg7 = cv.threshold(dmg7, 100, 255, cv.THRESH_BINARY)
     # cv.convertScaleAbs(dmg7, dmg7, alpha=1, beta=200)  # No change to contrast, scale brightness
-    # dmg7 = cv.cvtColor(dmg7, cv.COLOR_GRAY2BGRA)   # Convert back to BGRA to add back the alpha channel
+    # dmg7 = cv.cvtColor(dmg7, cv.COLOR_GRAY2BGRA)  # Convert back to BGRA to add back the alpha channel
     # dmg7[:,:,3] = alpha_ch
     # cv.imwrite(os.path.join(output_path, class_num + damage_types[7] + ".png"), dmg7)
     # TODO: Test with exposure_manipulation()
@@ -219,8 +219,8 @@ def remove_hole(img, angle):
 
     radius = int(2 * height / 5)
     rad = -(angle * math.pi / 180)  # Radians
-    x = centre_x + int(radius * math.cos(rad))   # x-coordinate of centre
-    y = centre_y + int(radius * math.sin(rad))   # y-coordinate of centre
+    x = centre_x + int(radius * math.cos(rad))  # x-coordinate of centre
+    y = centre_y + int(radius * math.sin(rad))  # y-coordinate of centre
 
     cv.circle(hole, (x,y), radius, (0,0,0), -1)  # -1 to create a filled circle
     dmg = cv.bitwise_and(dmg, dmg, mask=hole)

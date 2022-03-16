@@ -353,16 +353,6 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             stat3 = ImageStat.Stat(rms_bright2)
             rms2 = stat3.rms[0]
             """
-
-
-            # TODO: DEPRECATED, consider removing
-            #       ALlen: "Don't resize image (waste of processing time)"
-            # avrg_bright = avrg_bright.resize((150,150), Image.ANTIALIAS) #TODO: Shouldn't this be 'sign_width' ?? Check for resizing
-            # rms_bright = rms_bright.resize((150,150), Image.ANTIALIAS)
-            # avrg_bright_perceived = avrg_bright_perceived.resize((150,150), Image.ANTIALIAS)
-            # rms_bright_perceived = rms_bright_perceived.resize((150,150), Image.ANTIALIAS)
-            # # avrg_bright2 = avrg_bright2.resize((150,150), Image.ANTIALIAS)
-            # # rms_bright2 = rms_bright2.resize((150,150), Image.ANTIALIAS)
             
 
             def save_synth(man_img, man_type, original_synth):

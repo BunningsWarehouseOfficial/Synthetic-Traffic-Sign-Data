@@ -6,8 +6,6 @@ and size of the foreground image at the start and end of the sequence, with inte
 the user specified sequence length.
 """
 
-# TODO: Perhaps anchors would be better represented by list of objects?
-# TODO: Progress bar (if needed)
 # FIXME: fg_dir must be preprocessed, i.e. sourced from 2_Processed_Images
 # TODO: Calculate pole length based on size of anchor point and static variable that represents the standard pole length
 #       for the region in question. In GUI draw a line from centre of AP box downwards to show where it will be actually

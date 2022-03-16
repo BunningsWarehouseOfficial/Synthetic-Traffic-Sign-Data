@@ -86,12 +86,12 @@ class Box:
         Intersection Over Union (IOU) is measure based on Jaccard Index that evaluates the overlap between
         two bounding boxes.
         """
-        # if boxes dont intersect
+        # If boxes dont intersect
         if not Box.is_intersecting(box1, box2):
             return 0
         intersection = Box.intersection_area(box1, box2)
         union = Box.union_areas(box1, box2, intersection_area=intersection)
-        # intersection over union
+        # Intersection over union
         iou = intersection / union
         assert iou >= 0, '{} = {} / {}, box1={}, box2={}'.format(iou, intersection, union, box1, box2)
         return iou
@@ -114,7 +114,7 @@ class Box:
         ytl = max(box1.ytl, box2.ytl)
         xbr = min(box1.xbr, box2.xbr)
         ybr = min(box1.ybr, box2.ybr)
-        # intersection area
+        # Intersection area
         return (xbr - xtl) * (ybr - ytl)
 
     @staticmethod
@@ -201,7 +201,7 @@ def get_voc_metrics(gold_standard: List[BoundingBox],
     Returns:
         A dictionary containing metrics of each class.
     """
-    ret = {}  # list containing metrics (precision, recall, average precision) of each class
+    ret = {}  # List containing metrics (precision, recall, average precision) of each class
 
     # Get all classes
     classes = sorted(set(b.class_id for b in gold_standard))
@@ -213,12 +213,12 @@ def get_voc_metrics(gold_standard: List[BoundingBox],
         golds = [b for b in gold_standard if b.class_id == c]  # type: List[BoundingBox]
         npos = len(golds)
 
-        # sort detections by decreasing confidence
+        # Sort detections by decreasing confidence
         preds = sorted(preds, key=lambda b: b.score, reverse=True)
         tps = np.zeros(len(preds))
         fps = np.zeros(len(preds))
 
-        # create dictionary with amount of gts for each image
+        # Create dictionary with amount of gts for each image
         counter = Counter([cc.image_id for cc in golds])
         for key, val in counter.items():
             counter[key] = np.zeros(val)
@@ -253,21 +253,21 @@ def get_voc_metrics(gold_standard: List[BoundingBox],
             if max_iou >= iou_threshold:
                 if counter[preds[i].image_id][mas_idx] == 0:
                     tps[i] = 1  # count as true positive
-                    counter[preds[i].image_id][mas_idx] = 1  # flag as already 'seen'
+                    counter[preds[i].image_id][mas_idx] = 1  # Flag as already 'seen'
                 else:
                     # - A detected "cat" is overlaped with a GT "cat" with IOU >= IOUThreshold.
                     fps[i] = 1  # count as false positive
             else:
                 fps[i] = 1  # count as false positive
                 
-        # compute precision, recall and average precision
+        # Compute precision, recall and average precision
         cumulative_fps = np.cumsum(fps)
         cumulative_tps = np.cumsum(tps)
         recalls = np.divide(cumulative_tps, npos, out=np.full_like(cumulative_tps, np.nan), where=npos != 0)
         precisions = np.divide(cumulative_tps, (cumulative_fps + cumulative_tps))
         # Depending on the method, call the right implementation
         ap, mpre, mrec, _ = calculate_all_points_average_precision(recalls, precisions)
-        # add class result in the dictionary to be returned
+        # Add class result in the dictionary to be returned
         r = MetricPerClass()
         r.class_id = c
         r.precision = precisions

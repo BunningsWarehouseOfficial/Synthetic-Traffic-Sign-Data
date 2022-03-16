@@ -40,7 +40,7 @@ transformed_sign_dir = '../signbreaker/Sign_Templates/4_Transformed'
 damaged_sign_dir = '../signbreaker/Sign_Templates/3_Damaged'
 original_sign_dir = '../signbreaker/Sign_Templates/2_Processed'
 
-COORDS = {'x':0.75, 'y':0.45}   # Default proportional (0-1) sign coordinates in 2D plane
+COORDS = {'x':0.75, 'y':0.45}  # Default proportional (0-1) sign coordinates in 2D plane
 
 
 def create_sequence(bg_img, fg_img, bg_name, fg_name, sequence_id):

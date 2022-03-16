@@ -12,7 +12,7 @@ class SynthImage:
         self.class_num = class_num
 
         self.damage_type = damage_type
-        self.damage_tag = damage_tag  #TODO(old): Turn into dictionary?
+        self.damage_tag = damage_tag
         self.damage_ratio = damage_ratio
         self.sector_damage = sector_damage
 
@@ -104,7 +104,7 @@ class SynthImage:
 
     def __check_transformation(self, transform_type):
         if transform_type < 0:
-            raise TypeError(f"transform_type={transform_type} is invalid: must be >= 0") #TODO(old): Check
+            raise TypeError(f"transform_type={transform_type} is invalid: must be >= 0")
 
     def __check_manipulation(self, man_type):
         if man_type is None:

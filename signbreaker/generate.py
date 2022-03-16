@@ -112,7 +112,7 @@ def paths_list(imgs_directory, bg_directory):
     return directories  # Directory for every single FILE and it's relevant bg FILE
 
 # List of paths for all SGTSD relevant files using fade_manipulation; backgrounds are assigned to 
-def assigned_paths_list(imgs_directory, bg_directory): #TODO: is this the same as above?
+def assigned_paths_list(imgs_directory, bg_directory):  #TODO: is this the same as above?
     directories = []
     for places in load_paths(bg_directory):  # Folder for each place: eg. GTSDB
         for imgs in load_paths(places):  # Iterate through each b.g. image: eg. IMG_0

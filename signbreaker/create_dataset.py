@@ -133,12 +133,12 @@ def main():
         _, filename = ntpath.split(path)
         name, extension = filename.rsplit('.', 1)
         
-        img = scale_image(path, config['sign_width']) # Rescale the image
+        img = scale_image(path, config['sign_width'])  # Rescale the image
         save_path = os.path.join(processed_dir, name) + ".png"
         img.save(save_path)
 
         if not img.mode[-1] == 'A':
-            delete_background(save_path, save_path) # Overwrite the newly rescaled image
+            delete_background(save_path, save_path)  # Overwrite the newly rescaled image
 
     if config['final_op'] == 'process':
         return
