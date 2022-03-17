@@ -8,7 +8,7 @@ import math
 from PIL import Image, ImageOps
 
 def load_paths(directory, ignored=['.npy']):
-    """Returns a list with the paths of all files in the directory"""
+    """Returns a list with the paths of all files in the directory."""
     paths = []
     for filename in os.listdir(directory):  # Retrieve names of files in directory
         # Concatenate filename with directory path, ignoring hidden files
@@ -19,7 +19,7 @@ def load_paths(directory, ignored=['.npy']):
     return paths
 
 def load_files(directory, ignored=['.npy']):
-    """Returns a list with the paths of all non-directory files in the directory"""
+    """Returns a list with the paths of all non-directory files in the directory."""
     paths = []
     for filename in os.listdir(directory):  # Retrieve names of files in directory
         # Concatenate filename with directory path, ignoring hidden files and directories
@@ -30,7 +30,7 @@ def load_files(directory, ignored=['.npy']):
     return paths
 
 def dir_split(path):
-    """Imitates the functionality of path.split('/') while using os.path.split"""
+    """Imitates the functionality of path.split('/') while using os.path.split."""
     # Source: https://stackoverflow.com/a/3167684/12350950
     folders = []
     while True:
@@ -65,8 +65,8 @@ def scale_image(image_path, width):
     return new_img
 
 def create_alpha(img, alpha_channel):
-    """Returns an alpha channel that matches the white background \n
-    Based on Alexandros Stergiou's find_borders() function"""
+    """Returns an alpha channel that matches the white background.\n
+    Based on Alexandros Stergiou's find_borders() function."""
 
     # Read and decode the image contents for pixel access
     pix = img.load()
@@ -100,17 +100,17 @@ def create_alpha(img, alpha_channel):
     return alpha_channel
 
 def delete_background(image_path, save_path):
-    """Deletes the white background from the original sign
-    Based on Alexandros Stergiou's manipulate_images() function"""
+    """Deletes the white background from the original sign.\n
+    Based on Alexandros Stergiou's manipulate_images() function."""
     # Open the image using PIL (don't read contents yet)
     img = Image.open(image_path)
-    img = img.convert('RGB')  # Does this have any effect??
+    img = img.convert('RGB')  # TODO: Does this have any effect??
 
     # Open the image again using OpenCV and split into its channels
     image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
     channels = cv2.split(image)
 
-    # Create a fully opaque alpha channel, same dimentions and dtype as the image
+    # Create a fully opaque alpha channel, same dimensions and dtype as the image
     # create_alpha() modifies it to make the white background transparent
     alpha_channel = np.ones(channels[0].shape, dtype=channels[0].dtype) * 255
     alpha_channel = create_alpha(img, alpha_channel)
@@ -118,12 +118,16 @@ def delete_background(image_path, save_path):
     # Merge alpha channel into original image
     image_RGBA = cv2.merge((channels[0], channels[1], channels[2], alpha_channel))
 
-    cv2.imwrite(save_path, image_RGBA)
+    # Mask the image so that deleted, invisible background pixels are black instead of white
+    # This is crucial to accurate damage values, as damage functions also use this masking function and will turn those
+    # pixels black anyway, artificially inflating all damage values when using the structural similarity measure
+    image_RGBA = cv2.bitwise_and(image_RGBA, image_RGBA, mask=alpha_channel)
 
+    cv2.imwrite(save_path, image_RGBA)
     img.close()
 
 def to_png(directory):
-    """Convert all files in 'directory' to PNG images"""
+    """Convert all files in 'directory' to PNG images."""
     for files in load_paths(directory):
         title, extension = files.split('.')
         img = Image.open(files).convert('RGBA')
@@ -177,7 +181,7 @@ def resize(img1, img2):
 
 
 def add_pole(filename, color):
-    """Adds a pole to the imported sign"""
+    """Adds a pole to the imported sign."""
     img = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
     # Retrieve image dimentions and calculate the new height
     height, width, _ = img.shape  # Discard channel
@@ -453,8 +457,7 @@ def calc_damage_sectors(new, original, num_sectors=4, method='pixel_wise'):
         dmg = calc_damage(new_img_sectors[i], original_img_sectors[i], method=method)
         ratios.append(max(min(dmg, 1.0), 0.0))
 
-    ## For debug visualisations
-    # Reconstruct a 2D matrix of the damage in each sector of the grid
+    ## For debug visualisations (reconstruct 2D matrix of damage in each sector of grid)
     print(np.reshape(ratios, (int(math.sqrt(len(ratios))), int(math.sqrt(len(ratios))))))
     ##
     

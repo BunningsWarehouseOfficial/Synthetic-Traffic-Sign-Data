@@ -166,12 +166,12 @@ def validate_sign(img):
 def no_damage(img):
     """Return the image as is, along with its attributes."""
     dmg = validate_sign(img)
-    height, width, _ = img.shape
+    # dmg = cv.bitwise_and(img, img, mask=dmg[:,:,3])
 
     # Assign labels
     att = attributes
-    att["damage_type"] = "no_damage"
-    att["tag"]    = ""
+    att["damage_type"]   = "no_damage"
+    att["tag"]           = ""
     att["damage_ratio"]  = str(calc_damage(dmg, img, dmg_measure))  # This should be 0
     att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
 
@@ -190,20 +190,20 @@ def remove_quadrant(img, quad_num=-1):
         quad_num = rand.randint(1, 4)
     # Remove the quadrant: -1 offset is necessary to avoid damaging part of a wrong quadrant
     if quad_num == 1:         # top-right          centre
-        cv.rectangle(quadrant, (width, 0), (centre_x, centre_y-1), (0,0,0), -1)
+        cv.rectangle(quadrant, (width, 0), (centre_x, centre_y-1), 0, thickness=-1)
     elif quad_num == 2:       # top-left           centre
-        cv.rectangle(quadrant, (0, 0), (centre_x-1, centre_y-1), (0,0,0), -1)
+        cv.rectangle(quadrant, (0, 0), (centre_x-1, centre_y-1), 0, thickness=-1)
     elif quad_num == 3:       # bottom-left        centre
-        cv.rectangle(quadrant, (0, height), (centre_x-1, centre_y), (0,0,0), -1)
+        cv.rectangle(quadrant, (0, height), (centre_x-1, centre_y), 0, thickness=-1)
     elif quad_num == 4:       # bottom-right       centre
-        cv.rectangle(quadrant, (width, height), (centre_x, centre_y), (0,0,0), -1)
+        cv.rectangle(quadrant, (width, height), (centre_x, centre_y), 0, thickness=-1)
     
     dmg = cv.bitwise_and(img, img, mask=quadrant)
 
     # Assign labels
     att = attributes
-    att["damage_type"] = "quadrant"
-    att["tag"]    = str(quad_num)
+    att["damage_type"]   = "quadrant"
+    att["tag"]           = str(quad_num)
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))  # This should be around 0.25
     att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
 
@@ -229,8 +229,8 @@ def remove_hole(img, angle):
 
     # Assign labels
     att = attributes
-    att["damage_type"] = "big_hole"
-    att["tag"]    = str(int(angle))
+    att["damage_type"]   = "big_hole"
+    att["tag"]           = str(int(angle))
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
     att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
 
@@ -262,7 +262,7 @@ def bullet_holes(img, num_holes=40, target=-1):
             # Paint the ring around the bullet hole first
             cv.circle(painted, (x,y), int(size * annulus), (an,an,an,255), -1)
             # If the bullet didn't penetrate through the sign, grey out rather than making transparent
-            if (size < 6):  #TODO: Make relative to image width
+            if (size < 6):  # TODO: Make relative to image width
                 cv.circle(painted, (x,y), size, (hl,hl,hl,255), -1)
             else:
                 cv.circle(bullet_holes, (x,y), size, (0,0,0), -1)
@@ -287,7 +287,7 @@ def bullet_holes(img, num_holes=40, target=-1):
             # Paint the ring around the bullet hole first
             cv.circle(painted, (x,y), int(size * annulus), (an,an,an,255), -1)
             # If the bullet didn't penetrate through the sign, grey out rather than making transparent
-            if (size < 6):  #TODO: Make relative to image width
+            if (size < 6):  # TODO: Make relative to image width
                 cv.circle(painted, (x,y), size, (hl,hl,hl,255), -1)
             else:
                 cv.circle(bullet_holes, (x,y), size, (0,0,0), -1)
@@ -297,8 +297,8 @@ def bullet_holes(img, num_holes=40, target=-1):
 
     # Assign labels
     att = attributes
-    att["damage_type"] = "bullet_holes"
-    att["tag"]    = str(num_holes)
+    att["damage_type"]   = "bullet_holes"
+    att["tag"]           = str(num_holes)
     att["damage_ratio"]  = "{:.3f}".format(ratio)
     att["sector_damage"] = calc_damage_sectors(painted, img, method=dmg_measure, num_sectors=num_sectors)
 
@@ -381,8 +381,8 @@ def graffiti(img, target=0.2, color=(0,0,0)):
     
     # Assign labels
     att = attributes
-    att["damage_type"] = "graffiti"
-    att["tag"]    = str(round(target, 3))
+    att["damage_type"]   = "graffiti"
+    att["tag"]           = str(round(target, 3))
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
     att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
     return dmg, att
@@ -394,19 +394,19 @@ def combine(img1, img2, beta_diff=-20):
     """Combine the left half of img1 with right half of img2 and returns the result."""
     _,wd,_ = img1.shape
     result = img1.copy()
-    right = img2.copy()
+    right  = img2.copy()
     # Save the alpha data (to replace later), as convertScaleAbs() will affect the transparency
     result_alpha = cv.split(result)[3]
-    right_alpha = cv.split(right)[3]
+    right_alpha  = cv.split(right)[3]
     
     # Darken the entire image of the copy
     alpha = 1  # No change to contrast
-    beta = beta_diff / 2  # Decrease brightness
+    beta  = beta_diff / 2  # Decrease brightness
     cv.convertScaleAbs(result, result, alpha, beta)
     cv.convertScaleAbs(right, right, alpha, -beta)
     # Replace the alpha data
     result[:,:,3] = result_alpha
-    right[:,:,3] = right_alpha
+    right[:,:,3]  = right_alpha
     
     # Copy over the right half of img2 onto the darkened image
     result[:,wd//2:wd] = right[:,wd//2:wd]
@@ -464,8 +464,8 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
         dmg = pad(dmg, pad_h, pad_w)
         
         att = attributes
-        att["damage_type"] = "bend"
-        att["tag"]    = "{}".format(bend_angle)
+        att["damage_type"]   = "bend"
+        att["tag"]           = "{}".format(bend_angle)
         att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, original, dmg_measure))
         att["sector_damage"] = calc_damage_sectors(dmg, original, method=dmg_measure, num_sectors=num_sectors)
         return dmg, att
