@@ -427,44 +427,22 @@ def calc_damage_ssim(new, original):
     from skimage.metrics import structural_similarity as compare_ssim
     grayA = cv2.cvtColor(new, cv2.COLOR_BGR2GRAY)
     grayB = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
+    # TODO: full=True but full ssim image return isn't used? Set to false and check calc speed difference?
     score, _ = compare_ssim(grayA, grayB, win_size=3, full=True)
-    return 1 - (score + 1) / 2
-
-
-# TODO: DEPRECATED, consider removing in future
-# def calc_damage_quadrants(new, original, method='ssim'):
-#     """Calculate the ratio of damaged pixels between two versions of the same image for each quadrant."""
-#     height, width, _ = original.shape
-#     centre_x = int(round( width / 2 ))
-#     centre_y = int(round( height / 2 ))
-
-#     # Divide both images into quadrants
-#     new_I   = new[0:centre_y, centre_x:width]
-#     new_II  = new[0:centre_y, 0:centre_x]
-#     new_III = new[centre_y:height, 0:centre_x]
-#     new_IV  = new[centre_y:height, centre_x:width]
-#     original_I   = original[0:centre_y, centre_x:width]
-#     original_II  = original[0:centre_y, 0:centre_x]
-#     original_III = original[centre_y:height, 0:centre_x]
-#     original_IV  = original[centre_y:height, centre_x:width]
-
-#     if method=='pixel_wise':
-#         ratio_I   = calc_damage(new_I, original_I, method=method)
-#         ratio_II  = calc_damage(new_II, original_II, method=method)
-#         ratio_III = calc_damage(new_III, original_III, method=method)
-#         ratio_IV  = calc_damage(new_IV, original_IV, method=method)
-#     return [ratio_I, ratio_II, ratio_III, ratio_IV]
+    # return 1 - (score + 1) / 2  # TODO: Revisit
+    return 1 - score
 
 
 # TODO: num_damage_sectors, which should be equal to the eponymous config parameter, isn't used by any functions yet
-def calc_damage_sectors(new, original, num_damage_sectors=4, method='pixel_wise'):
+def calc_damage_sectors(new, original, num_sectors=4, method='pixel_wise'):
     """Calculates a list of damage ratios for an arbitrary number of sectors.
-    Call np.reshape(ratios, (math.sqrt(len(ratios)), math.sqrt(len(ratios)))) to reconstruct the 2D sector damage array.
+    Each 'sector' is a cell in a grid, so `num_damage_sectors` must be a perfect square.
+    Call `np.reshape(ratios, (math.sqrt(len(ratios)), math.sqrt(len(ratios))))` to reconstruct the 2D sector damage array.
     The ordering of damages for 4 sectors is [tl, tr, bl, br].
     """
-    l = math.sqrt(num_damage_sectors)
+    l = math.sqrt(num_sectors)
     if l != int(l):
-        raise ValueError('num_damage_sectors must be a perfect square')
+        raise ValueError("'num_damage_sectors' must be a perfect square")
     m = math.ceil(new.shape[0] / l)
     n = math.ceil(new.shape[1] / l)
     get_sectors = lambda im: [im[r:r+m,c:c+n] for r in range(0,im.shape[0],m) for c in range(0,im.shape[1],n)]
@@ -474,6 +452,12 @@ def calc_damage_sectors(new, original, num_damage_sectors=4, method='pixel_wise'
     for i in range(len(new_img_sectors)):
         dmg = calc_damage(new_img_sectors[i], original_img_sectors[i], method=method)
         ratios.append(max(min(dmg, 1.0), 0.0))
+
+    ## For debug visualisations
+    # Reconstruct a 2D matrix of the damage in each sector of the grid
+    print(np.reshape(ratios, (int(math.sqrt(len(ratios))), int(math.sqrt(len(ratios))))))
+    ##
+    
     return ratios
 
 

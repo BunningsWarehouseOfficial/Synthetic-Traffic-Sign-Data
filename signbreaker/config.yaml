@@ -55,10 +55,10 @@ annotations:
   type: 'coco'  # Either 'retinanet' or 'coco'
   damage_labelling: True
 
-# Number of sectors on each sign, over which damage is calculated
-num_damage_sectors: 4  # TODO: Not yet used by program
-# Use structural similarity (ssim) or pixel-wise obscurity (pixel_wise) to calculate sign damage
-damage_measure_method: 'pixel_wise'     
+# Number of grid cell sectors on each sign, over which damage is calculated
+num_damage_sectors: 9  # Must be a perfect square
+# Use structural similarity ('ssim') or pixel-wise obscurity ('pixel_wise') to calculate sign damage
+damage_measure_method: 'pixel_wise'  # FIXME: 'ssim' currently shouldn't be used
 
 # A setting that uses an algorithm to find the light source locations and intensities
 # in each background image, and adjusts relative exposure between bent and unbent portions of

@@ -20,6 +20,7 @@ attributes = {
     }
 
 dmg_measure = "pixel_wise"
+num_sectors = 4
 
 
 def damage_image(image_path, output_dir, config, backgrounds=[]):
@@ -39,6 +40,7 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
 
     num_damages = config['num_damages']
     global dmg_measure; dmg_measure = config['damage_measure_method']
+    global num_sectors; num_sectors = config['num_damage_sectors']
 
     def apply_damage(dmg, att):
         """Helper function to avoid repetition."""
@@ -171,7 +173,7 @@ def no_damage(img):
     att["damage_type"] = "no_damage"
     att["tag"]    = ""
     att["damage_ratio"]  = str(calc_damage(dmg, img, dmg_measure))  # This should be 0
-    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure)
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
 
     return dmg, att
 
@@ -203,7 +205,7 @@ def remove_quadrant(img, quad_num=-1):
     att["damage_type"] = "quadrant"
     att["tag"]    = str(quad_num)
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))  # This should be around 0.25
-    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure)
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
 
     return dmg, att
 
@@ -230,7 +232,7 @@ def remove_hole(img, angle):
     att["damage_type"] = "big_hole"
     att["tag"]    = str(int(angle))
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
-    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure)
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
 
     return dmg, att
 
@@ -298,7 +300,7 @@ def bullet_holes(img, num_holes=40, target=-1):
     att["damage_type"] = "bullet_holes"
     att["tag"]    = str(num_holes)
     att["damage_ratio"]  = "{:.3f}".format(ratio)
-    att["sector_damage"] = calc_damage_sectors(painted, img, method=dmg_measure)
+    att["sector_damage"] = calc_damage_sectors(painted, img, method=dmg_measure, num_sectors=num_sectors)
 
     return dmg, att
 
@@ -382,7 +384,7 @@ def graffiti(img, target=0.2, color=(0,0,0)):
     att["damage_type"] = "graffiti"
     att["tag"]    = str(round(target, 3))
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
-    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure)
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
     return dmg, att
 
 
@@ -465,7 +467,7 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
         att["damage_type"] = "bend"
         att["tag"]    = "{}".format(bend_angle)
         att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, original, dmg_measure))
-        att["sector_damage"] = calc_damage_sectors(dmg, original, method=dmg_measure)
+        att["sector_damage"] = calc_damage_sectors(dmg, original, method=dmg_measure, num_sectors=num_sectors)
         return dmg, att
         
     opt = rand.choice(["left", "right", "both"])
