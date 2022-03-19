@@ -428,12 +428,12 @@ def calc_damage_ssim(new, original):
     image similarity. Also, it is less impacted by image distortion (e.g. bending) since n x n blocks are compared
     rather than individual pixels.
     """
+    # https://scikit-image.org/docs/0.18.x/api/skimage.metrics.html?highlight=compare_ssim#structural-similarity
     from skimage.metrics import structural_similarity as compare_ssim
+    
     grayA = cv2.cvtColor(new, cv2.COLOR_BGR2GRAY)
     grayB = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
-    # TODO: full=True but full ssim image return isn't used? Set to false and check calc speed difference?
-    score, _ = compare_ssim(grayA, grayB, win_size=3, full=True)
-    # return 1 - (score + 1) / 2  # TODO: Revisit
+    score = compare_ssim(grayA, grayB, win_size=3)
     return 1 - score
 
 
@@ -458,7 +458,7 @@ def calc_damage_sectors(new, original, num_sectors=4, method='pixel_wise'):
         ratios.append(max(min(dmg, 1.0), 0.0))
 
     ## For debug visualisations (reconstruct 2D matrix of damage in each sector of grid)
-    print(np.reshape(ratios, (int(math.sqrt(len(ratios))), int(math.sqrt(len(ratios))))))
+    # print(np.reshape(ratios, (int(math.sqrt(len(ratios))), int(math.sqrt(len(ratios))))))
     ##
     
     return ratios

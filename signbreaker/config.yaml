@@ -58,9 +58,9 @@ annotations:
 # Number of grid cell sectors on each sign, over which damage is calculated
 num_damage_sectors: 4  # Must be a perfect square
 # 'ssim' will calculate structural difference relative to all pixels in each image/sector
-# TODO: are 'ssim' too low, given its relative to all pixels? Means it's dependent on sign shape (e.g. circle: 0.7)
+#      This means damage values will be dependent on the shape of the sign
 # 'pixel_wise' will calculate the pixel-by-pixel difference only for pixels part of the original sign (i.e. visible)
-damage_measure_method: 'ssim'
+damage_measure_method: 'pixel_wise'
 
 # A setting that uses an algorithm to find the light source locations and intensities
 # in each background image, and adjusts relative exposure between bent and unbent portions of

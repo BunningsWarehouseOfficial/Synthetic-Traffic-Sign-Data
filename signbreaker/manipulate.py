@@ -222,8 +222,51 @@ def find_image_exposures(paths, channels, descriptor="sign"):
     print(f"Calculating {descriptor} exposures: 100.0%\r")
     return exposures
 
+def gamma_manipulation(transformed_data, background_paths, exp_dir):
+    sign_paths = [transformed.fg_path for transformed in transformed_data]
+    
+    manipulated_images = []
+    for ii in range(len(sign_paths)):
+        original = transformed_data[ii]
+        sign_path = sign_paths[ii]
+
+        print(f"Manipulating signs: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
+        for jj in range(0, len(background_paths)):
+            bg_path = background_paths[jj]
+
+            _, sub, el = dir_split(bg_path)
+            title, _ = el.rsplit('.', 1)
+
+            _, _, sign_dir, dmg_dir, element = dir_split(sign_path)
+            head, tail = element.rsplit('.', 1)
+
+            img = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
+
+            def save_synth(man_img, man_type, original_synth):
+                save_dir = os.path.join(exp_dir, sub, "BG_" + title, "SIGN_" + sign_dir, dmg_dir)
+                os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
+                save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
+                cv2.imwrite(save_path, man_img)
+                man_image = original_synth.clone()
+                man_image.fg_path = save_path
+                man_image.set_manipulation(man_type)
+                man_image.bg_path = bg_path
+                return man_image
+            
+            gammas = [0.2, 0.4, 0.67, 1.0, 1.5, 3.0, 5.0]  # Using 3.0 and not 2.5 because the latter was not noticeable
+            for g in gammas:
+                # Adapted from: https://docs.opencv.org/3.4/d3/dc1/tutorial_basic_linear_transform.html
+                g_lookup = np.empty((1,256), np.uint8)
+                for i in range(256):
+                    g_lookup[0,i] = np.clip(pow(i / 255.0, g) * 255.0, 0, 255)
+
+                manipulated_images.append(save_synth(cv2.LUT(img, g_lookup), f"gamma_{g}", original))
+
+    print("Manipulating signs: 100.0%\r\n")
+    return manipulated_images
+
 def exposure_manipulation(transformed_data, background_paths, exp_dir):
-    """Manipulates the exposure of each provided sign to match the exposure of the backgrond image.
+    """Manipulates the exposure of each provided sign to match the exposure of the background image.
     Originally authored by Alexandros Stergiou, extended by Kristian Rados."""
     background_exposures = find_image_exposures(background_paths, 4, "background")
 
@@ -235,17 +278,16 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
         sign_path = sign_paths[ii]
         
         print(f"Manipulating signs: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
-        
         for jj in range(0, len(background_paths)):
             bg_path = background_paths[jj]
 
             if original.bg_path is not None and original.bg_path != bg_path:
                 continue
 
-            _, sub, el = dir_split(background_exposures[jj][0])
+            _, sub, el = dir_split(bg_path)
             title, _ = el.rsplit('.', 1)
 
-            _, _, folder, folder2, element = dir_split(sign_path)
+            _, _, sign_dir, dmg_dir, element = dir_split(sign_path)
             head, tail = element.rsplit('.', 1)
 
             
@@ -309,7 +351,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             avrg_bright_perceived = enhancer.enhance(brightness_avrg_perceived)
             stat2 = ImageStat.Stat(avrg_bright_perceived)
             r, g ,b, _ = stat2.mean
-            avrg_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))     
+            avrg_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))
 
 
             # MINIMISE MARGIN BASED ON RMS FOR RGBA ("PERCEIVED BRIGHNESS")
@@ -325,7 +367,7 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             rms_bright_perceived = enhancer.enhance(brightness_rms_perceived)
             stat2 = ImageStat.Stat(rms_bright_perceived)
             r, g, b, _ = stat2.rms
-            rms_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))        
+            rms_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))
 
             
             stat3 = ImageStat.Stat(peak2)
@@ -333,18 +375,15 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             rms2 = stat3.rms[0]
 
 
-            """
             #FUSION OF THE TWO AVERAGING METHODS
             margin = abs(avrg2-float(background_exposures[jj][1]))
-            brightness_avrg2 = margin/avrg2_ratio 
+            brightness_avrg2 = margin/avrg2_ratio
             enhancer = ImageEnhance.Brightness(peak2)
             avrg_bright2 = enhancer.enhance(brightness_avrg2)
             stat3 = ImageStat.Stat(avrg_bright2)
-            avrg2 = stat3.mean[0]       
-            """
+            avrg2 = stat3.mean[0]
             
             
-            """
             #FUSION OF THE TWO RMS METHODS
             margin = abs(rms2-float(background_exposures[jj][2]))
             brightness_rms2 = margin/rms2_ratio 
@@ -352,11 +391,10 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             rms_bright2 = enhancer.enhance(brightness_rms2)
             stat3 = ImageStat.Stat(rms_bright2)
             rms2 = stat3.rms[0]
-            """
             
 
             def save_synth(man_img, man_type, original_synth):
-                save_dir = os.path.join(exp_dir, sub, "BG_" + title, "SIGN_" + folder, folder2)
+                save_dir = os.path.join(exp_dir, sub, "BG_" + title, "SIGN_" + sign_dir, dmg_dir)
                 os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
                 save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
                 man_img.save(save_path)
@@ -370,8 +408,8 @@ def exposure_manipulation(transformed_data, background_paths, exp_dir):
             manipulated_images.append(save_synth(rms_bright,            'RMS', original))
             manipulated_images.append(save_synth(avrg_bright_perceived, 'AVERAGE_PERCEIVED', original))
             manipulated_images.append(save_synth(rms_bright_perceived,  'RMS_PERCEIVED', original))
-            # manipulated_images.append(save_synth(avrg_bright2,          'AVERAGE2', original))
-            # manipulated_images.append(save_synth(rms_bright2,           'RMS2', original))
+            manipulated_images.append(save_synth(avrg_bright2,          'AVERAGE2', original))
+            manipulated_images.append(save_synth(rms_bright2,           'RMS2', original))
     print("Manipulating signs: 100.0%\r\n")
     return manipulated_images
 

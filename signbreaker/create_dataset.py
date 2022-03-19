@@ -76,10 +76,6 @@ def main():
     
     if not config['reuse_data']['damage'] and config['reuse_data']['manipulate']:
         raise ValueError("Config error: 'reuse_data:damage' must be true if 'reuse_data:manipulate' is true.\n")
-    if config['reuse_data']['damage'] and not os.path.exists(os.path.join(damaged_dir, 'damaged_data.npy')):
-        raise FileNotFoundError('Config error: damaged_data.npy does not exist. Cannot re-use data\n')
-    if config['reuse_data']['manipulate'] and not os.path.exists(os.path.join(manipulated_dir, 'manipulated_data.npy')):
-        raise FileNotFoundError('Config error: manipulated_data.npy does not exist. Cannot re-use data\n')
 
     print("Generating dataset using the 'config.yaml' configuration.\n")
 
@@ -92,6 +88,11 @@ def main():
     manipulated_dir = os.path.join(base_dir, "5_Manipulated")
     bg_dir    = "Backgrounds"
     final_dir = args.output_dir
+
+    if config['reuse_data']['damage'] and not os.path.exists(os.path.join(damaged_dir, 'damaged_data.npy')):
+        raise FileNotFoundError('Config error: damaged_data.npy does not exist. Cannot re-use data\n')
+    if config['reuse_data']['manipulate'] and not os.path.exists(os.path.join(manipulated_dir, 'manipulated_data.npy')):
+        raise FileNotFoundError('Config error: manipulated_data.npy does not exist. Cannot re-use data\n')
 
     # Create the output directories if they don't exist already
     if not os.path.exists(base_dir):
@@ -170,7 +171,7 @@ def main():
         np.save(data_file_path, damaged_data, allow_pickle=True)
     elif os.path.exists(data_file_path):
         damaged_data = np.load(os.path.join(damaged_dir, "damaged_data.npy"), allow_pickle=True)
-        print("Reusing pre-existing damaged signs")
+        print("Reusing pre-existing damaged signs.\n")
     else:
         raise FileNotFoundError(f"Error: Damaged data file does not exist - cannot reuse.\n")
 
@@ -217,8 +218,9 @@ def main():
         background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True)
             
         if config['man_method'] == 'exposure':
-            manipulated_data = manipulate.exposure_manipulation(transformed_data, background_paths, manipulated_dir)
-            manipulate.find_useful_signs(manipulated_data, manipulated_dir, damaged_dir)
+            manipulated_data = manipulate.gamma_manipulation(transformed_data, background_paths, manipulated_dir)
+            # manipulated_data = manipulate.exposure_manipulation(transformed_data, background_paths, manipulated_dir)
+            # manipulate.find_useful_signs(manipulated_data, manipulated_dir, damaged_dir)
         else:
             raise NotImplementedError('Only exposure method is currently implemented')
             # manipulated_data = manipulate.fade_manipulation(transformed_data, background_paths, manipulated_dir)
@@ -228,7 +230,7 @@ def main():
         np.save(data_file_path, manipulated_data, allow_pickle=True)
     else:
         manipulated_data = np.load(data_file_path, allow_pickle=True)
-        print("Reusing pre-existing manipulated signs")
+        print("Reusing pre-existing manipulated signs.\n")
     
     # Prune dataset by randomly sampling from manipulated images
     if config['prune_dataset']['prune']:
