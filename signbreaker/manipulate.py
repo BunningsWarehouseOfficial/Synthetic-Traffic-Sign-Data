@@ -10,6 +10,7 @@ import os
 import math
 from utils import load_paths, dir_split
 from PIL import Image, ImageStat, ImageEnhance
+from PIL import __name__ as PIL_name
 import random
 
 
@@ -269,9 +270,10 @@ class AbstractManipulation(ABC):
         save_dir = os.path.join(self.out_dir, sub, "BG_" + title, "SIGN_" + sign_dir, dmg_dir)
         os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
         save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
-        if type(man_img) == 'numpy.ndarray':
+        if 'numpy' in type(man_img).__module__:
             cv2.imwrite(save_path, man_img)
-        # elif   #TODO
+        elif 'PIL' in type(man_img).__module__:
+            man_img.save(save_path)
         man_image = self.original_synth.clone()
         man_image.fg_path = save_path
         man_image.set_manipulation(man_type)
