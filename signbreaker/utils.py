@@ -428,7 +428,6 @@ def calc_damage_ssim(new, original):
     image similarity. Also, it is less impacted by image distortion (e.g. bending) since n x n blocks are compared
     rather than individual pixels.
     """
-    # https://scikit-image.org/docs/0.18.x/api/skimage.metrics.html?highlight=compare_ssim#structural-similarity
     from skimage.metrics import structural_similarity as compare_ssim
     
     grayA = cv2.cvtColor(new, cv2.COLOR_BGR2GRAY)

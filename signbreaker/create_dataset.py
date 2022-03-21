@@ -17,8 +17,9 @@ def main():
 
     from bg_image import BgImage
     from damage import damage_image
-    from utils import load_paths, load_files, scale_image, delete_background, to_png, dir_split
+    from utils import load_paths, load_files, scale_image, delete_background, to_png
     import manipulate
+    from manipulate import ExposureMan, GammaMan, HistogramMan, FadeMan
     import generate
     
     current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -39,7 +40,12 @@ def main():
 
     # Input validation of config file
     valid_final = ['process', 'damage', 'transform', 'manipulate', 'dataset']
-    valid_man = ['exposure', 'fade']
+    man_methods = {
+        'exposure': ExposureMan(),
+        'gamma': GammaMan(),
+        'histogram': HistogramMan(),
+        'fade': FadeMan()
+    }
     valid_dmg = ['original', 'quadrant', 'big_hole', 'bullet_holes', 'graffiti', 'bend', 'tinted_yellow', 'grey']
     valid_ann = ['retinanet', 'coco']
     valid_dmg_methods = ['ssim', 'pixel_wise']
@@ -49,8 +55,8 @@ def main():
         raise ValueError(f"Config error: '{config['final_op']}' is an invalid final_op value.\n")
     if config['num_transform'] < 0 or config['num_transform'] > 15:
         raise ValueError("Config error: must have 0 <= 'num_transform' <= 15.\n")
-    if not config['man_method'] in valid_man:
-        raise ValueError(f"Config error: 'man_method' must be either '{valid_man[0]}' or '{valid_man[1]}'.\n")
+    if not config['man_method'] in man_methods:
+        raise ValueError(f"Config error: '{config['man_method']}' is an invalid manipulation type.\n")
     for dmg in config['num_damages']:
         if not dmg in valid_dmg:
             raise ValueError(f"Config error: '{dmg}' is an invalid damage type.\n")
@@ -216,14 +222,11 @@ def main():
             to_png(bg_folders)
             
         background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True)
-            
-        if config['man_method'] == 'exposure':
-            manipulated_data = manipulate.gamma_manipulation(transformed_data, background_paths, manipulated_dir)
-            # manipulated_data = manipulate.exposure_manipulation(transformed_data, background_paths, manipulated_dir)
-            # manipulate.find_useful_signs(manipulated_data, manipulated_dir, damaged_dir)
-        else:
-            raise NotImplementedError('Only exposure method is currently implemented')
-            # manipulated_data = manipulate.fade_manipulation(transformed_data, background_paths, manipulated_dir)
+        
+        method = config['man_method']
+        manipulated_data = man_methods[method].manipulate(transformed_data, background_paths, manipulated_dir)
+        if method == 'exposure':
+            manipulate.find_useful_signs(manipulated_data, damaged_dir)
 
         # Delete SynthImage objects for any signs that were removed
         manipulated_data[:] = [x for x in manipulated_data if os.path.exists(x.fg_path)]

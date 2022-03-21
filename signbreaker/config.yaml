@@ -7,7 +7,7 @@ final_op: dataset  # Either 'process', 'damage', 'transform', 'manipulate', or '
 # The number of transformations applied to each damaged sign template
 num_transform: 6  # Range: [0,15] | low: [1,5], medium: [6,10], high: [11,15]
 
-# Method of image manipulation: either 'exposure' or 'fade' (not implemented)
+# Method of image manipulation: either 'exposure', 'gamma', or 'histogram' (somewhat broken)
 man_method: exposure
 
 # The number of damages applied via each method
