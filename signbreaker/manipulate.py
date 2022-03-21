@@ -2,7 +2,7 @@
 # Extended from original code by Alexandros Stergiou:
 # (https://github.com/alexandrosstergiou/Traffic-Sign-Recognition-basd-on-Synthesised-Training-Data)
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 import cv2
 import numpy as np
 import ntpath
@@ -12,6 +12,11 @@ from utils import load_paths, dir_split
 from PIL import Image, ImageStat, ImageEnhance
 import random
 
+
+
+##################################
+###  TRANSFORMATION FUNCTIONS  ###
+##################################
 def img_transform(damaged_image, output_path, num_transform):
     """Creates and saves different angles of the imported image.
     Originally authored by Alexandros Stergiou."""
@@ -183,286 +188,238 @@ def img_transform(damaged_image, output_path, num_transform):
     return transformed_images
 
 
-def find_image_exposures(paths, channels, descriptor="sign"):
+################################
+###  MANIPULATION FUNCTIONS  ###
+################################
+def find_image_exposures(paths, n_channels, descriptor="sign"):
     """Determines the level of exposure for each image in the provided paths.
     Originally authored by Alexandros Stergiou."""
     ii = 0
     exposures = []
     for image_path in paths:
         print(f"Calculating {descriptor} exposures: {float(ii) / float(len(paths)):06.2%}", end='\r')
-        img_grey = Image.open(image_path).convert('LA')  # Greyscale with alpha
-        img_rgba = Image.open(image_path)
-        
-        stat1 = ImageStat.Stat(img_grey)
-        # Average pixel brighness
-        avg = stat1.mean[0]
-        # RMS pixel brighness
-        rms = stat1.rms[0]
-        
-        stat2 = ImageStat.Stat(img_rgba)
-        # Consider the number of channels
-        # Background may have RGB while traffic sign has RGBA
-        if (channels == 3):
-            # Average pixels preceived brightness
-            r,g,b = stat2.mean
-            avg_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
-            # RMS pixels perceived brightness
-            r,g,b = stat2.rms
-            rms_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
-        else:
-            # Average pixels preceived brightness
-            r,g,b,a = stat2.mean
-            avg_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
-            # RMS pixels perceived brightness
-            r,g,b,a = stat2.rms
-            rms_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2)) 
-        exposures.append( [image_path,avg,rms,avg_perceived,rms_perceived] )
+        exposures.append(find_image_exposure(image_path, n_channels))
 
         ii += 1
 
     print(f"Calculating {descriptor} exposures: 100.0%\r")
     return exposures
 
+def find_image_exposure(image_path, n_channels):
+    img_grey = Image.open(image_path).convert('LA')  # Greyscale with alpha
+    img_rgba = Image.open(image_path)
+    
+    stat1 = ImageStat.Stat(img_grey)
+    # Average pixel brighness
+    avg = stat1.mean[0]
+    # RMS pixel brighness
+    rms = stat1.rms[0]
+    
+    stat2 = ImageStat.Stat(img_rgba)
+    # Consider the number of channels
+    # Background may have RGB while traffic sign has RGBA
+    if (n_channels == 3):
+        # Average pixels preceived brightness
+        r,g,b = stat2.mean
+        avg_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
+        # RMS pixels perceived brightness
+        r,g,b = stat2.rms
+        rms_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
+    else:
+        # Average pixels preceived brightness
+        r,g,b,a = stat2.mean
+        avg_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
+        # RMS pixels perceived brightness
+        r,g,b,a = stat2.rms
+        rms_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2)) 
+    return [image_path, avg, rms, avg_perceived, rms_perceived]
 
-class Manipulation:
-    """Image manipulation strategy pattern interface."""
-    @abstractmethod
+
+class AbstractManipulation(ABC):
+    """Image manipulation template pattern abstract class."""
     def manipulate(self, transformed_data, background_paths, out_dir):
+        self.out_dir = out_dir
+        sign_paths = [transformed.fg_path for transformed in transformed_data]
+        
+        self.man_images = []
+        for ii in range(len(sign_paths)):
+            self.original_synth = transformed_data[ii]
+            sign_path = sign_paths[ii]
+
+            fg = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
+
+            print(f"Manipulating signs: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
+            for jj in range(0, len(background_paths)):
+                bg_path = background_paths[jj]
+                self.bg_path   = bg_path
+                self.sign_path = sign_path
+
+                self.manipulation(fg)
+
+        print("Manipulating signs: 100.0%\r\n")
+        return self.man_images
+
+    def save_synth(self, man_img, man_type):
+        _, sub, el = dir_split(self.bg_path)
+        title, _ = el.rsplit('.', 1)
+
+        _, _, sign_dir, dmg_dir, element = dir_split(self.sign_path)
+        head, tail = element.rsplit('.', 1)
+
+        save_dir = os.path.join(self.out_dir, sub, "BG_" + title, "SIGN_" + sign_dir, dmg_dir)
+        os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
+        save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
+        if type(man_img) == 'numpy.ndarray':
+            cv2.imwrite(save_path, man_img)
+        # elif   #TODO
+        man_image = self.original_synth.clone()
+        man_image.fg_path = save_path
+        man_image.set_manipulation(man_type)
+        man_image.bg_path = self.bg_path
+        return man_image
+    
+    @abstractmethod
+    def manipulation(self, fg):
         pass
 
-class GammaMan(Manipulation):
-    def manipulate(self, transformed_data, background_paths, out_dir):
-        sign_paths = [transformed.fg_path for transformed in transformed_data]
-        
-        manipulated_images = []
-        for ii in range(len(sign_paths)):
-            original = transformed_data[ii]
-            sign_path = sign_paths[ii]
 
-            fg = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
+class GammaMan(AbstractManipulation):
+    def manipulation(self, fg):
+        gammas = [0.2, 0.4, 0.67, 1.0, 1.5, 3.0, 5.0]  # Using 3.0 and not 2.5 because the latter was not noticeable
+        for g in gammas:
+            # Adapted from: https://docs.opencv.org/3.4/d3/dc1/tutorial_basic_linear_transform.html
+            g_lookup = np.empty((1,256), np.uint8)
+            for i in range(256):
+                g_lookup[0,i] = np.clip(pow(i / 255.0, g) * 255.0, 0, 255)
 
-            print(f"Manipulating signs: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
-            for jj in range(0, len(background_paths)):
-                bg_path = background_paths[jj]
+            self.man_images.append(self.save_synth(
+                cv2.LUT(fg, g_lookup),
+                f"gamma_{g}"
+            ))
 
-                _, sub, el = dir_split(bg_path)
-                title, _ = el.rsplit('.', 1)
-
-                _, _, sign_dir, dmg_dir, element = dir_split(sign_path)
-                head, tail = element.rsplit('.', 1)
-
-                def save_synth(man_img, man_type, original_synth):
-                    save_dir = os.path.join(out_dir, sub, "BG_" + title, "SIGN_" + sign_dir, dmg_dir)
-                    os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
-                    save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
-                    cv2.imwrite(save_path, man_img)
-                    man_image = original_synth.clone()
-                    man_image.fg_path = save_path
-                    man_image.set_manipulation(man_type)
-                    man_image.bg_path = bg_path
-                    return man_image
-                
-                gammas = [0.2, 0.4, 0.67, 1.0, 1.5, 3.0, 5.0]  # Using 3.0 and not 2.5 because the latter was not noticeable
-                for g in gammas:
-                    # Adapted from: https://docs.opencv.org/3.4/d3/dc1/tutorial_basic_linear_transform.html
-                    g_lookup = np.empty((1,256), np.uint8)
-                    for i in range(256):
-                        g_lookup[0,i] = np.clip(pow(i / 255.0, g) * 255.0, 0, 255)
-
-                    manipulated_images.append(save_synth(cv2.LUT(fg, g_lookup), f"gamma_{g}", original))
-
-        print("Manipulating signs: 100.0%\r\n")
-        return manipulated_images
-
-class HistogramMan(Manipulation):
-    def manipulate(self, transformed_data, background_paths, out_dir):
+class HistogramMan(AbstractManipulation):
+    def manipulation(self, fg):
         from skimage.exposure import match_histograms
+        bg = cv2.imread(self.bg_path, cv2.IMREAD_UNCHANGED)
 
-        sign_paths = [transformed.fg_path for transformed in transformed_data]
+        self.man_images.append(self.save_synth(
+            match_histograms(fg, bg, multichannel=False),
+            f"hist_matched"
+        ))
+
+class ExposureMan(AbstractManipulation):
+    def manipulation(self, fg):
+        background_exposure = find_image_exposure(self.bg_path, 4)
+
+        if self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path:
+            return
+
+        ###   ORIGINAL EXPOSURE IMPLEMENTATION   ###
+        brightness_avrg           = 1.0
+        brightness_rms            = 1.0
+        brightness_avrg_perceived = 1.0
+        brightness_rms_perceived  = 1.0
+        brightness_avrg2          = 1.0
+        brightness_rms2           = 1.0
+
+        # abs(desired_brightness - actual_brightness) / abs(brightness_float_value) = ratio
+        avrg_ratio           = 11.0159464507
+        rms_ratio            = 8.30320014372
+        percieved_avrg_ratio = 3.85546373056
+        percieved_rms_ratio  = 35.6344530649
+        avrg2_ratio          = 1.20354549572
+        rms2_ratio           = 40.1209106864
+
+        peak1 = Image.open(self.sign_path).convert('LA')
+        peak2 = Image.open(self.sign_path).convert('RGBA')
+
+        stat = ImageStat.Stat(peak1)
+        avrg = stat.mean[0]
+        rms  = stat.rms[0]
+
         
-        manipulated_images = []
-        for ii in range(len(sign_paths)):
-            original = transformed_data[ii]
-            sign_path = sign_paths[ii]
-
-            fg = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
-
-            print(f"Manipulating signs: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
-            for jj in range(0, len(background_paths)):
-                bg_path = background_paths[jj]
-
-                _, sub, el = dir_split(bg_path)
-                title, _ = el.rsplit('.', 1)
-
-                _, _, sign_dir, dmg_dir, element = dir_split(sign_path)
-                head, tail = element.rsplit('.', 1)
-
-                bg = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
-
-                def save_synth(man_img, man_type, original_synth):
-                    save_dir = os.path.join(out_dir, sub, "BG_" + title, "SIGN_" + sign_dir, dmg_dir)
-                    os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
-                    save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
-                    cv2.imwrite(save_path, man_img)
-                    man_image = original_synth.clone()
-                    man_image.fg_path = save_path
-                    man_image.set_manipulation(man_type)
-                    man_image.bg_path = bg_path
-                    return man_image
-                
-                manipulated_images.append(save_synth(match_histograms(fg, bg, multichannel=False), f"hist_matched", original))
-
-        print("Manipulating signs: 100.0%\r\n")
-        return manipulated_images
-
-class ExposureMan(Manipulation):
-    def manipulate(self, transformed_data, background_paths, out_dir):
-        """Manipulates the exposure of each provided sign to match the exposure of the background image.
-        Originally authored by Alexandros Stergiou, extended by Kristian Rados."""
-        background_exposures = find_image_exposures(background_paths, 4, "background")
-
-        sign_paths = [transformed.fg_path for transformed in transformed_data]
+        ### IMAGE MANIPULATION MAIN CODE STARTS ###
+        # MINIMISE MARGIN BASED ON AVERAGE FOR TWO CHANNEL BRIGNESS VARIATION
+        margin = abs(avrg - float(background_exposure[1]))
         
-        manipulated_images = []
-        for ii in range(len(sign_paths)):
-            original = transformed_data[ii]
-            sign_path = sign_paths[ii]
-            
-            print(f"Manipulating signs: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
-            for jj in range(0, len(background_paths)):
-                bg_path = background_paths[jj]
+        brightness_avrg = margin / avrg_ratio 
+        
+        enhancer = ImageEnhance.Brightness(peak2)
+        avrg_bright = enhancer.enhance(brightness_avrg)
+        stat = ImageStat.Stat(avrg_bright)
+        avrg = stat.mean[0]
 
-                if original.bg_path is not None and original.bg_path != bg_path:
-                    continue
+        
+        # MINIMISE MARGIN BASED ON ROOT MEAN SQUARE FOR TWO CHANNEL BRIGNESS VARIATION
+        margin = abs(rms - float(background_exposure[2]))
 
-                _, sub, el = dir_split(bg_path)
-                title, _ = el.rsplit('.', 1)
+        brightness_rms = margin / rms_ratio 
+        
+        enhancer = ImageEnhance.Brightness(peak2)
+        rms_bright = enhancer.enhance(brightness_rms)
+        stat = ImageStat.Stat(rms_bright)
+        rms = stat.rms[0]
 
-                _, _, sign_dir, dmg_dir, element = dir_split(sign_path)
-                head, tail = element.rsplit('.', 1)
-
-                
-                ###   ORIGINAL EXPOSURE IMPLEMENTATION   ###
-                brightness_avrg = 1.0
-                brightness_rms = 1.0
-                brightness_avrg_perceived = 1.0
-                brightness_rms_perceived = 1.0
-                brightness_avrg2 = 1.0
-                brightness_rms2 = 1.0
-
-                # abs(desired_brightness - actual_brightness) / abs(brightness_float_value) = ratio
-                avrg_ratio = 11.0159464507
-                rms_ratio = 8.30320014372
-                percieved_avrg_ratio = 3.85546373056
-                percieved_rms_ratio = 35.6344530649
-                avrg2_ratio = 1.20354549572
-                rms2_ratio = 40.1209106864
-
-                peak1 = Image.open(sign_path).convert('LA')
-                peak2 = Image.open(sign_path).convert('RGBA')
-
-                stat = ImageStat.Stat(peak1)
-                avrg = stat.mean[0]
-                rms = stat.rms[0]
-
-                
-                ### IMAGE MANIPULATION MAIN CODE STARTS ###
-                # MINIMISE MARGIN BASED ON AVERAGE FOR TWO CHANNEL BRIGNESS VARIATION
-                margin = abs(avrg - float(background_exposures[jj][1]))
-                
-                brightness_avrg = margin / avrg_ratio 
-                
-                enhancer = ImageEnhance.Brightness(peak2)
-                avrg_bright = enhancer.enhance(brightness_avrg)
-                stat = ImageStat.Stat(avrg_bright)
-                avrg = stat.mean[0]
-
-                
-                # MINIMISE MARGIN BASED ON ROOT MEAN SQUARE FOR TWO CHANNEL BRIGNESS VARIATION
-                margin = abs(rms - float(background_exposures[jj][2]))
-
-                brightness_rms = margin / rms_ratio 
-                
-                enhancer = ImageEnhance.Brightness(peak2)
-                rms_bright = enhancer.enhance(brightness_rms)
-                stat = ImageStat.Stat(rms_bright)
-                rms = stat.rms[0]
-
-                
-                # MINIMISE MARGIN BASED ON AVERAGE FOR RGBA ("PERCEIVED BRIGHNESS")
-                # REFERENCE FOR ALGORITHM USED: http://alienryderflex.com/hsp.html
-                stat2 = ImageStat.Stat(peak2)
-                r, g, b, a = stat2.mean
-                avrg_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
-                margin = abs(avrg_perceived - float(background_exposures[jj][3]))
-                
-                brightness_avrg_perceived = margin / percieved_avrg_ratio 
-                
-                enhancer = ImageEnhance.Brightness(peak2)
-                avrg_bright_perceived = enhancer.enhance(brightness_avrg_perceived)
-                stat2 = ImageStat.Stat(avrg_bright_perceived)
-                r, g ,b, _ = stat2.mean
-                avrg_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))
+        
+        # MINIMISE MARGIN BASED ON AVERAGE FOR RGBA ("PERCEIVED BRIGHNESS")
+        # REFERENCE FOR ALGORITHM USED: http://alienryderflex.com/hsp.html
+        stat2 = ImageStat.Stat(peak2)
+        r, g, b, a = stat2.mean
+        avrg_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
+        margin = abs(avrg_perceived - float(background_exposure[3]))
+        
+        brightness_avrg_perceived = margin / percieved_avrg_ratio 
+        
+        enhancer = ImageEnhance.Brightness(peak2)
+        avrg_bright_perceived = enhancer.enhance(brightness_avrg_perceived)
+        stat2 = ImageStat.Stat(avrg_bright_perceived)
+        r, g ,b, _ = stat2.mean
+        avrg_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))
 
 
-                # MINIMISE MARGIN BASED ON RMS FOR RGBA ("PERCEIVED BRIGHNESS")
-                # REFERENCE FOR ALGORITHM USED: http://alienryderflex.com/hsp.html
-                r, g, b, a = stat2.rms
-                rms_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))
+        # MINIMISE MARGIN BASED ON RMS FOR RGBA ("PERCEIVED BRIGHNESS")
+        # REFERENCE FOR ALGORITHM USED: http://alienryderflex.com/hsp.html
+        r, g, b, a = stat2.rms
+        rms_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))
 
-                margin = abs(rms_perceived - float(background_exposures[jj][4]))
+        margin = abs(rms_perceived - float(background_exposure[4]))
 
-                brightness_rms_perceived = margin / percieved_rms_ratio 
+        brightness_rms_perceived = margin / percieved_rms_ratio 
 
-                enhancer = ImageEnhance.Brightness(peak2)
-                rms_bright_perceived = enhancer.enhance(brightness_rms_perceived)
-                stat2 = ImageStat.Stat(rms_bright_perceived)
-                r, g, b, _ = stat2.rms
-                rms_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))
+        enhancer = ImageEnhance.Brightness(peak2)
+        rms_bright_perceived = enhancer.enhance(brightness_rms_perceived)
+        stat2 = ImageStat.Stat(rms_bright_perceived)
+        r, g, b, _ = stat2.rms
+        rms_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))
 
-                
-                stat3 = ImageStat.Stat(peak2)
-                avrg2 = stat3.mean[0]
-                rms2 = stat3.rms[0]
+        stat3 = ImageStat.Stat(peak2)
+        avrg2 = stat3.mean[0]
+        rms2 = stat3.rms[0]
 
 
-                #FUSION OF THE TWO AVERAGING METHODS
-                margin = abs(avrg2-float(background_exposures[jj][1]))
-                brightness_avrg2 = margin/avrg2_ratio
-                enhancer = ImageEnhance.Brightness(peak2)
-                avrg_bright2 = enhancer.enhance(brightness_avrg2)
-                stat3 = ImageStat.Stat(avrg_bright2)
-                avrg2 = stat3.mean[0]
-                
-                
-                #FUSION OF THE TWO RMS METHODS
-                margin = abs(rms2-float(background_exposures[jj][2]))
-                brightness_rms2 = margin/rms2_ratio 
-                enhancer = ImageEnhance.Brightness(peak2)
-                rms_bright2 = enhancer.enhance(brightness_rms2)
-                stat3 = ImageStat.Stat(rms_bright2)
-                rms2 = stat3.rms[0]
-                
+        #FUSION OF THE TWO AVERAGING METHODS
+        margin = abs(avrg2-float(background_exposure[1]))
+        brightness_avrg2 = margin/avrg2_ratio
+        enhancer = ImageEnhance.Brightness(peak2)
+        avrg_bright2 = enhancer.enhance(brightness_avrg2)
+        stat3 = ImageStat.Stat(avrg_bright2)
+        avrg2 = stat3.mean[0]
 
-                def save_synth(man_img, man_type, original_synth):
-                    save_dir = os.path.join(out_dir, sub, "BG_" + title, "SIGN_" + sign_dir, dmg_dir)
-                    os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
-                    save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
-                    man_img.save(save_path)
-                    man_image = original_synth.clone()
-                    man_image.fg_path = save_path
-                    man_image.set_manipulation(man_type)
-                    man_image.bg_path = bg_path
-                    return man_image
-                
-                manipulated_images.append(save_synth(avrg_bright,           'AVERAGE', original))
-                manipulated_images.append(save_synth(rms_bright,            'RMS', original))
-                manipulated_images.append(save_synth(avrg_bright_perceived, 'AVERAGE_PERCEIVED', original))
-                manipulated_images.append(save_synth(rms_bright_perceived,  'RMS_PERCEIVED', original))
-                manipulated_images.append(save_synth(avrg_bright2,          'AVERAGE2', original))
-                manipulated_images.append(save_synth(rms_bright2,           'RMS2', original))
-        print("Manipulating signs: 100.0%\r\n")
-        return manipulated_images
+
+        #FUSION OF THE TWO RMS METHODS
+        margin = abs(rms2-float(background_exposure[2]))
+        brightness_rms2 = margin/rms2_ratio 
+        enhancer = ImageEnhance.Brightness(peak2)
+        rms_bright2 = enhancer.enhance(brightness_rms2)
+        stat3 = ImageStat.Stat(rms_bright2)
+        rms2 = stat3.rms[0]
+
+        self.man_images.append(self.save_synth(avrg_bright,           "average"))
+        self.man_images.append(self.save_synth(rms_bright,            "rms"))
+        self.man_images.append(self.save_synth(avrg_bright_perceived, "average_perceived"))
+        self.man_images.append(self.save_synth(rms_bright_perceived,  "rms_perceived"))
+        self.man_images.append(self.save_synth(avrg_bright2,          "average2"))
+        self.man_images.append(self.save_synth(rms_bright2,           "rms2"))
 
 
 def avrg_pixel_rgb(image, chanels):
@@ -555,6 +512,10 @@ def find_useful_signs(manipulated_images, damaged_dir):
     print(f"Removing useless signs: 100.0%\r\n")
 
 
+
+################################
+###  UNUSED NOISE FUNCTIONS  ###
+################################
 def insert_poisson_noise (image):
     vals = len(np.unique(image))
     vals = 2.05 ** np.ceil(np.log2(vals))

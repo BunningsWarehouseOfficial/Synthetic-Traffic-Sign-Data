@@ -19,7 +19,7 @@ def main():
     from damage import damage_image
     from utils import load_paths, load_files, scale_image, delete_background, to_png
     import manipulate
-    from manipulate import ExposureMan, GammaMan, HistogramMan, FadeMan
+    from manipulate import ExposureMan, GammaMan, HistogramMan
     import generate
     
     current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -43,8 +43,7 @@ def main():
     man_methods = {
         'exposure': ExposureMan(),
         'gamma': GammaMan(),
-        'histogram': HistogramMan(),
-        'fade': FadeMan()
+        'histogram': HistogramMan()
     }
     valid_dmg = ['original', 'quadrant', 'big_hole', 'bullet_holes', 'graffiti', 'bend', 'tinted_yellow', 'grey']
     valid_ann = ['retinanet', 'coco']
