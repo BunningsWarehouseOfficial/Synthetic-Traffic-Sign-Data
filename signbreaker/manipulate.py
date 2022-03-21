@@ -212,14 +212,14 @@ def find_image_exposure(image_path, n_channels):
     
     stat1 = ImageStat.Stat(img_grey)
     # Average pixel brighness
-    avg = stat1.mean[0]
+    avg_grey = stat1.mean[0]
     # RMS pixel brighness
-    rms = stat1.rms[0]
+    rms_grey = stat1.rms[0]
     
     stat2 = ImageStat.Stat(img_rgba)
     # Consider the number of channels
-    # Background may have RGB while traffic sign has RGBA
-    if (n_channels == 3):
+    # Perceived brightness using HSPcolour model, adjusting for degree of influence of each channel
+    if (n_channels == 3):  # Background may have RGB while traffic sign has RGBA
         # Average pixels preceived brightness
         r,g,b = stat2.mean
         avg_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
@@ -233,7 +233,12 @@ def find_image_exposure(image_path, n_channels):
         # RMS pixels perceived brightness
         r,g,b,a = stat2.rms
         rms_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2)) 
-    return [image_path, avg, rms, avg_perceived, rms_perceived]
+    return {
+        'avg_grey': avg_grey,
+        'rms_grey': rms_grey,
+        'avg_perceived': avg_perceived,
+        'rms_perceived': rms_perceived
+    }
 
 
 class AbstractManipulation(ABC):
@@ -291,13 +296,14 @@ class GammaMan(AbstractManipulation):
         for g in gammas:
             # Adapted from: https://docs.opencv.org/3.4/d3/dc1/tutorial_basic_linear_transform.html
             g_lookup = np.empty((1,256), np.uint8)
-            for i in range(256):
+            for i in range(256):  # Create look-up table for gamma correction
                 g_lookup[0,i] = np.clip(pow(i / 255.0, g) * 255.0, 0, 255)
 
             self.man_images.append(self.save_synth(
                 cv2.LUT(fg, g_lookup),
                 f"gamma_{g}"
             ))
+
 
 class HistogramMan(AbstractManipulation):
     def manipulation(self, fg):
@@ -309,7 +315,9 @@ class HistogramMan(AbstractManipulation):
             f"hist_matched"
         ))
 
+
 class ExposureMan(AbstractManipulation):
+    """Refactored original exposure manipulation implementation by Stergiou."""
     def manipulation(self, fg):
         background_exposure = find_image_exposure(self.bg_path, 4)
 
@@ -317,7 +325,7 @@ class ExposureMan(AbstractManipulation):
             return
 
         ###   ORIGINAL EXPOSURE IMPLEMENTATION   ###
-        brightness_avrg           = 1.0
+        brightness_avrg           = 1.0  # TODO: ???
         brightness_rms            = 1.0
         brightness_avrg_perceived = 1.0
         brightness_rms_perceived  = 1.0
@@ -325,84 +333,82 @@ class ExposureMan(AbstractManipulation):
         brightness_rms2           = 1.0
 
         # abs(desired_brightness - actual_brightness) / abs(brightness_float_value) = ratio
-        avrg_ratio           = 11.0159464507
+        avrg_ratio           = 11.0159464507  # TODO: ??? How were these calculated?
         rms_ratio            = 8.30320014372
         percieved_avrg_ratio = 3.85546373056
         percieved_rms_ratio  = 35.6344530649
         avrg2_ratio          = 1.20354549572
         rms2_ratio           = 40.1209106864
 
-        peak1 = Image.open(self.sign_path).convert('LA')
-        peak2 = Image.open(self.sign_path).convert('RGBA')
+        img_grey = Image.open(self.sign_path).convert('LA')
+        img_rgba = Image.open(self.sign_path).convert('RGBA')
 
-        stat = ImageStat.Stat(peak1)
+        stat = ImageStat.Stat(img_grey)
         avrg = stat.mean[0]
         rms  = stat.rms[0]
 
         
         ### IMAGE MANIPULATION MAIN CODE STARTS ###
-        # MINIMISE MARGIN BASED ON AVERAGE FOR TWO CHANNEL BRIGNESS VARIATION
+        # MINIMISE MARGIN BASED ON AVERAGE FOR TWO CHANNEL BRIGHTNESS VARIATION
         margin = abs(avrg - float(background_exposure[1]))
+        brightness_avrg = margin / avrg_ratio
         
-        brightness_avrg = margin / avrg_ratio 
-        
-        enhancer = ImageEnhance.Brightness(peak2)
-        avrg_bright = enhancer.enhance(brightness_avrg)
-        stat = ImageStat.Stat(avrg_bright)
-        avrg = stat.mean[0]
+        enhancer = ImageEnhance.Brightness(img_rgba)
+        avrg_bright_grey = enhancer.enhance(brightness_avrg)
+        stat = ImageStat.Stat(avrg_bright_grey)
+        avrg = stat.mean[0]  # TODO: How is it minimizing if there is no iteration?
 
         
-        # MINIMISE MARGIN BASED ON ROOT MEAN SQUARE FOR TWO CHANNEL BRIGNESS VARIATION
+        # MINIMISE MARGIN BASED ON ROOT MEAN SQUARE FOR TWO CHANNEL BRIGHTNESS VARIATION
         margin = abs(rms - float(background_exposure[2]))
-
         brightness_rms = margin / rms_ratio 
         
-        enhancer = ImageEnhance.Brightness(peak2)
-        rms_bright = enhancer.enhance(brightness_rms)
-        stat = ImageStat.Stat(rms_bright)
+        enhancer = ImageEnhance.Brightness(img_rgba)
+        rms_bright_grey = enhancer.enhance(brightness_rms)
+        stat = ImageStat.Stat(rms_bright_grey)
         rms = stat.rms[0]
 
         
-        # MINIMISE MARGIN BASED ON AVERAGE FOR RGBA ("PERCEIVED BRIGHNESS")
+        # MINIMISE MARGIN BASED ON AVERAGE FOR RGBA ("PERCEIVED BRIGHTNESS")
         # REFERENCE FOR ALGORITHM USED: http://alienryderflex.com/hsp.html
-        stat2 = ImageStat.Stat(peak2)
+        stat2 = ImageStat.Stat(img_rgba)
         r, g, b, a = stat2.mean
         avrg_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
+
         margin = abs(avrg_perceived - float(background_exposure[3]))
+        brightness_avrg_perceived = margin / percieved_avrg_ratio
         
-        brightness_avrg_perceived = margin / percieved_avrg_ratio 
-        
-        enhancer = ImageEnhance.Brightness(peak2)
+        enhancer = ImageEnhance.Brightness(img_rgba)
         avrg_bright_perceived = enhancer.enhance(brightness_avrg_perceived)
         stat2 = ImageStat.Stat(avrg_bright_perceived)
         r, g ,b, _ = stat2.mean
         avrg_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))
 
 
-        # MINIMISE MARGIN BASED ON RMS FOR RGBA ("PERCEIVED BRIGHNESS")
+        # MINIMISE MARGIN BASED ON RMS FOR RGBA ("PERCEIVED BRIGHTNESS")
         # REFERENCE FOR ALGORITHM USED: http://alienryderflex.com/hsp.html
         r, g, b, a = stat2.rms
         rms_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))
 
         margin = abs(rms_perceived - float(background_exposure[4]))
-
         brightness_rms_perceived = margin / percieved_rms_ratio 
 
-        enhancer = ImageEnhance.Brightness(peak2)
+        enhancer = ImageEnhance.Brightness(img_rgba)
         rms_bright_perceived = enhancer.enhance(brightness_rms_perceived)
         stat2 = ImageStat.Stat(rms_bright_perceived)
         r, g, b, _ = stat2.rms
         rms_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))
 
-        stat3 = ImageStat.Stat(peak2)
+        stat3 = ImageStat.Stat(img_rgba)
         avrg2 = stat3.mean[0]
         rms2 = stat3.rms[0]
 
 
         #FUSION OF THE TWO AVERAGING METHODS
         margin = abs(avrg2-float(background_exposure[1]))
-        brightness_avrg2 = margin/avrg2_ratio
-        enhancer = ImageEnhance.Brightness(peak2)
+        brightness_avrg2 = margin / avrg2_ratio
+
+        enhancer = ImageEnhance.Brightness(img_rgba)
         avrg_bright2 = enhancer.enhance(brightness_avrg2)
         stat3 = ImageStat.Stat(avrg_bright2)
         avrg2 = stat3.mean[0]
@@ -410,18 +416,86 @@ class ExposureMan(AbstractManipulation):
 
         #FUSION OF THE TWO RMS METHODS
         margin = abs(rms2-float(background_exposure[2]))
-        brightness_rms2 = margin/rms2_ratio 
-        enhancer = ImageEnhance.Brightness(peak2)
+        brightness_rms2 = margin / rms2_ratio
+
+        enhancer = ImageEnhance.Brightness(img_rgba)
         rms_bright2 = enhancer.enhance(brightness_rms2)
         stat3 = ImageStat.Stat(rms_bright2)
         rms2 = stat3.rms[0]
 
-        self.man_images.append(self.save_synth(avrg_bright,           "average"))
-        self.man_images.append(self.save_synth(rms_bright,            "rms"))
+
+        self.man_images.append(self.save_synth(avrg_bright_grey,      "average_grey"))
+        self.man_images.append(self.save_synth(rms_bright_grey,       "rms_grey"))
         self.man_images.append(self.save_synth(avrg_bright_perceived, "average_perceived"))
         self.man_images.append(self.save_synth(rms_bright_perceived,  "rms_perceived"))
         self.man_images.append(self.save_synth(avrg_bright2,          "average2"))
         self.man_images.append(self.save_synth(rms_bright2,           "rms2"))
+
+
+class GammaExposureMan(AbstractManipulation):
+    def manipulation(self, fg):
+        background_exposure = find_image_exposure(self.bg_path, 4)
+
+        if self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path:
+            return
+
+        ## For debug visualisations
+        # avrg = ImageStat.Stat(Image.open(self.sign_path).convert('RGBA')).mean[0]
+
+        # margin = abs(avrg - float(background_exposure['avg']))
+        # print(f"original: {margin}")
+        ##
+        
+        def find_gamma(bg_brightness: float):
+            """Iterate through pre-selected gamma values to minimise marginal brightness difference to background."""
+            man_imgs = []
+            gammas = [0.1, 0.2, 0.4, 0.67, 1.0, 1.5, 3.0, 5.0, 10.0]  # Using 3.0 and not 2.5 because the latter was not noticeable
+            for g in gammas:
+                # Adapted from: https://docs.opencv.org/3.4/d3/dc1/tutorial_basic_linear_transform.html
+                g_lookup = np.empty((1,256), np.uint8)
+                for i in range(256):  # Create look-up table for gamma correction
+                    g_lookup[0,i] = np.clip(pow(i / 255.0, g) * 255.0, 0, 255)
+
+                man_img = cv2.LUT(fg, g_lookup)
+
+                man_img_convert = cv2.cvtColor(man_img, cv2.COLOR_BGRA2RGBA)  # Convert from OpenCV BGR to PIL RGB
+                man_img_pil     = Image.fromarray(man_img_convert)
+                
+                man_brightness = ImageStat.Stat(man_img_pil).mean[0]
+                new_margin     = abs(man_brightness - bg_brightness)
+
+                man_imgs.append({
+                    'gamma' : g,
+                    'img'   : man_img_pil,
+                    'margin': new_margin
+                })
+
+            sorter = lambda x : x['margin']  # Sort gamma corrections by ascending margin
+            man_imgs.sort(reverse=False, key=sorter)
+
+            ## For debug visualisations
+            # for thing in man_imgs:
+            #     print(f"{thing['gamma']}: {thing['margin']}")
+
+            # print(f"best gamma: {man_imgs[0]['gamma']}\n")
+
+            # print()
+            ##
+            
+            return man_imgs[0]['img']
+
+        # # Brightness comparisons using greyscale images
+        # avrg_bright_grey      = find_gamma(float(background_exposure['avg_grey']))
+        # rms_bright_grey       = find_gamma(float(background_exposure['rms_grey']))
+
+        # 'Perceived' RGB brightness comparisons (see Stergiou et al. section 3.2 https://tinyurl.com/ydxzv9nx)
+        avrg_bright_perceived = find_gamma(float(background_exposure['avg_perceived']))
+        rms_bright_perceived  = find_gamma(float(background_exposure['rms_perceived']))
+
+        # self.man_images.append(self.save_synth(avrg_bright_grey,      "average_grey"))
+        # self.man_images.append(self.save_synth(rms_bright_grey,       "rms_grey"))
+        self.man_images.append(self.save_synth(avrg_bright_perceived, "average_perceived"))
+        self.man_images.append(self.save_synth(rms_bright_perceived,  "rms_perceived"))
 
 
 def avrg_pixel_rgb(image, chanels):
@@ -454,6 +528,7 @@ def find_bw_images(directory):
                 images.append(head)
     return images
 
+# TODO(Allen): Vectorize to improve efficiency and readability
 def find_useful_signs(manipulated_images, damaged_dir):
     """Removes bad signs, such as those which are all white or all black."""
     bw_templates = find_bw_images(damaged_dir)

@@ -19,7 +19,7 @@ def main():
     from damage import damage_image
     from utils import load_paths, load_files, scale_image, delete_background, to_png
     import manipulate
-    from manipulate import ExposureMan, GammaMan, HistogramMan
+    from manipulate import ExposureMan, GammaMan, GammaExposureMan, HistogramMan
     import generate
     
     current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -43,6 +43,7 @@ def main():
     man_methods = {
         'exposure': ExposureMan(),
         'gamma': GammaMan(),
+        'gamma_exposure': GammaExposureMan(),
         'histogram': HistogramMan()
     }
     valid_dmg = ['original', 'quadrant', 'big_hole', 'bullet_holes', 'graffiti', 'bend', 'tinted_yellow', 'grey']
@@ -127,9 +128,9 @@ def main():
     background_images = []
     if config['detect_light_src']:
         for ii, path in enumerate(background_paths):
-            print(f"Processing Background Images: {float(ii) / float(len(background_paths)):06.2%}", end='\r')
+            print(f"Finding background light sources: {float(ii) / float(len(background_paths)):06.2%}", end='\r')
             background_images.append(BgImage(path))  # Detect light sources in each image
-        print(f"Processing Background Images: 100.00%\r\n")
+        print(f"Finding background light sources: 100.00%\r\n")
 
 
 

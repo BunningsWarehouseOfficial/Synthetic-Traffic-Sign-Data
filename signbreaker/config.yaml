@@ -7,8 +7,8 @@ final_op: dataset  # Either 'process', 'damage', 'transform', 'manipulate', or '
 # The number of transformations applied to each damaged sign template
 num_transform: 6  # Range: [0,15] | low: [1,5], medium: [6,10], high: [11,15]
 
-# Method of image manipulation: either 'exposure', 'gamma', or 'histogram' (somewhat broken)
-man_method: exposure
+# Method of image manipulation: either 'exposure', 'gamma', 'gamma_exposure', or 'histogram' (somewhat broken)
+man_method: gamma_exposure
 
 # The number of damages applied via each method
 num_damages: 
@@ -40,7 +40,6 @@ seed: 500     # For Eval
 bend:  # Bend may randomly be either a single-sided or double-sided bend
   max_axis: 60   # Clockwise rotation of the bending axis (in x-y plane)
   max_bend: 60   # Level of bending performed (from 0 to 90 degrees)
-  beta_diff: 0   # Beta difference between bent and unbent portions of sign
 
 # Prunes the dataset by using a maximum of n images for each
 # background+class+damage combination, selected randomly.
@@ -64,10 +63,8 @@ damage_measure_method: 'pixel_wise'
 
 # A setting that uses an algorithm to find the light source locations and intensities
 # in each background image, and adjusts relative exposure between bent and unbent portions of
-# a sign to mimic a shadow. Turn off until manipulate stops saturating images.
-detect_light_src: False
-# TODO: Fix manipulate function to use gamma rather than contrast for RGBA adjustments
-# TODO: Fix find_useful_signs to detect partial whiteend sections
+# a sign to mimic a shadow. Does not work with saturating manipulation methods (i.e. 'exposure').
+detect_light_src: True
 
 # Whether to reuse .npy file in the 'damage' or 'manipulate' intermediate folders.
 reuse_data: 
