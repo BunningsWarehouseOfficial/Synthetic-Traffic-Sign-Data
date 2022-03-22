@@ -38,6 +38,7 @@ def main():
     with open("config.yaml", "r") as ymlfile:
         config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
+    # TODO: Refactor into config validation function
     # Input validation of config file
     valid_final = ['process', 'damage', 'transform', 'manipulate', 'dataset']
     man_methods = {
@@ -79,6 +80,8 @@ def main():
             raise ValueError(f"Config error: must have 0.0 < 'graffiti:{g_param}' <= 1.0.\n")
     if g_params['initial'] > g_params['final']:
         raise ValueError("Config error: 'graffiti:initial' must be <= 'graffiti:final'.\n")
+
+    # TODO: Bounds checking for bend damage type
     
     if not config['reuse_data']['damage'] and config['reuse_data']['manipulate']:
         raise ValueError("Config error: 'reuse_data:damage' must be true if 'reuse_data:manipulate' is true.\n")
@@ -168,7 +171,7 @@ def main():
 
         ii = 0
         processed = load_files(processed_dir)
-        for image_path in processed:
+        for image_path in processed:  # TODO: Propagate progress bar through different damage types if feasible
             print(f"Damaging signs: {float(ii) / float(len(processed)):06.2%}", end='\r')
             damaged_data.append(damage_image(image_path, damaged_dir, config, background_images))
             ii += 1

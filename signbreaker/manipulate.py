@@ -10,7 +10,6 @@ import os
 import math
 from utils import load_paths, dir_split
 from PIL import Image, ImageStat, ImageEnhance
-from PIL import __name__ as PIL_name
 import random
 
 

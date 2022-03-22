@@ -86,9 +86,10 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
     # BEND
     bd_config = config['bend']
     if num_damages['bend'] > 0:
-        num_bends = max(1, num_damages['bend'] // (len(backgrounds) or 1))
+        # num_bg_bends = max(1, num_damages['bend'] // (len(backgrounds) or 1))
+        num_bg_bends = max(1, num_damages['bend'])
         bend_angles = rand.sample(
-            range(10, max(bd_config['max_bend'] + 5, 15), 5), num_bends)
+            range(10, max(bd_config['max_bend'] + 5, 15), 5), num_bg_bends)
         
         for bend in bend_angles:
             axis = rand.randint(0, bd_config['max_axis'])
@@ -114,7 +115,7 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
                     
                     # Create SynthImage
                     dmg_path = os.path.join(
-                        output_path, f"{class_num}_{att['damage_type']}_{att['tag']}_{Path(bg.path).stem}.png")
+                        output_path, f"{class_num}_{att['damage_type']}_{att['tag']}_bg{Path(bg.path).stem}.png")
                     cv.imwrite(dmg_path, dmg)
                     damaged_images.append(SynthImage(
                         dmg_path, int(class_num), att["damage_type"], att["tag"], float(att["damage_ratio"]), 
@@ -451,8 +452,6 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
     left, right = tilt(rot_img, bend_angle, (ht, wd))
 
     def apply_bend(left, right, tag):
-        # TODO: Would look more realistic with non-zero beta_diff, 
-        #      but introduces too much complexity with exposure at the moment
         dmg = combine(left, right, beta_diff)
         dmg = imutils.rotate_bound(dmg, -axis_angle)
         dmg = remove_padding(dmg)
@@ -465,7 +464,7 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
         
         att = attributes
         att["damage_type"]   = "bend"
-        att["tag"]           = "{}".format(bend_angle)
+        att["tag"]           = "{}_{}".format(axis_angle, bend_angle)
         att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, original, dmg_measure))
         att["sector_damage"] = calc_damage_sectors(dmg, original, method=dmg_measure, num_sectors=num_sectors)
         return dmg, att
