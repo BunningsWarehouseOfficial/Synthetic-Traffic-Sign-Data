@@ -115,7 +115,7 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
                     
                     # Create SynthImage
                     dmg_path = os.path.join(
-                        output_path, f"{class_num}_{att['damage_type']}_{att['tag']}_bg{Path(bg.path).stem}.png")
+                        output_path, f"{class_num}_{att['damage_type']}_{att['tag']}_BG_{Path(bg.path).stem}.png")
                     cv.imwrite(dmg_path, dmg)
                     damaged_images.append(SynthImage(
                         dmg_path, int(class_num), att["damage_type"], att["tag"], float(att["damage_ratio"]), 

@@ -22,7 +22,7 @@ parser.add_argument("--min_dist", type=int, help="startpoint distance of sequenc
 parser.add_argument("--max_dist", type=int, help="endpoint distance of sequence", default=20)
 parser.add_argument("--max_fg_height", type=int, default=0.15, help="maximum sign height proportional to window height")
 parser.add_argument("-n", "--num_frames", type=int, help="number of frames generated for each sequence", default=8)
-parser.add_argument("-o", "--out_dir", type=str, help="path to output directory of sequences", default='./SGTS_sequences')
+parser.add_argument("-o", "--out_dir", type=str, help="path to output directory of sequences", default='./SGTS_Sequences')
 parser.add_argument("--augment", type=str, help="augmentation type", choices=['manipulated', 'transformed', 'none'], default='transformed')
 
 args = parser.parse_args()
@@ -37,9 +37,11 @@ os.chdir(current_dir)
 bg_dir = '../signbreaker/Backgrounds/GTSDB'
 manipulated_sign_dir = '../signbreaker/Sign_Templates/5_Manipulated/GTSDB'
 transformed_sign_dir = '../signbreaker/Sign_Templates/4_Transformed'
-damaged_sign_dir = '../signbreaker/Sign_Templates/3_Damaged'
-original_sign_dir = '../signbreaker/Sign_Templates/2_Processed'
+damaged_sign_dir     = '../signbreaker/Sign_Templates/3_Damaged'
+original_sign_dir    = '../signbreaker/Sign_Templates/2_Processed'
 
+# TODO: Having fixed coordinates is an issue, especially for light sourced bent signs which are assigned a specific
+#       coordinate that is ignored here
 COORDS = {'x':0.75, 'y':0.45}  # Default proportional (0-1) sign coordinates in 2D plane
 
 
@@ -74,18 +76,21 @@ def create_sequence(bg_img, fg_img, bg_name, fg_name, sequence_id):
 
 
 def get_damage(damaged_img, original_img, bbox):
+    import yaml
+    with open('../signbreaker/config.yaml', 'r') as ymlfile:
+        config = yaml.load(ymlfile, Loader=yaml.FullLoader)
     image_i = cv2.resize(damaged_img, (bbox[2], bbox[3]))
     original_image_i = cv2.resize(original_img, (bbox[2], bbox[3]))
-    return calc_damage(original_image_i, image_i)
+    return calc_damage(image_i, original_image_i, config['damage_measure_method'])
 
 
 def generate_augmented(image_id, bg_img, bg_name, bg_dims, annotations, augment='transformed'):
     if augment == 'manipulated':
-        sign_dirs = glob.glob(os.path.join(manipulated_sign_dir, bg_name) + '/*/*/')
+        sign_dirs = glob.glob(os.path.join(manipulated_sign_dir, f'BG_{bg_name}') + '/*/*/')
     elif augment == 'transformed':
         sign_dirs = glob.glob(transformed_sign_dir + '/*/*/')
     sign_dirs = sorted(sign_dirs, key=lambda p: int(Path(p).stem.split('_')[0]))
-        
+
     for sign_dir in tqdm(sign_dirs):
         if glob.glob(sign_dir + '/*.png') != []:
             sign_path = random.choice(glob.glob(sign_dir + '/*.png'))
@@ -114,7 +119,7 @@ def generate_augmented(image_id, bg_img, bg_name, bg_dims, annotations, augment=
 
 def generate_damaged(image_id, bg_img, bg_name, bg_dims, annotations):
     sign_paths = glob.glob(damaged_sign_dir + '/*/*.png')
-    
+
     for sign_path in tqdm(sign_paths):
         sign_name = Path(sign_path).stem
         cls_name = sign_name.split('_')[0]
