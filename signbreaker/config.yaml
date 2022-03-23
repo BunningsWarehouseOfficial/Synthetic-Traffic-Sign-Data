@@ -18,8 +18,8 @@ num_damages:
   bullet_holes: 1
   graffiti: 2
   bend: 2          # Will make n different bends for *each* background if detect_light_source=True
-  # - tinted_yellow (not implemented)
-  # - grey (not implemented)
+  tint_yellow: 1   # TODO: Needs max value dependent on num of possible random sample values
+  grey: 1          # TODO: Needs max value dependent on num of possible random sample values
 
 # Parameters for the bullet_holes damage type (note: num_holes may include 'holes' that missed the sign)
 bullet_holes:
