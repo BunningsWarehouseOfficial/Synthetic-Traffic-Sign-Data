@@ -268,12 +268,18 @@ def count_pixels(img):
     to the transparency of each pixel."""
     sum = 0  # Initialise to 0 in case there is no alpha channel
     split = cv2.split(img)
-    if len(split) == 4:  # Only proceed if the image has an alpha channel
+    if len(split) == 4:  # Proceed if the image has an alpha channel
         alpha = split[3]
         # Loop through alpha channel
         for ii in range(0, len(alpha)):
             for jj in range(0, len(alpha[0])):
                 sum += alpha[ii][jj] / 255  # Divide by 255 to weight the transparency
+    elif len(split) == 1:  # Alternative method for greyscale images
+        for ii in range(0, len(img)):
+            for jj in range(0, len(img[0])):
+                sum += img[ii][jj] / 255  # Weight the brightness of the pixel
+    else:
+        raise ValueError("Error: Can only count pixels for greyscale images and images with an alpha channel.")
     return sum
 
 def calc_ratio(fg, bg):

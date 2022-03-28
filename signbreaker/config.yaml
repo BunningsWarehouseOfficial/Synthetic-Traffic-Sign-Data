@@ -31,6 +31,7 @@ bullet_holes:
 graffiti:  # The step size of intermediate damage levels is determined by num_damages above
   initial: 0.2  # First target level of damage
   final: 0.6    # Level of damage to stop at
+  solid: True   # Whether or not transparency is minimised through only alpha values of 255 and morphological dilation
 
 # Randomization seed
 # seed: 457   # For Training
