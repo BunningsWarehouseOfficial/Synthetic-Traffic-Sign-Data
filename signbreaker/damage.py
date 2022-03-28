@@ -86,9 +86,10 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
     # BEND
     bd_config = config['bend']
     if num_damages['bend'] > 0:
-        num_bends = max(1, num_damages['bend'] // (len(backgrounds) or 1))
+        # num_bg_bends = max(1, num_damages['bend'] // (len(backgrounds) or 1))
+        num_bg_bends = max(1, num_damages['bend'])
         bend_angles = rand.sample(
-            range(10, max(bd_config['max_bend'] + 5, 15), 5), num_bends)
+            range(10, max(bd_config['max_bend'] + 5, 15), 5), num_bg_bends)
         
         for bend in bend_angles:
             axis = rand.randint(0, bd_config['max_axis'])
@@ -114,13 +115,11 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
                     
                     # Create SynthImage
                     dmg_path = os.path.join(
-                        output_path, f"{class_num}_{att['damage_type']}_{att['tag']}_{Path(bg.path).stem}.png")
+                        output_path, f"{class_num}_{att['damage_type']}_{att['tag']}_BG_{Path(bg.path).stem}.png")
                     cv.imwrite(dmg_path, dmg)
                     damaged_images.append(SynthImage(
                         dmg_path, int(class_num), att["damage_type"], att["tag"], float(att["damage_ratio"]), 
                         att["sector_damage"], bg_path=bg.path, fg_coords=(fg_x, fg_y), fg_size=fg_size))
-                    
-                    
 
     # GRAFFITI
     g_conf = config['graffiti']
@@ -131,25 +130,27 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
             apply_damage(dmg, att)
 
     # TINTED YELLOW
-    # yellow = np.zeros((height,width,ch), dtype=np.uint8)
-    # yellow[:,:] = (0,210,210,255)
-    # dmg4 = cv.bitwise_and(img, yellow)
-    # # TODO: Use quadrant pixel difference ratio or some other damage metric for labelling?
-    # cv.imwrite(os.path.join(output_path, class_num + damage_types[4] + ".png"), dmg4)
-    
+    # TODO: Utilise config file for max and min tint values with associated bounds checking in create_dataset.py
+    if num_damages['tint_yellow'] > 0:
+        tints = rand.sample(range(120, 240, 10), num_damages['tint_yellow'])
+        for t in tints:         # ^ I chose this range pretty arbitrarily when reimplementing this damage type
+            dmg, att = tint_yellow(img, tint=t)
+            apply_damage(dmg, att)
+
     # GREY
-    # dmg7 = cv.cvtColor(img, cv.COLOR_BGRA2GRAY)  # Convert to greyscale
-    # # Threshold the image to get a uniform saturation
-    # _, dmg7 = cv.threshold(dmg7, 100, 255, cv.THRESH_BINARY)
-    # cv.convertScaleAbs(dmg7, dmg7, alpha=1, beta=200)  # No change to contrast, scale brightness
-    # dmg7 = cv.cvtColor(dmg7, cv.COLOR_GRAY2BGRA)  # Convert back to BGRA to add back the alpha channel
-    # dmg7[:,:,3] = alpha_ch
-    # cv.imwrite(os.path.join(output_path, class_num + damage_types[7] + ".png"), dmg7)
-    # TODO: Test with exposure_manipulation()
-    # TODO: Write values to file
+    # TODO: Utilise config file for max and min beta values with associated bounds checking in create_dataset.py
+    # FIXME: Completely oversaturates sign types which are already grey (i.e. STSDG sign 49)
+    #        Try using gamma correction instead of convertScaleAbs (see manipulate.py)
+    if num_damages['grey'] > 0:
+        betas = rand.sample(range(100, 240, 5), num_damages['grey'])
+        for b in betas:         # ^ This min beta is arbitrary, should be in config; I think 240 is good max though
+            dmg, att = grey(img, beta=b)
+            apply_damage(dmg, att)
     
-    # TODO: CRACKS (thin crack lines across the sign?)
-    # TODO: MISSING SECTIONS (missing polygon sections on edges of sign?)
+    #       See reference image collection for inspiration
+    # TODO: CRACKS (thin crack lines across the sign? textured global 'cracking'?)
+    # TODO: MISSING SECTIONS (more generalised; missing polygon sections on edges of sign?)
+    # TODO: DENTS and/or CURVED BENDING (as opposed to instantaneous bending over a straight line)
 
     return damaged_images
 
@@ -172,7 +173,50 @@ def no_damage(img):
     att = attributes
     att["damage_type"]   = "no_damage"
     att["tag"]           = ""
-    att["damage_ratio"]  = str(calc_damage(dmg, img, dmg_measure))  # This should be 0
+    att["damage_ratio"]  = str(calc_damage(dmg, img, dmg_measure))  # This should be 0.0
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
+
+    return dmg, att
+
+def tint_yellow(img, tint=180):
+    dmg = validate_sign(img)
+    hole = dmg[:,:,3].copy()
+    att = attributes
+
+    height, width, ch = dmg.shape
+
+    # TODO: Perhaps there could be more variation in colour
+    #       e.g. have tint1 and tint2, with each being tint +- x, a new variable
+    yellow = np.zeros((height,width,ch), dtype=np.uint8)
+    yellow[:,:] = (0,tint,tint,255)
+    dmg = cv.bitwise_and(dmg, yellow)
+
+    # Assign labels
+    att = attributes
+    att["damage_type"]   = "tint_yellow"
+    att["tag"]           = str(int(tint))
+    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
+
+    return dmg, att
+
+def grey(img, beta=200):  # TODO: Imitates complete fading of colour in sign: perhaps rename?
+    dmg = validate_sign(img)
+
+    channels = cv.split(img)
+
+    dmg = cv.cvtColor(img, cv.COLOR_BGRA2GRAY)  # Convert to greyscale
+    # Threshold the image to get a uniform saturation
+    _, dmg = cv.threshold(dmg, 100, 255, cv.THRESH_BINARY)
+    cv.convertScaleAbs(dmg, dmg, alpha=1, beta=beta)  # No change to contrast, scale brightness
+    dmg = cv.cvtColor(dmg, cv.COLOR_GRAY2BGRA)  # Convert back to BGRA to add back the alpha channel
+    dmg[:,:,3] = channels[3]
+
+    # Assign labels
+    att = attributes
+    att["damage_type"]   = "grey"
+    att["tag"]           = str(int(beta))
+    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
     att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
 
     return dmg, att
@@ -484,8 +528,6 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
     left, right = tilt(rot_img, bend_angle, (ht, wd))
 
     def apply_bend(left, right, tag):
-        # TODO: Would look more realistic with non-zero beta_diff, 
-        #      but introduces too much complexity with exposure at the moment
         dmg = combine(left, right, beta_diff)
         dmg = imutils.rotate_bound(dmg, -axis_angle)
         dmg = remove_padding(dmg)
@@ -498,7 +540,7 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
         
         att = attributes
         att["damage_type"]   = "bend"
-        att["tag"]           = "{}".format(bend_angle)
+        att["tag"]           = "{}_{}".format(axis_angle, bend_angle)
         att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, original, dmg_measure))
         att["sector_damage"] = calc_damage_sectors(dmg, original, method=dmg_measure, num_sectors=num_sectors)
         return dmg, att

@@ -40,6 +40,7 @@ def initialise_coco_anns(classes):
 
 
 def write_label_coco(annotations, file_path, image_id, class_id, bbox, damage, dims):
+    """Add a new label to a COCO annotation file."""
     height, width = dims
     annotations["images"].append(
         {
@@ -58,7 +59,7 @@ def write_label_coco(annotations, file_path, image_id, class_id, bbox, damage, d
             "iscrowd": 0,
             "area": bbox[2] * bbox[3],
             "segmentation": [],
-            "damage": damage
+            "damage": damage  # TODO: damage_type and sector_damage
         }
     )
 
@@ -86,7 +87,7 @@ def convert_to_single_label(dataset_path, original_annotations, new_annotations,
             json.dump(a_json, f, indent=4)
         
         # Create a npy file to store ground truths, for more efficient evaluation  
-        if use_damages:  
+        if use_damages:  # TODO: damage_type and sector_damage
             annotations_array = np.array([[a["image_id"], a["bbox"][0], a["bbox"][1], a["bbox"][2], a["bbox"][3], a["damage"], a["category_id"]] 
                                         for a in a_json['annotations']])
         else:

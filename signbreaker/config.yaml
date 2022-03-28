@@ -12,14 +12,14 @@ man_method: gamma_exposure
 
 # The number of damages applied via each method
 num_damages: 
-  original: 1       # Max 1
-  quadrant: 1       # Max 4
+  original: 1      # Max 1 (no damage)
+  quadrant: 1      # Max 4
   big_hole: 1
   bullet_holes: 1
   graffiti: 2
-  bend: 2
-  # - tinted_yellow (not implemented)
-  # - grey (not implemented)
+  bend: 2          # Will make n different bends for *each* background if detect_light_source=True
+  tint_yellow: 1   # TODO: Needs max value dependent on num of possible random sample values
+  grey: 1          # TODO: Needs max value dependent on num of possible random sample values
 
 # Parameters for the bullet_holes damage type (note: num_holes may include 'holes' that missed the sign)
 bullet_holes:
@@ -45,7 +45,7 @@ bend:  # Bend may randomly be either a single-sided or double-sided bend
 # Prunes the dataset by using a maximum of n images for each
 # background+class+damage combination, selected randomly.
 # In other words, how many images of the same sign class with the same damage
-# but varying shading and angle do you want over the same background image?
+# but varied shading and angle do you want over the same background image?
 prune_dataset:
   prune: True
   max_images: 6
