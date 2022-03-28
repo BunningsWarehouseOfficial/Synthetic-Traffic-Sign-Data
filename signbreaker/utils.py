@@ -374,12 +374,13 @@ def count_damaged_pixels(new, original):
         raise TypeError(f"The two images need 4 channels, but original has {split_new} and new has {split_original}")
     
     ## For debug visualisations
-    # cv2.imshow("new", new) ##
-    # cv2.waitKey(0) ##for debug visual
-    # cv2.destroyAllWindows() ##for debug visual
-    # cv2.imshow("count_damaged_pixels", copy) ##for debug visual
-    # cv2.waitKey(0) ##for debug visual
-    # cv2.destroyAllWindows() ##for debug visual
+    # cv2.imshow("new", new)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    # cv2.imshow("count_damaged_pixels", copy)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    ##
 
     return sum
 
@@ -395,26 +396,28 @@ def count_damaged_pixels_vectorized(new, original):
     
     diffs = np.where(original[...,3] > 0, col_diffs + alpha_diffs, 0)
     
-    # For debug visualisations
+    ## For debug visualisations
     # vis = np.ones(new.shape) * np.array([0, 255, 0, 255])
     # vis[..., 1] = vis[..., 1] * diffs
     # # For debug visualisations
-    # cv2.imshow("new", new) ##
+    # cv2.imshow("new", new)
     # cv2.waitKey(0) 
     # cv2.imshow("count_damaged_pixels_vectorized", vis)
     # cv2.destroyAllWindows() 
+    ##
     
     return np.sum(diffs)
 
 
 def calc_damage(new, original, method):
     """Calculate the ratio of damaged pixels between two versions of the same image."""
-    ## For debug
+    ## For debug visualisations
     # dmg = count_damaged_pixels(new, original)
     # total = count_pixels(original)
     # print(f"damage = count_damaged_pixels / count_pixels = {dmg} / {total} = {dmg / total}")
     # return dmg / total
     ##
+    
     if method == 'ssim':
         return calc_damage_ssim(new, original)
     elif method == 'pixel_wise':

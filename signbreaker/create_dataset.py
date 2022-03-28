@@ -179,7 +179,7 @@ def main():
         damaged_data = [cell for row in damaged_data for cell in row]  # Flatten the list
         np.save(data_file_path, damaged_data, allow_pickle=True)
     elif os.path.exists(data_file_path):
-        damaged_data = np.load(os.path.join(damaged_dir, "damaged_data.npy"), allow_pickle=True)
+        damaged_data = np.load(data_file_path, allow_pickle=True)
         print("Reusing pre-existing damaged signs.\n")
     else:
         raise FileNotFoundError(f"Error: Damaged data file does not exist - cannot reuse.\n")

@@ -16,10 +16,10 @@ from utils import initialise_coco_anns, convert_to_single_label
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--orig_dataset', default=None, help='Path to dataset to be augmented', required=True)
-parser.add_argument('--orig_annotations', default=None, help='Annotations for original dataset', required=True)
+parser.add_argument('--orig_annotations', default=None, help='COCO annotations for original dataset', required=True)
 parser.add_argument('--augment_dataset', default=None, help='Path to dataset that will be used to augment the original dataset', required=True)
 parser.add_argument('--augment_annotations', default=None, help='Annotations for augment dataset', required=True)
-parser.add_argument('--datasets_dir', default=None, help='Path to directory storing the dataset', required=True)
+parser.add_argument('--datasets_dir', default='./SGTS_Augmented', help='Path to directory storing the dataset')
 parser.add_argument('--augmentation', default=0.25, help='Proportion of the original dataset to be augmented (default: 0.25)')
 parser.add_argument('--seed', default=0, help='Seed for random.sample function (default: 0)')
 
@@ -54,12 +54,12 @@ if __name__ == '__main__':
     aug_factor = args.augmentation
     orig_dataset = args.orig_dataset.rstrip('/')
     augment_dataset = args.augment_dataset.rstrip('/')
+    args.datasets_dir = os.path.abspath(args.datasets_dir)
     
-    augmentation_dir = os.path.join(args.datasets_dir, 'augmented')
-    if not os.path.exists(augmentation_dir):
-        os.mkdir(augmentation_dir)
+    if not os.path.exists(args.datasets_dir):
+        os.mkdir(args.datasets_dir)
     
-    outdir = os.path.join(augmentation_dir, f'{aug_factor}_augmented')
+    outdir = os.path.join(args.datasets_dir, f'{aug_factor}_augmented')
     if os.path.exists(outdir):
         shutil.rmtree(outdir)
     os.mkdir(outdir)
@@ -86,10 +86,10 @@ if __name__ == '__main__':
     with open(outpath, 'w') as f:
         json.dump(final_anns, f, indent=4)
         
+    print()
     for i, p in enumerate(final_paths):
         print(f"Copying files: {float(i) / float(len(final_paths)):06.2%}", end='\r')
         shutil.copyfile(p, os.path.join(outdir, os.path.basename(p)))
+    print(f"Copying files: 100.0%\r\n")
     
     convert_to_single_label(outdir, '_annotations.coco.json', '_single_annotations.coco.json')
-    
-    
