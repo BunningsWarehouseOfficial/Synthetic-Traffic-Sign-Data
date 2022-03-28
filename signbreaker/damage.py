@@ -126,7 +126,7 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
     if num_damages['graffiti'] > 0:
         targets = np.linspace(g_conf['initial'], g_conf['final'], num_damages['graffiti'])
         for t in targets:
-            dmg, att = graffiti(img, target=t, color=(0,0,0))
+            dmg, att = graffiti(img, target=t, color=(0,0,0), solid=g_conf['solid'])
             apply_damage(dmg, att)
 
     # TINTED YELLOW
@@ -380,27 +380,47 @@ def calc_points(img, x0, y0, offset):
     
     return x1, y1, x2, y2
 
-def draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color):
+def draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color, solid):
     """Draw a single bezier curve of desired thickness and colour."""
-    alpha = rand.randint(240, 255)  # Random level of transparency
-    # skimage.draw.bezier_curve() only draws curves of thickness 1 pixel,
-    # We layer multiple curves to produce a curve of desired thickness
-    start = -(thickness // 2)
-    end = thickness // 2
-    for ii in range(start, end+1):
-        # Draw curves, shifting vertically and adjusting x-coordinates to round the edges
-        yy, xx = draw.bezier_curve(y0+ii, x0+abs(ii), y1+ii, x1, y2+ii, x2-abs(ii), weight=1, shape=grft.shape)
-        grft[yy, xx] = color + (alpha,)  # Modify the colour of the pixels that belong to the curve
+    from skimage import morphology
 
-def graffiti(img, target=0.2, color=(0,0,0)):
+    if solid:
+        start = -(thickness // 2)
+        end = thickness // 2
+        for ii in range(start, end+1):
+            # Draw curves, shifting vertically and adjusting x-coordinates to round the edges
+            yy, xx = draw.bezier_curve(y0+ii, x0+abs(ii), y1+ii, x1, y2+ii, x2-abs(ii), weight=1, shape=grft.shape)
+            
+            grft[yy, xx] = 255  # Modify the colour of the pixels that belong to the curve
+        # Dilate the image to fill in the gaps between the bezier lines
+        # grft = morphology.dilation(grft, morphology.disk(radius=1))
+    else:
+        alpha = rand.randint(240, 255)  # Random level of transparency
+        # skimage.draw.bezier_curve() only draws curves of thickness 1 pixel,
+        # We layer multiple curves to produce a curve of desired thickness
+        start = -(thickness // 2)
+        end = thickness // 2
+        for ii in range(start, end+1):
+            # Draw curves, shifting vertically and adjusting x-coordinates to round the edges
+            yy, xx = draw.bezier_curve(y0+ii, x0+abs(ii), y1+ii, x1, y2+ii, x2-abs(ii), weight=1, shape=grft.shape)
+            
+            grft[yy, xx] = color + (alpha,)  # Modify the colour of the pixels that belong to the curve
+    return grft
+
+def graffiti(img, target=0.2, color=(0,0,0), solid=True):
     """Apply graffiti damage to sign.
        :param initial: the first target level of obscurity (0-1)
        :param final: the level of obscurity to stop at (0-1)
        :returns: a list containing the damaged images, and a list with the corresponding attributes
     """
+    from skimage import morphology
+
     validate_sign(img)
     height, width, _ = img.shape
-    grft = np.zeros((height, width, 4), dtype=np.uint8)  # New blank image for drawing the graffiti on.
+    if solid:
+        grft = np.zeros((height, width), dtype=np.uint8)  # New blank image for drawing the graffiti on.
+    else:
+        grft = np.zeros((height, width, 4), dtype=np.uint8)  # New blank image for drawing the graffiti on.
 
     ratio = 0.0
     x0, y0 = width//2, height//2  # Start drawing in the centre of the image
@@ -410,17 +430,30 @@ def graffiti(img, target=0.2, color=(0,0,0)):
         radius = width // 5  # Radius of max distance to the next point
         x1, y1, x2, y2 = calc_points(img, x0, y0, radius)
         thickness = int(round(width // 20))
-        draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color)
+        grft = draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color, solid)
         # Make the end point the starting point for the next curve
         x0, y0 = x2, y2
-        ratio = round(calc_ratio(grft, img), 4)
+        if solid:
+            grft_dilated = morphology.dilation(grft, morphology.disk(radius=1))
+            ratio = round(calc_ratio(grft_dilated, img), 4)
+        else:
+            ratio = round(calc_ratio(grft, img), 4)
     # Add a copy to the list and continue layering more graffiti
     
-    k = (int(round( width/20 )) // 2) * 2 + 1  # Kernel size must be odd
+    if solid:
+        grft = grft_dilated
+        grft = cv.cvtColor(grft, cv.COLOR_GRAY2BGRA)
+
+    grft[:,:,3] = cv.bitwise_and(grft[:,:,3], img[:,:,3])  # Combine with original alpha to remove any sign spillover
+
+    if solid:
+        grft = cv.bitwise_and(img, img, mask=grft_dilated)
+        alpha = cv.split(grft)[3]
+        grft[alpha == 255] = color + (255,)
+
     # Apply a Gaussian blur to each image, to smooth the edges
+    k = (int(round( width/30 )) // 2) * 2 + 1  # Kernel size must be odd
     grft = cv.GaussianBlur(grft, (k,k), 0)
-    # Combine with the original alpha channel to remove anything that spilt over the sign
-    grft[:,:,3] = cv.bitwise_and(grft[:,:,3], img[:,:,3])
     dmg = overlay(grft, img)
     
     # Assign labels

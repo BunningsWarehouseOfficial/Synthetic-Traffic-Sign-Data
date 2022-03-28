@@ -76,7 +76,7 @@ def main():
 
     g_params = config['graffiti']
     for g_param in g_params:
-        if g_params[g_param] <= 0.0 or g_params[g_param] > 1.0:
+        if (g_params[g_param] <= 0.0 or g_params[g_param] > 1.0) and g_param != 'solid':
             raise ValueError(f"Config error: must have 0.0 < 'graffiti:{g_param}' <= 1.0.\n")
     if g_params['initial'] > g_params['final']:
         raise ValueError("Config error: 'graffiti:initial' must be <= 'graffiti:final'.\n")
