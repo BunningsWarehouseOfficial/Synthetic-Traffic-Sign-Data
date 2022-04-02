@@ -1,6 +1,6 @@
 # TODO: Can be compressed down, as this is conflated with the Efficientdet tf-gpu packages
 # Run: `conda env create -f environment.yaml`
-name: efficientdet
+name: synthetic
 channels:
   - plotly
   - anaconda

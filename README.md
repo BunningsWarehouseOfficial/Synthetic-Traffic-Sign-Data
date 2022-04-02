@@ -17,9 +17,15 @@ Git is required to download and install the repo. If on Linux or Mac, open Termi
 ```sh
 $ sudo apt-get update
 $ sudo apt-get install git
-$ git clone https://github.com/BunningsWarehouseOfficial/Traffic-Sign-Damage-Detection-using-Synthesised-Training-Data.git
+$ git clone https://github.com/ai-research-students-at-curtin/Traffic-Sign-Damage-Detection-using-Synthesised-Training-Data.git
 ```
-To install the required packages, simply execute the following command (`pip3` may be exchanged with `pip`):
+
+Using a Anaconda environment is recommended. Install Miniconda (terminal only) [here](https://docs.conda.io/en/latest/miniconda.html). Once installed, run the following command while in the repo directory:
+```sh
+$ conda env create -f environment.yaml
+```
+
+*Alternatively*, to install the required packages using pip, simply execute the following command (`pip3` may be exchanged with `pip`):
 ```sh
 $ pip3 install -r requirements.txt
 ```
@@ -36,7 +42,7 @@ The `--output_dir` argument can be used to specify a custom directory for the ge
 
 The generator can be configured with by modifying the `config.yaml` file.
 
-Please allow for sufficient storage space when running the dataset generator. With the default config values and the below example inputs, the size of the dataset will be roughly __ GB.
+Please allow for sufficient storage space when running the dataset generator. With the default config values and the below example inputs, the size of the dataset will be on the order of 50-100 GB.
 
 **Example traffic sign templates** for data generation can be downloaded [here](https://drive.google.com/file/d/1a65EPNK_3gNII8VXBKDZ0N6H_mL6F6P1/view?usp=sharing).
 
