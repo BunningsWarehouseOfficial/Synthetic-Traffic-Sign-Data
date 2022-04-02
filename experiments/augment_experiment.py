@@ -36,7 +36,7 @@ if __name__ == "__main__":
     
     augment_dict = {}
     
-    # get data frames for each augment level
+    # Get data frames for each augment level
     for aug in tqdm(eval_json):
         npy_path = eval_json[aug]
         pred_array = np.array(np.load(npy_path), dtype=np.float32)
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         title_font_size=20,
     )
             
-    # plot given experiment
+    # Plot given experiment
     for aug in augment_dict:
         df = augment_dict[aug]
         if is_damage_experiment or is_sequence_experiment:

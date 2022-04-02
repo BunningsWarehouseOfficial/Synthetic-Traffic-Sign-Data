@@ -1,5 +1,3 @@
-# TODO: Some or all of these may be command line parameters in the future
-
 # The width of the square to which sign images will be scaled
 sign_width: 200  # Default: 200
 
@@ -9,19 +7,19 @@ final_op: dataset  # Either 'process', 'damage', 'transform', 'manipulate', or '
 # The number of transformations applied to each damaged sign template
 num_transform: 6  # Range: [0,15] | low: [1,5], medium: [6,10], high: [11,15]
 
-# Method of image manipulation: either 'exposure' or 'fade' (not implemented)
-man_method: exposure
+# Method of image manipulation: either 'exposure', 'gamma', 'gamma_exposure', or 'histogram' (somewhat broken)
+man_method: gamma_exposure
 
 # The number of damages applied via each method
 num_damages: 
-  original: 1       # Max 1
-  quadrant: 1       # Max 4
+  original: 1      # Max 1 (no damage)
+  quadrant: 1      # Max 4
   big_hole: 1
   bullet_holes: 1
   graffiti: 2
-  bend: 2
-  # - tinted_yellow (not implemented)
-  # - grey (not implemented)
+  bend: 2          # Will make n different bends for *each* background if detect_light_source=True
+  tint_yellow: 1   # TODO: Needs max value dependent on num of possible random sample values
+  grey: 1          # TODO: Needs max value dependent on num of possible random sample values
 
 # Parameters for the bullet_holes damage type (note: num_holes may include 'holes' that missed the sign)
 bullet_holes:
@@ -33,7 +31,7 @@ bullet_holes:
 graffiti:  # The step size of intermediate damage levels is determined by num_damages above
   initial: 0.2  # First target level of damage
   final: 0.6    # Level of damage to stop at
-  # TODO: What happens when num_damages/graffiti = 1?
+  solid: True   # Whether or not transparency is minimised through only alpha values of 255 and morphological dilation
 
 # Randomization seed
 # seed: 457   # For Training
@@ -43,10 +41,11 @@ seed: 500     # For Eval
 bend:  # Bend may randomly be either a single-sided or double-sided bend
   max_axis: 60   # Clockwise rotation of the bending axis (in x-y plane)
   max_bend: 60   # Level of bending performed (from 0 to 90 degrees)
-  beta_diff: 0   # Beta difference between bent and unbent portions of sign
 
 # Prunes the dataset by using a maximum of n images for each
 # background+class+damage combination, selected randomly.
+# In other words, how many images of the same sign class with the same damage
+# but varied shading and angle do you want over the same background image?
 prune_dataset:
   prune: True
   max_images: 6
@@ -56,17 +55,17 @@ annotations:
   type: 'coco'  # Either 'retinanet' or 'coco'
   damage_labelling: True
 
-# Number of sectors on each sign, over which damage is calculated
-num_damage_sectors: 4  # TODO: Not yet used by program
-# Use structural similarity (ssim) or pixel-wise obscurity (pixel_wise) to calculate sign damage
-damage_measure_method: 'pixel_wise'     
+# Number of grid cell sectors on each sign, over which damage is calculated
+num_damage_sectors: 4  # Must be a perfect square
+# 'ssim' will calculate structural difference relative to all pixels in each image/sector
+#      This means damage values will be dependent on the shape of the sign
+# 'pixel_wise' will calculate the pixel-by-pixel difference only for pixels part of the original sign (i.e. visible)
+damage_measure_method: 'pixel_wise'
 
 # A setting that uses an algorithm to find the light source locations and intensities
 # in each background image, and adjusts relative exposure between bent and unbent portions of
-# a sign to mimic a shadow. Turn off until manipulate stops saturating images.
-detect_light_src: False
-# TODO: Fix manipulate function to use gamma rather than contrast for RGBA adjustments
-# TODO: Fix find_useful_signs to detect partial whiteend sections
+# a sign to mimic a shadow. Does not work with saturating manipulation methods (i.e. 'exposure').
+detect_light_src: True
 
 # Whether to reuse .npy file in the 'damage' or 'manipulate' intermediate folders.
 reuse_data: 

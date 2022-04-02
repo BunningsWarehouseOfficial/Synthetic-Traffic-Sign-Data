@@ -13,13 +13,19 @@ We have modified Stergiou's code to create synthetic data placed over a full bac
 The above shows some close-up examples of damage applied to signs.
 
 ## Installation
-Git is required to download and install the repo. You can open Terminal (for Linux and Mac) or cmd (for Windows) and follow these commands:
+Git is required to download and install the repo. If on Linux or Mac, open Terminal and follow these commands:
 ```sh
 $ sudo apt-get update
 $ sudo apt-get install git
-$ git clone https://github.com/BunningsWarehouseOfficial/Traffic-Sign-Damage-Detection-using-Synthesised-Training-Data.git
+$ git clone https://github.com/ai-research-students-at-curtin/Traffic-Sign-Damage-Detection-using-Synthesised-Training-Data.git
 ```
-To install the required packages, simply execute the following command:
+
+Using a Anaconda environment is recommended. Install Miniconda (terminal only) [here](https://docs.conda.io/en/latest/miniconda.html). Once installed, run the following command while in the repo directory:
+```sh
+$ conda env create -f environment.yaml
+```
+
+*Alternatively*, to install the required packages using pip, simply execute the following command (`pip3` may be exchanged with `pip`):
 ```sh
 $ pip3 install -r requirements.txt
 ```
@@ -32,9 +38,11 @@ Navigate to the `signbreaker` directory. To run the generator, simply execute th
 ```sh
 $ python create_dataset.py
 ```
+The `--output_dir` argument can be used to specify a custom directory for the generated dataset. A complete path is required.
+
 The generator can be configured with by modifying the `config.yaml` file.
 
-Please allow for sufficient storage space when running the dataset generator. With the default config values and the below example inputs, have 50GB available to be on the safe side.
+Please allow for sufficient storage space when running the dataset generator. With the default config values and the below example inputs, the size of the dataset will be on the order of 50-100 GB.
 
 **Example traffic sign templates** for data generation can be downloaded [here](https://drive.google.com/file/d/1a65EPNK_3gNII8VXBKDZ0N6H_mL6F6P1/view?usp=sharing).
 
@@ -43,9 +51,15 @@ Please allow for sufficient storage space when running the dataset generator. Wi
 ## License
 MIT
 
-## Contact
-Kristian Rados
-(kristian.rados@student.curtin.edu.au)
+## Contributors
+Kristian Rados *(Primary)* \
+kristian.rados@student.curtin.edu.au
 
-Seana Dale
-(seana.dale@student.curtin.edu.au)
+Seana Dale \
+seana.dale@student.curtin.edu.au
+
+Allen Antony \
+allenantony2001@gmail.com
+
+Jack Downes \
+jack.downes@postgrad.curtin.edu.au

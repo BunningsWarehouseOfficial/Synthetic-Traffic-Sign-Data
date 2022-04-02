@@ -1,3 +1,7 @@
+###########################################################
+#  NOTE: THIS IS A COPY OF ../signbreaker/synth_image.py  #
+###########################################################
+
 from datetime import datetime
 from pathlib import Path
 import random

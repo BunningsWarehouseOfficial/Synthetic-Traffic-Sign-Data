@@ -46,7 +46,7 @@ def initialise_sign_templates(html_text):
             gallerytext.b.decompose()
 
         desc = gallerytext.get_text().strip()
-        url = thumb['srcset'].split(' ')[-2]    # get the largest image
+        url = thumb['srcset'].split(' ')[-2]  # Get the largest image
         sign_templates.append(SignTemplate(desc, 'https:' + url))
     return sign_templates
             
@@ -73,26 +73,26 @@ if __name__ == "__main__":
     categories = []
     cats_file = None
     
-    # get the list of sign categories to download
+    # Get the list of sign categories to download
     if args.categories_file is not None:
         with open(args.categories_file, 'r') as f:
             categories = f.read().splitlines()
         cats_file = open(os.path.join(args.out_dir, 'categories.txt'), 'w')
     
-    # submit a GET request to the Wikipedia page
+    # Submit a GET request to the Wikipedia page
     r = requests.get(f'https://en.wikipedia.org/wiki/Road_signs_in_{args.country}')
     if r.status_code != 200:
         print('Error: {}'.format(r.status_code))
         sys.exit(1)
 
-    # create a list of sign templates by extracting descriptions and urls of sign images from the HTML
+    # Create a list of sign templates by extracting descriptions and urls of sign images from the HTML
     sign_templates = initialise_sign_templates(r.text)
     
-    # filter the list of sign templates by the supplied categories using the TF-IDF algorithm    
+    # Filter the list of sign templates by the supplied categories using the TF-IDF algorithm    
     if categories != []:
         sign_templates = filter_templates(categories, sign_templates)
         
-    # download the sign templates
+    # Download the sign templates
     for i, sign_template in enumerate(sign_templates[:5]):
         if categories != []:
             cats_file.write(f'{i + 1}:{categories[i]}\n')

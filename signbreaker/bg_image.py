@@ -5,9 +5,9 @@ import cv2
 import numpy as np
 from collections import Counter
 
-SAMPLING_CONSTANT = 0.1    # Percentage of image pixels that are sampled
-NUM_SEGMENTS = 10          # Number of segments horizontally
-NUM_ITERATIONS = 200       # How many iterations to run the montecarlo sampling
+SAMPLING_CONSTANT = 0.1  # Percentage of image pixels that are sampled
+NUM_SEGMENTS = 10        # Number of segments horizontally
+NUM_ITERATIONS = 200     # How many iterations to run the montecarlo sampling
 
 
 class BgImage:

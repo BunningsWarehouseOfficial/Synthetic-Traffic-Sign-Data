@@ -1,5 +1,5 @@
 """Utility functions for manipulating images."""
-# Coauthors: Kristian Rados, Seana Dale, Jack Downes
+# Extended from original functions by Jack Downes: https://github.com/ai-research-students-at-curtin/sign_augmentation
 
 import cv2
 import numpy as np
@@ -8,9 +8,9 @@ import math
 from PIL import Image, ImageOps
 
 def load_paths(directory, ignored=['.npy']):
-    """Returns a list with the paths of all files in the directory"""
+    """Returns a list with the paths of all files in the directory."""
     paths = []
-    for filename in os.listdir(directory): # Retrieve names of files in directory
+    for filename in os.listdir(directory):  # Retrieve names of files in directory
         # Concatenate filename with directory path, ignoring hidden files
         path = os.path.join(directory, filename)
         _, ext = os.path.splitext(filename)
@@ -19,9 +19,9 @@ def load_paths(directory, ignored=['.npy']):
     return paths
 
 def load_files(directory, ignored=['.npy']):
-    """Returns a list with the paths of all non-directory files in the directory"""
+    """Returns a list with the paths of all non-directory files in the directory."""
     paths = []
-    for filename in os.listdir(directory): # Retrieve names of files in directory
+    for filename in os.listdir(directory):  # Retrieve names of files in directory
         # Concatenate filename with directory path, ignoring hidden files and directories
         path = os.path.join(directory, filename)
         _, ext = os.path.splitext(filename)
@@ -30,7 +30,7 @@ def load_files(directory, ignored=['.npy']):
     return paths
 
 def dir_split(path):
-    """Imitates the functionality of path.split('/') while using os.path.split"""
+    """Imitates the functionality of path.split('/') while using os.path.split."""
     # Source: https://stackoverflow.com/a/3167684/12350950
     folders = []
     while True:
@@ -65,8 +65,8 @@ def scale_image(image_path, width):
     return new_img
 
 def create_alpha(img, alpha_channel):
-    """Returns an alpha channel that matches the white background \n
-    Based on Alexandros Stergiou's find_borders() function"""
+    """Returns an alpha channel that matches the white background.\n
+    Based on Alexandros Stergiou's find_borders() function."""
 
     # Read and decode the image contents for pixel access
     pix = img.load()
@@ -100,17 +100,17 @@ def create_alpha(img, alpha_channel):
     return alpha_channel
 
 def delete_background(image_path, save_path):
-    """Deletes the white background from the original sign
-    Based on Alexandros Stergiou's manipulate_images() function"""
+    """Deletes the white background from the original sign.\n
+    Based on Alexandros Stergiou's manipulate_images() function."""
     # Open the image using PIL (don't read contents yet)
     img = Image.open(image_path)
-    img = img.convert('RGB')  # Does this have any effect??
+    img = img.convert('RGB')  # TODO: Does this have any effect??
 
     # Open the image again using OpenCV and split into its channels
     image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
     channels = cv2.split(image)
 
-    # Create a fully opaque alpha channel, same dimentions and dtype as the image
+    # Create a fully opaque alpha channel, same dimensions and dtype as the image
     # create_alpha() modifies it to make the white background transparent
     alpha_channel = np.ones(channels[0].shape, dtype=channels[0].dtype) * 255
     alpha_channel = create_alpha(img, alpha_channel)
@@ -118,12 +118,16 @@ def delete_background(image_path, save_path):
     # Merge alpha channel into original image
     image_RGBA = cv2.merge((channels[0], channels[1], channels[2], alpha_channel))
 
-    cv2.imwrite(save_path, image_RGBA)
+    # Mask the image so that deleted, invisible background pixels are black instead of white
+    # This is crucial to accurate damage values, as damage functions also use this masking function and will turn those
+    # pixels black anyway, artificially inflating all damage values when using the structural similarity measure
+    image_RGBA = cv2.bitwise_and(image_RGBA, image_RGBA, mask=alpha_channel)
 
+    cv2.imwrite(save_path, image_RGBA)
     img.close()
 
 def to_png(directory):
-    """Convert all files in 'directory' to PNG images"""
+    """Convert all files in 'directory' to PNG images."""
     for files in load_paths(directory):
         title, extension = files.split('.')
         img = Image.open(files).convert('RGBA')
@@ -177,7 +181,7 @@ def resize(img1, img2):
 
 
 def add_pole(filename, color):
-    """Adds a pole to the imported sign"""
+    """Adds a pole to the imported sign."""
     img = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
     # Retrieve image dimentions and calculate the new height
     height, width, _ = img.shape  # Discard channel
@@ -264,12 +268,18 @@ def count_pixels(img):
     to the transparency of each pixel."""
     sum = 0  # Initialise to 0 in case there is no alpha channel
     split = cv2.split(img)
-    if len(split) == 4:  # Only proceed if the image has an alpha channel
+    if len(split) == 4:  # Proceed if the image has an alpha channel
         alpha = split[3]
         # Loop through alpha channel
         for ii in range(0, len(alpha)):
             for jj in range(0, len(alpha[0])):
                 sum += alpha[ii][jj] / 255  # Divide by 255 to weight the transparency
+    elif len(split) == 1:  # Alternative method for greyscale images
+        for ii in range(0, len(img)):
+            for jj in range(0, len(img[0])):
+                sum += img[ii][jj] / 255  # Weight the brightness of the pixel
+    else:
+        raise ValueError("Error: Can only count pixels for greyscale images and images with an alpha channel.")
     return sum
 
 def calc_ratio(fg, bg):
@@ -370,12 +380,13 @@ def count_damaged_pixels(new, original):
         raise TypeError(f"The two images need 4 channels, but original has {split_new} and new has {split_original}")
     
     ## For debug visualisations
-    # cv2.imshow("new", new) ##
-    # cv2.waitKey(0) ##for debug visual
-    # cv2.destroyAllWindows() ##for debug visual
-    # cv2.imshow("count_damaged_pixels", copy) ##for debug visual
-    # cv2.waitKey(0) ##for debug visual
-    # cv2.destroyAllWindows() ##for debug visual
+    # cv2.imshow("new", new)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    # cv2.imshow("count_damaged_pixels", copy)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    ##
 
     return sum
 
@@ -391,26 +402,28 @@ def count_damaged_pixels_vectorized(new, original):
     
     diffs = np.where(original[...,3] > 0, col_diffs + alpha_diffs, 0)
     
-    # For debug visualisations
+    ## For debug visualisations
     # vis = np.ones(new.shape) * np.array([0, 255, 0, 255])
     # vis[..., 1] = vis[..., 1] * diffs
     # # For debug visualisations
-    # cv2.imshow("new", new) ##
+    # cv2.imshow("new", new)
     # cv2.waitKey(0) 
     # cv2.imshow("count_damaged_pixels_vectorized", vis)
     # cv2.destroyAllWindows() 
+    ##
     
     return np.sum(diffs)
 
 
 def calc_damage(new, original, method):
     """Calculate the ratio of damaged pixels between two versions of the same image."""
-    ## For debug
+    ## For debug visualisations
     # dmg = count_damaged_pixels(new, original)
     # total = count_pixels(original)
     # print(f"damage = count_damaged_pixels / count_pixels = {dmg} / {total} = {dmg / total}")
     # return dmg / total
     ##
+    
     if method == 'ssim':
         return calc_damage_ssim(new, original)
     elif method == 'pixel_wise':
@@ -425,46 +438,23 @@ def calc_damage_ssim(new, original):
     rather than individual pixels.
     """
     from skimage.metrics import structural_similarity as compare_ssim
+    
     grayA = cv2.cvtColor(new, cv2.COLOR_BGR2GRAY)
     grayB = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
-    score, _ = compare_ssim(grayA, grayB, win_size=3, full=True)
-    return 1 - (score + 1) / 2
-
-
-# TODO: DEPRECATED, consider removing in future
-# def calc_damage_quadrants(new, original, method='ssim'):
-#     """Calculate the ratio of damaged pixels between two versions of the same image for each quadrant."""
-#     height, width, _ = original.shape
-#     centre_x = int(round( width / 2 ))
-#     centre_y = int(round( height / 2 ))
-
-#     # Divide both images into quadrants
-#     new_I   = new[0:centre_y, centre_x:width]
-#     new_II  = new[0:centre_y, 0:centre_x]
-#     new_III = new[centre_y:height, 0:centre_x]
-#     new_IV  = new[centre_y:height, centre_x:width]
-#     original_I   = original[0:centre_y, centre_x:width]
-#     original_II  = original[0:centre_y, 0:centre_x]
-#     original_III = original[centre_y:height, 0:centre_x]
-#     original_IV  = original[centre_y:height, centre_x:width]
-
-#     if method=='pixel_wise':
-#         ratio_I   = calc_damage(new_I, original_I, method=method)
-#         ratio_II  = calc_damage(new_II, original_II, method=method)
-#         ratio_III = calc_damage(new_III, original_III, method=method)
-#         ratio_IV  = calc_damage(new_IV, original_IV, method=method)
-#     return [ratio_I, ratio_II, ratio_III, ratio_IV]
+    score = compare_ssim(grayA, grayB, win_size=3)
+    return 1 - score
 
 
 # TODO: num_damage_sectors, which should be equal to the eponymous config parameter, isn't used by any functions yet
-def calc_damage_sectors(new, original, num_damage_sectors=4, method='pixel_wise'):
+def calc_damage_sectors(new, original, num_sectors=4, method='pixel_wise'):
     """Calculates a list of damage ratios for an arbitrary number of sectors.
-    Call np.reshape(ratios, (math.sqrt(len(ratios)), math.sqrt(len(ratios)))) to reconstruct the 2D sector damage array.
+    Each 'sector' is a cell in a grid, so `num_damage_sectors` must be a perfect square.
+    Call `np.reshape(ratios, (math.sqrt(len(ratios)), math.sqrt(len(ratios))))` to reconstruct the 2D sector damage array.
     The ordering of damages for 4 sectors is [tl, tr, bl, br].
     """
-    l = math.sqrt(num_damage_sectors)
+    l = math.sqrt(num_sectors)
     if l != int(l):
-        raise ValueError('num_damage_sectors must be a perfect square')
+        raise ValueError("'num_damage_sectors' must be a perfect square")
     m = math.ceil(new.shape[0] / l)
     n = math.ceil(new.shape[1] / l)
     get_sectors = lambda im: [im[r:r+m,c:c+n] for r in range(0,im.shape[0],m) for c in range(0,im.shape[1],n)]
@@ -474,6 +464,11 @@ def calc_damage_sectors(new, original, num_damage_sectors=4, method='pixel_wise'
     for i in range(len(new_img_sectors)):
         dmg = calc_damage(new_img_sectors[i], original_img_sectors[i], method=method)
         ratios.append(max(min(dmg, 1.0), 0.0))
+
+    ## For debug visualisations (reconstruct 2D matrix of damage in each sector of grid)
+    # print(np.reshape(ratios, (int(math.sqrt(len(ratios))), int(math.sqrt(len(ratios))))))
+    ##
+    
     return ratios
 
 

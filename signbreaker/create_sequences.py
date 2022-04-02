@@ -5,10 +5,7 @@ An interactive window opens where the user selects two anchor points for each ba
 and size of the foreground image at the start and end of the sequence, with intermediary frames add between according to
 the user specified sequence length.
 """
-# Author: Kristian Rados
 
-# TODO: Perhaps anchors would be better represented by list of objects?
-# TODO: Progress bar (if needed)
 # FIXME: fg_dir must be preprocessed, i.e. sourced from 2_Processed_Images
 # TODO: Calculate pole length based on size of anchor point and static variable that represents the standard pole length
 #       for the region in question. In GUI draw a line from centre of AP box downwards to show where it will be actually
@@ -131,7 +128,7 @@ def main():
     if (not os.path.exists(OUT_DIR)):
         out_dir = OUT_DIR
     else:
-        timestamp = datetime.now().strftime("_%d%m%Y_%H%M%S")
+        timestamp = datetime.now().strftime("_%Y-%m-%d_%H-%M-%S")
         out_dir = OUT_DIR + timestamp
     os.mkdir(out_dir)
 

@@ -165,7 +165,7 @@ def metrics_by_param(gt_arr, pred_arr, num_frames=8, param='sequence'):
     # Format [param, AP50, mAP, Maximum IOU, Minimum IOU, Mean IOU, Maximum Score, Minimum Score, Mean Score] 
     metrics_array = None
     
-    # iterate over each image sequence
+    # Iterate over each image sequence
     for i in range(len(param_preds)):
         gt_boxes, pred_boxes = get_bounding_boxes(param_gts[i], param_preds[i])
         metrics, columns = get_metrics(gt_boxes, pred_boxes)
@@ -224,8 +224,8 @@ if __name__ == '__main__':
         print(df)
         fig = px.line(df, x='Area', y='mAP', title='Average Precision (AP) vs. width of sign in pixels in image')
         
-    # A plot of a metric (e.g., mAP) against damage level (10%, 20%, etc.), where AP is evaluated against annotations with
-    # the same (mapped) damage level.
+    # A plot of a metric (e.g., mAP) against damage level (10%, 20%, etc.), where AP is evaluated against annotations
+    # with the same (mapped) damage level.
     elif args.experiment == 'damage':
         df = damage_experiment(gt_arr, pred_arr)
         print(df)

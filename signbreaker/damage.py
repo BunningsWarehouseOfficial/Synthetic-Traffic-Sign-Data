@@ -1,6 +1,5 @@
 """Module of functions to apply damage to signs."""
-# Authors: Kristian Rados, Seana Dale, Jack Downes
-# https://github.com/ai-research-students-at-curtin/sign_augmentation
+# Extended from original functions by Jack Downes: https://github.com/ai-research-students-at-curtin/sign_augmentation
 
 import os
 import imutils
@@ -17,10 +16,11 @@ from synth_image import SynthImage
 attributes = {
     "damage_type" : "None",
     "tag"    : "-1",  # Set of parameters used to generate damage as string 
-    "damage_ratio"  : 0.0,     # Quantity of damage (0 for no damage, 1 for all damage)
+    "damage_ratio"  : 0.0, # Quantity of damage (0 for no damage, 1 for all damage)
     }
 
 dmg_measure = "pixel_wise"
+num_sectors = 4
 
 
 def damage_image(image_path, output_dir, config, backgrounds=[]):
@@ -40,6 +40,7 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
 
     num_damages = config['num_damages']
     global dmg_measure; dmg_measure = config['damage_measure_method']
+    global num_sectors; num_sectors = config['num_damage_sectors']
 
     def apply_damage(dmg, att):
         """Helper function to avoid repetition."""
@@ -85,9 +86,10 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
     # BEND
     bd_config = config['bend']
     if num_damages['bend'] > 0:
-        num_bends = max(1, num_damages['bend'] // (len(backgrounds) or 1))
+        # num_bg_bends = max(1, num_damages['bend'] // (len(backgrounds) or 1))
+        num_bg_bends = max(1, num_damages['bend'])
         bend_angles = rand.sample(
-            range(10, max(bd_config['max_bend'] + 5, 15), 5), num_bends)
+            range(10, max(bd_config['max_bend'] + 5, 15), 5), num_bg_bends)
         
         for bend in bend_angles:
             axis = rand.randint(0, bd_config['max_axis'])
@@ -113,42 +115,42 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
                     
                     # Create SynthImage
                     dmg_path = os.path.join(
-                        output_path, f"{class_num}_{att['damage_type']}_{att['tag']}_{Path(bg.path).stem}.png")
+                        output_path, f"{class_num}_{att['damage_type']}_{att['tag']}_BG_{Path(bg.path).stem}.png")
                     cv.imwrite(dmg_path, dmg)
                     damaged_images.append(SynthImage(
                         dmg_path, int(class_num), att["damage_type"], att["tag"], float(att["damage_ratio"]), 
                         att["sector_damage"], bg_path=bg.path, fg_coords=(fg_x, fg_y), fg_size=fg_size))
-                    
-                    
 
     # GRAFFITI
     g_conf = config['graffiti']
     if num_damages['graffiti'] > 0:
         targets = np.linspace(g_conf['initial'], g_conf['final'], num_damages['graffiti'])
         for t in targets:
-            dmg, att = graffiti(img, target=t, color=(0,0,0))
+            dmg, att = graffiti(img, target=t, color=(0,0,0), solid=g_conf['solid'])
             apply_damage(dmg, att)
 
     # TINTED YELLOW
-    # yellow = np.zeros((height,width,ch), dtype=np.uint8)
-    # yellow[:,:] = (0,210,210,255)
-    # dmg4 = cv.bitwise_and(img, yellow)
-    # # TODO: Use quadrant pixel difference ratio or some other damage metric for labelling?
-    # cv.imwrite(os.path.join(output_path, class_num + damage_types[4] + ".png"), dmg4)
-    
+    # TODO: Utilise config file for max and min tint values with associated bounds checking in create_dataset.py
+    if num_damages['tint_yellow'] > 0:
+        tints = rand.sample(range(120, 240, 10), num_damages['tint_yellow'])
+        for t in tints:         # ^ I chose this range pretty arbitrarily when reimplementing this damage type
+            dmg, att = tint_yellow(img, tint=t)
+            apply_damage(dmg, att)
+
     # GREY
-    # dmg7 = cv.cvtColor(img, cv.COLOR_BGRA2GRAY)   # Convert to greyscale
-    # # Threshold the image to get a uniform saturation
-    # _, dmg7 = cv.threshold(dmg7, 100, 255, cv.THRESH_BINARY)
-    # cv.convertScaleAbs(dmg7, dmg7, alpha=1, beta=200)  # No change to contrast, scale brightness
-    # dmg7 = cv.cvtColor(dmg7, cv.COLOR_GRAY2BGRA)   # Convert back to BGRA to add back the alpha channel
-    # dmg7[:,:,3] = alpha_ch
-    # cv.imwrite(os.path.join(output_path, class_num + damage_types[7] + ".png"), dmg7)
-    # TODO: Test with exposure_manipulation()
-    # TODO: Write values to file
+    # TODO: Utilise config file for max and min beta values with associated bounds checking in create_dataset.py
+    # FIXME: Completely oversaturates sign types which are already grey (i.e. STSDG sign 49)
+    #        Try using gamma correction instead of convertScaleAbs (see manipulate.py)
+    if num_damages['grey'] > 0:
+        betas = rand.sample(range(100, 240, 5), num_damages['grey'])
+        for b in betas:         # ^ This min beta is arbitrary, should be in config; I think 240 is good max though
+            dmg, att = grey(img, beta=b)
+            apply_damage(dmg, att)
     
-    # TODO: CRACKS (thin crack lines across the sign?)
-    # TODO: MISSING SECTIONS (missing polygon sections on edges of sign?)
+    #       See reference image collection for inspiration
+    # TODO: CRACKS (thin crack lines across the sign? textured global 'cracking'?)
+    # TODO: MISSING SECTIONS (more generalised; missing polygon sections on edges of sign?)
+    # TODO: DENTS and/or CURVED BENDING (as opposed to instantaneous bending over a straight line)
 
     return damaged_images
 
@@ -165,14 +167,57 @@ def validate_sign(img):
 def no_damage(img):
     """Return the image as is, along with its attributes."""
     dmg = validate_sign(img)
-    height, width, _ = img.shape
+    # dmg = cv.bitwise_and(img, img, mask=dmg[:,:,3])
 
     # Assign labels
     att = attributes
-    att["damage_type"] = "no_damage"
-    att["tag"]    = ""
-    att["damage_ratio"]  = str(calc_damage(dmg, img, dmg_measure))  # This should be 0
-    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure)
+    att["damage_type"]   = "no_damage"
+    att["tag"]           = ""
+    att["damage_ratio"]  = str(calc_damage(dmg, img, dmg_measure))  # This should be 0.0
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
+
+    return dmg, att
+
+def tint_yellow(img, tint=180):
+    dmg = validate_sign(img)
+    hole = dmg[:,:,3].copy()
+    att = attributes
+
+    height, width, ch = dmg.shape
+
+    # TODO: Perhaps there could be more variation in colour
+    #       e.g. have tint1 and tint2, with each being tint +- x, a new variable
+    yellow = np.zeros((height,width,ch), dtype=np.uint8)
+    yellow[:,:] = (0,tint,tint,255)
+    dmg = cv.bitwise_and(dmg, yellow)
+
+    # Assign labels
+    att = attributes
+    att["damage_type"]   = "tint_yellow"
+    att["tag"]           = str(int(tint))
+    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
+
+    return dmg, att
+
+def grey(img, beta=200):  # TODO: Imitates complete fading of colour in sign: perhaps rename?
+    dmg = validate_sign(img)
+
+    channels = cv.split(img)
+
+    dmg = cv.cvtColor(img, cv.COLOR_BGRA2GRAY)  # Convert to greyscale
+    # Threshold the image to get a uniform saturation
+    _, dmg = cv.threshold(dmg, 100, 255, cv.THRESH_BINARY)
+    cv.convertScaleAbs(dmg, dmg, alpha=1, beta=beta)  # No change to contrast, scale brightness
+    dmg = cv.cvtColor(dmg, cv.COLOR_GRAY2BGRA)  # Convert back to BGRA to add back the alpha channel
+    dmg[:,:,3] = channels[3]
+
+    # Assign labels
+    att = attributes
+    att["damage_type"]   = "grey"
+    att["tag"]           = str(int(beta))
+    att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
 
     return dmg, att
 
@@ -189,22 +234,22 @@ def remove_quadrant(img, quad_num=-1):
         quad_num = rand.randint(1, 4)
     # Remove the quadrant: -1 offset is necessary to avoid damaging part of a wrong quadrant
     if quad_num == 1:         # top-right          centre
-        cv.rectangle(quadrant, (width, 0), (centre_x, centre_y-1), (0,0,0), -1)
+        cv.rectangle(quadrant, (width, 0), (centre_x, centre_y-1), 0, thickness=-1)
     elif quad_num == 2:       # top-left           centre
-        cv.rectangle(quadrant, (0, 0), (centre_x-1, centre_y-1), (0,0,0), -1)
+        cv.rectangle(quadrant, (0, 0), (centre_x-1, centre_y-1), 0, thickness=-1)
     elif quad_num == 3:       # bottom-left        centre
-        cv.rectangle(quadrant, (0, height), (centre_x-1, centre_y), (0,0,0), -1)
+        cv.rectangle(quadrant, (0, height), (centre_x-1, centre_y), 0, thickness=-1)
     elif quad_num == 4:       # bottom-right       centre
-        cv.rectangle(quadrant, (width, height), (centre_x, centre_y), (0,0,0), -1)
+        cv.rectangle(quadrant, (width, height), (centre_x, centre_y), 0, thickness=-1)
     
     dmg = cv.bitwise_and(img, img, mask=quadrant)
 
     # Assign labels
     att = attributes
-    att["damage_type"] = "quadrant"
-    att["tag"]    = str(quad_num)
+    att["damage_type"]   = "quadrant"
+    att["tag"]           = str(quad_num)
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))  # This should be around 0.25
-    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure)
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
 
     return dmg, att
 
@@ -220,18 +265,18 @@ def remove_hole(img, angle):
 
     radius = int(2 * height / 5)
     rad = -(angle * math.pi / 180)  # Radians
-    x = centre_x + int(radius * math.cos(rad))   # x-coordinate of centre
-    y = centre_y + int(radius * math.sin(rad))   # y-coordinate of centre
+    x = centre_x + int(radius * math.cos(rad))  # x-coordinate of centre
+    y = centre_y + int(radius * math.sin(rad))  # y-coordinate of centre
 
     cv.circle(hole, (x,y), radius, (0,0,0), -1)  # -1 to create a filled circle
     dmg = cv.bitwise_and(dmg, dmg, mask=hole)
 
     # Assign labels
     att = attributes
-    att["damage_type"] = "big_hole"
-    att["tag"]    = str(int(angle))
+    att["damage_type"]   = "big_hole"
+    att["tag"]           = str(int(angle))
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
-    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure)
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
 
     return dmg, att
 
@@ -261,7 +306,7 @@ def bullet_holes(img, num_holes=40, target=-1):
             # Paint the ring around the bullet hole first
             cv.circle(painted, (x,y), int(size * annulus), (an,an,an,255), -1)
             # If the bullet didn't penetrate through the sign, grey out rather than making transparent
-            if (size < 6):  #TODO: Make relative to image width
+            if (size < 6):  # TODO: Make relative to image width
                 cv.circle(painted, (x,y), size, (hl,hl,hl,255), -1)
             else:
                 cv.circle(bullet_holes, (x,y), size, (0,0,0), -1)
@@ -286,7 +331,7 @@ def bullet_holes(img, num_holes=40, target=-1):
             # Paint the ring around the bullet hole first
             cv.circle(painted, (x,y), int(size * annulus), (an,an,an,255), -1)
             # If the bullet didn't penetrate through the sign, grey out rather than making transparent
-            if (size < 6):  #TODO: Make relative to image width
+            if (size < 6):  # TODO: Make relative to image width
                 cv.circle(painted, (x,y), size, (hl,hl,hl,255), -1)
             else:
                 cv.circle(bullet_holes, (x,y), size, (0,0,0), -1)
@@ -296,10 +341,10 @@ def bullet_holes(img, num_holes=40, target=-1):
 
     # Assign labels
     att = attributes
-    att["damage_type"] = "bullet_holes"
-    att["tag"]    = str(num_holes)
+    att["damage_type"]   = "bullet_holes"
+    att["tag"]           = str(num_holes)
     att["damage_ratio"]  = "{:.3f}".format(ratio)
-    att["sector_damage"] = calc_damage_sectors(painted, img, method=dmg_measure)
+    att["sector_damage"] = calc_damage_sectors(painted, img, method=dmg_measure, num_sectors=num_sectors)
 
     return dmg, att
 
@@ -335,27 +380,47 @@ def calc_points(img, x0, y0, offset):
     
     return x1, y1, x2, y2
 
-def draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color):
+def draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color, solid):
     """Draw a single bezier curve of desired thickness and colour."""
-    alpha = rand.randint(240, 255)  # Random level of transparency
-    # skimage.draw.bezier_curve() only draws curves of thickness 1 pixel,
-    # We layer multiple curves to produce a curve of desired thickness
-    start = -(thickness // 2)
-    end = thickness // 2
-    for ii in range(start, end+1):
-        # Draw curves, shifting vertically and adjusting x-coordinates to round the edges
-        yy, xx = draw.bezier_curve(y0+ii, x0+abs(ii), y1+ii, x1, y2+ii, x2-abs(ii), weight=1, shape=grft.shape)
-        grft[yy, xx] = color + (alpha,)  # Modify the colour of the pixels that belong to the curve
+    from skimage import morphology
 
-def graffiti(img, target=0.2, color=(0,0,0)):
+    if solid:
+        start = -(thickness // 2)
+        end = thickness // 2
+        for ii in range(start, end+1):
+            # Draw curves, shifting vertically and adjusting x-coordinates to round the edges
+            yy, xx = draw.bezier_curve(y0+ii, x0+abs(ii), y1+ii, x1, y2+ii, x2-abs(ii), weight=1, shape=grft.shape)
+            
+            grft[yy, xx] = 255  # Modify the colour of the pixels that belong to the curve
+        # Dilate the image to fill in the gaps between the bezier lines
+        # grft = morphology.dilation(grft, morphology.disk(radius=1))
+    else:
+        alpha = rand.randint(240, 255)  # Random level of transparency
+        # skimage.draw.bezier_curve() only draws curves of thickness 1 pixel,
+        # We layer multiple curves to produce a curve of desired thickness
+        start = -(thickness // 2)
+        end = thickness // 2
+        for ii in range(start, end+1):
+            # Draw curves, shifting vertically and adjusting x-coordinates to round the edges
+            yy, xx = draw.bezier_curve(y0+ii, x0+abs(ii), y1+ii, x1, y2+ii, x2-abs(ii), weight=1, shape=grft.shape)
+            
+            grft[yy, xx] = color + (alpha,)  # Modify the colour of the pixels that belong to the curve
+    return grft
+
+def graffiti(img, target=0.2, color=(0,0,0), solid=True):
     """Apply graffiti damage to sign.
        :param initial: the first target level of obscurity (0-1)
        :param final: the level of obscurity to stop at (0-1)
        :returns: a list containing the damaged images, and a list with the corresponding attributes
     """
+    from skimage import morphology
+
     validate_sign(img)
     height, width, _ = img.shape
-    grft = np.zeros((height, width, 4), dtype=np.uint8)  # New blank image for drawing the graffiti on.
+    if solid:
+        grft = np.zeros((height, width), dtype=np.uint8)  # New blank image for drawing the graffiti on.
+    else:
+        grft = np.zeros((height, width, 4), dtype=np.uint8)  # New blank image for drawing the graffiti on.
 
     ratio = 0.0
     x0, y0 = width//2, height//2  # Start drawing in the centre of the image
@@ -365,25 +430,38 @@ def graffiti(img, target=0.2, color=(0,0,0)):
         radius = width // 5  # Radius of max distance to the next point
         x1, y1, x2, y2 = calc_points(img, x0, y0, radius)
         thickness = int(round(width // 20))
-        draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color)
+        grft = draw_bezier(grft, x0, y0, x1, y1, x2, y2, thickness, color, solid)
         # Make the end point the starting point for the next curve
         x0, y0 = x2, y2
-        ratio = round(calc_ratio(grft, img), 4)
+        if solid:
+            grft_dilated = morphology.dilation(grft, morphology.disk(radius=1))
+            ratio = round(calc_ratio(grft_dilated, img), 4)
+        else:
+            ratio = round(calc_ratio(grft, img), 4)
     # Add a copy to the list and continue layering more graffiti
     
-    k = (int(round( width/20 )) // 2) * 2 + 1  # Kernel size must be odd
+    if solid:
+        grft = grft_dilated
+        grft = cv.cvtColor(grft, cv.COLOR_GRAY2BGRA)
+
+    grft[:,:,3] = cv.bitwise_and(grft[:,:,3], img[:,:,3])  # Combine with original alpha to remove any sign spillover
+
+    if solid:
+        grft = cv.bitwise_and(img, img, mask=grft_dilated)
+        alpha = cv.split(grft)[3]
+        grft[alpha == 255] = color + (255,)
+
     # Apply a Gaussian blur to each image, to smooth the edges
+    k = (int(round( width/30 )) // 2) * 2 + 1  # Kernel size must be odd
     grft = cv.GaussianBlur(grft, (k,k), 0)
-    # Combine with the original alpha channel to remove anything that spilt over the sign
-    grft[:,:,3] = cv.bitwise_and(grft[:,:,3], img[:,:,3])
     dmg = overlay(grft, img)
     
     # Assign labels
     att = attributes
-    att["damage_type"] = "graffiti"
-    att["tag"]    = str(round(target, 3))
+    att["damage_type"]   = "graffiti"
+    att["tag"]           = str(round(target, 3))
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
-    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure)
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
     return dmg, att
 
 
@@ -393,19 +471,19 @@ def combine(img1, img2, beta_diff=-20):
     """Combine the left half of img1 with right half of img2 and returns the result."""
     _,wd,_ = img1.shape
     result = img1.copy()
-    right = img2.copy()
+    right  = img2.copy()
     # Save the alpha data (to replace later), as convertScaleAbs() will affect the transparency
     result_alpha = cv.split(result)[3]
-    right_alpha = cv.split(right)[3]
+    right_alpha  = cv.split(right)[3]
     
     # Darken the entire image of the copy
     alpha = 1  # No change to contrast
-    beta = beta_diff / 2  # Decrease brightness
+    beta  = beta_diff / 2  # Decrease brightness
     cv.convertScaleAbs(result, result, alpha, beta)
     cv.convertScaleAbs(right, right, alpha, -beta)
     # Replace the alpha data
     result[:,:,3] = result_alpha
-    right[:,:,3] = right_alpha
+    right[:,:,3]  = right_alpha
     
     # Copy over the right half of img2 onto the darkened image
     result[:,wd//2:wd] = right[:,wd//2:wd]
@@ -450,8 +528,6 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
     left, right = tilt(rot_img, bend_angle, (ht, wd))
 
     def apply_bend(left, right, tag):
-        # TODO: Would look more realistic with non-zero beta_diff, 
-        #      but introduces too much complexity with exposure at the moment
         dmg = combine(left, right, beta_diff)
         dmg = imutils.rotate_bound(dmg, -axis_angle)
         dmg = remove_padding(dmg)
@@ -463,10 +539,10 @@ def bend_vertical(img, axis_angle, bend_angle, beta_diff=0):
         dmg = pad(dmg, pad_h, pad_w)
         
         att = attributes
-        att["damage_type"] = "bend"
-        att["tag"]    = "{}".format(bend_angle)
+        att["damage_type"]   = "bend"
+        att["tag"]           = "{}_{}".format(axis_angle, bend_angle)
         att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, original, dmg_measure))
-        att["sector_damage"] = calc_damage_sectors(dmg, original, method=dmg_measure)
+        att["sector_damage"] = calc_damage_sectors(dmg, original, method=dmg_measure, num_sectors=num_sectors)
         return dmg, att
         
     opt = rand.choice(["left", "right", "both"])

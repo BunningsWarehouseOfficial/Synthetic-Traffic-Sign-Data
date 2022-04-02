@@ -11,8 +11,6 @@ evenly distributed distances over the near and far anchor distances, are produce
 The camera's focal length or field of view is also passed as a command line argument to apply perspective projection.
 """
 
-# Author: Kristian Rados, Allen Antony
-
 MIN_ANCHOR_SIZE = 10
 MAX_ANCHOR_SIZE = 200
 FOVY = 60
@@ -20,7 +18,7 @@ NEAR_CLIPPING_PLANE_DIST = 2
 FAR_CLIPPING_PLANE_DIST = 50
 VANISHING_POINT_TRANSLATION = 0.55
 
-SIGN_COORDS = {'x':1.5, 'y':1, 'height':0.5}      # Example world coordinates for rendered sign objects
+SIGN_COORDS = {'x':1.5, 'y':1, 'height':0.5}  # Example world coordinates for rendered sign objects
 
 import numpy as np
 import math
@@ -140,7 +138,7 @@ def produce_anchors(bg_shape, x, y, sign_dims, min_dist, max_dist, num_frames):
     proj_matrix = create_perspective(FOVY, aspect_ratio, NEAR_CLIPPING_PLANE_DIST, FAR_CLIPPING_PLANE_DIST)
     
     for dist in np.linspace(max_dist, min_dist, num=num_frames, endpoint=True):
-        sign_z = -1 * dist      # Projection matrix assumes negative z values in front of camera
+        sign_z = -1 * dist  # Projection matrix assumes negative z values in front of camera
         sign_near = SignObject(x=x, y=y, z=sign_z, dims=sign_dims)
         anchor = sign_near.perspective_transform(bg_shape, proj_matrix)
         anchors.append(anchor)
@@ -162,7 +160,7 @@ def get_world_coords(aspect, x_prop, y_prop, z, fg_dims):
     top = z * math.tan(half_fovy)
     right = top * aspect
     
-    NDC_x = x_prop * 2 - 1   # [0, 1] --> [-1, 1]
+    NDC_x = x_prop * 2 - 1  # [0, 1] --> [-1, 1]
     NDC_y = (1 - y_prop) * (2 - VANISHING_POINT_TRANSLATION) + VANISHING_POINT_TRANSLATION - 1
     
     x_world = right * NDC_x
