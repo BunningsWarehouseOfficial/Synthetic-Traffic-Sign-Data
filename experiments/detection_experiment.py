@@ -18,7 +18,7 @@ import pandas as pd
 import plotly.express as px
 
 from collections import defaultdict
-from detection_eval import BoundingBox, get_detection_metrics, Box
+from detection_eval import BoundingBox, get_voc_metrics, Box
 
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -67,12 +67,12 @@ def get_metrics(gt, pred):
     """   
     columns = ['AP50', 'mAP', 'Mean IOU', 'Mean Score']
     metrics = np.zeros(len(columns))
-    AP40_metrics = get_detection_metrics(gt, pred, iou_threshold=0.4)
+    AP40_metrics = get_voc_metrics(gt, pred, iou_threshold=0.4)
     tp_IOUs = AP40_metrics.tp_IOUs
     tp_scores = AP40_metrics.tp_scores
     APs = []
     for threshold in np.arange(0.5, 1.0, 0.05):
-        APs.append(get_detection_metrics(gt, pred, iou_threshold=threshold).ap)
+        APs.append(get_voc_metrics(gt, pred, iou_threshold=threshold).ap)
     metrics[0] = APs[0]
     metrics[1] = np.mean(APs)
     metrics[2] = np.mean(tp_IOUs)
@@ -156,6 +156,10 @@ def metrics_by_param(gt_arr, pred_arr, num_frames=8, param='sequence'):
         param_gts, vars = split_by_sequence(gt_arr, num_frames)
         param_preds, _ = split_by_sequence(pred_arr, num_frames)
     else:
+        ## DEBUG
+        # print(len(gt_arr))
+        # print(len(pred_arr))
+        ##
         param_gts, vars = globals()["split_by_" + param](gt_arr, gt_arr)
         param_preds, _ = globals()["split_by_" + param](gt_arr, pred_arr)
     
@@ -166,7 +170,13 @@ def metrics_by_param(gt_arr, pred_arr, num_frames=8, param='sequence'):
     metrics_array = None
     
     # Iterate over each image sequence
-    for i in range(len(param_preds)):
+    for i in range(len(param_gts)):
+        ## DEBUG
+        # print()
+        # print(i)
+        # print(len(param_gts))
+        # print(len(param_preds))
+        ##
         gt_boxes, pred_boxes = get_bounding_boxes(param_gts[i], param_preds[i])
         metrics, columns = get_metrics(gt_boxes, pred_boxes)
         row = np.zeros((1, len(metrics) + 1))
@@ -222,7 +232,7 @@ if __name__ == '__main__':
     elif args.experiment == 'distance':
         df = distance_experiment(gt_arr, pred_arr)
         print(df)
-        fig = px.line(df, x='Area', y='mAP', title='Average Precision (AP) vs. width of sign in pixels in image')
+        fig = px.line(df, x='Area', y='mAP', title='Average Precision (AP) vs. width of sign in pixels')
         
     # A plot of a metric (e.g., mAP) against damage level (10%, 20%, etc.), where AP is evaluated against annotations
     # with the same (mapped) damage level.
@@ -231,17 +241,9 @@ if __name__ == '__main__':
         print(df)
         fig = px.line(df, x='Damage', y='mAP', title='Average Precision (AP) vs. Damage Level')
     fig.show()
-    
-    
-    
-    
-        
-        
-    
-        
-        
-    
-    
-    
-    
-    
+
+    directory = "C:/Users/Kristian/Code/Datasets"
+    name = args.eval_file.split('.')[0].split('/')[-1]
+    fig.write_html(f"{directory}/{name}.html")
+    with open(f"{directory}/{name}.txt", 'w') as f:
+        f.write(str(df))

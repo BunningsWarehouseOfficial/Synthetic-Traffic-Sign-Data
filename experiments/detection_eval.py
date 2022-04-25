@@ -227,7 +227,7 @@ def get_voc_metrics(gold_standard: List[BoundingBox],
         image_id2gt = defaultdict(list)
         for b in golds:
             image_id2gt[b.image_id].append(b)
-            
+
         tp_IOUs = []
         tp_scores = []
         # Loop through detections
@@ -242,12 +242,26 @@ def get_voc_metrics(gold_standard: List[BoundingBox],
                     max_iou = iou
                     mas_idx = j
             
-            # Metrics that are invariant with iou_threshold        
-            if counter[preds[i].image_id][mas_idx] == 0:
-                # Add IOU of best detection for this ground truth
-                tp_IOUs.append(max_iou)
-                # Add score of best detection for this ground truth
-                tp_scores.append(preds[i].score)
+            ## DEBUG
+            # print(f'preds[i].image_id: {preds[i].image_id}')
+            # print(f'counter[preds[i].image_id]: {counter[preds[i].image_id]}')
+            # print("<-------------------------------------------------------- ID NOT IN LIST ->") if not preds[i].image_id in stuff else None
+            # print()
+            ##
+
+            # Metrics that are invariant with iou_threshold
+            try:
+                if counter[preds[i].image_id][mas_idx] == 0:
+                    # Add IOU of best detection for this ground truth
+                    tp_IOUs.append(max_iou)
+                    # Add score of best detection for this ground truth
+                    tp_scores.append(preds[i].score)
+            except(TypeError):
+                None  # Prevent crashing on image ids which weren't in counter
+                # Crash:
+                # "py', line 258, in get_voc_metrics
+                #      if counter[preds[i].image_id][mas_idx] == 0:
+                #  TypeError: 'int' object is not subscriptable"
             
             # Assign detection as true positive/don't care/false positive
             if max_iou >= iou_threshold:
