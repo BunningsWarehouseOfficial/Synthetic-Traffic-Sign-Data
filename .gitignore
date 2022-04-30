@@ -13,3 +13,4 @@ signbreaker/Signs
 *.txt
 *.json
 signbreaker/*/*.yaml
+Wiki_*

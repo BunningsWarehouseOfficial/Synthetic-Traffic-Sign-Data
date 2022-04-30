@@ -13,6 +13,7 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from bs4 import BeautifulSoup
+import time
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(current_dir)
@@ -80,7 +81,8 @@ if __name__ == "__main__":
         cats_file = open(os.path.join(args.out_dir, 'categories.txt'), 'w')
     
     # Submit a GET request to the Wikipedia page
-    r = requests.get(f'https://en.wikipedia.org/wiki/Road_signs_in_{args.country}')
+    headers = {'User-Agent': 'SignScraper/0.0 (kristian.rados@student.curtin.edu.au)'}  # Prevents being denied access
+    r = requests.get(f'https://en.wikipedia.org/wiki/Road_signs_in_{args.country}', headers=headers)
     if r.status_code != 200:
         print('Error: {}'.format(r.status_code))
         sys.exit(1)
@@ -93,12 +95,13 @@ if __name__ == "__main__":
         sign_templates = filter_templates(categories, sign_templates)
         
     # Download the sign templates
-    for i, sign_template in enumerate(sign_templates[:5]):
+    for i, sign_template in enumerate(sign_templates[:]):
         if categories != []:
             cats_file.write(f'{i + 1}:{categories[i]}\n')
         extension = '.' + sign_template.url.split('.')[-1]
         file_name  = str(i + 1) + extension
         os.system(f'wget -O {os.path.join(args.out_dir, file_name)} {sign_template.url}')
+        time.sleep(0.25)  # Prevents cascading errors which corrupt the images
         
     
     

@@ -227,7 +227,6 @@ if __name__ == '__main__':
         df_long = pd.melt(df, id_vars=['Damage'], value_vars=['Mean IOU'])
         fig = px.line(df_long, x='Damage', y='value', title='IOU vs. Damage Level', color='variable')
         
-    
     # A plot of a metric (e.g., mAP) against pixel area of the sign in the image. Closer signs have higher pixel area.
     elif args.experiment == 'distance':
         df = distance_experiment(gt_arr, pred_arr)
