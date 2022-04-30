@@ -1,4 +1,5 @@
 signbreaker/Sign_Templates/*
+!signbreaker/Sign_Templates/1_Input/.gitignore
 signbreaker/SGTS*
 dataset_gen/SGTS*
 venv
