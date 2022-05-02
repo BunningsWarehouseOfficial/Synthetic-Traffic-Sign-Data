@@ -5,7 +5,9 @@ sign_width: 200  # Default: 200
 final_op: dataset  # Either 'process', 'damage', 'transform', 'manipulate', or 'dataset'
 
 # The number of transformations applied to each damaged sign template
-num_transform: 6  # Range: [0,15] | low: [1,5], medium: [6,10], high: [11,15]
+num_transform: 6  # Range: [0,15] | low: [1,5], medium: [6,10], high: [11,15] | Default: 6
+# TODO: Re-evaluate which transforms should be used (i.e. remove some) given Wikipedia template images
+#       (e.g. transform 10 consistently gets cut off, but there are others)
 
 # Method of image manipulation: either 'exposure', 'gamma', 'gamma_exposure', or 'histogram' (somewhat broken)
 man_method: gamma_exposure
@@ -34,8 +36,7 @@ graffiti:  # The step size of intermediate damage levels is determined by num_da
   solid: True   # Whether or not transparency is minimised through only alpha values of 255 and morphological dilation
 
 # Randomization seed
-# seed: 457   # For Training
-seed: 500     # For Eval
+seed: 7  # Use different seeds for generating train vs. eval datasets
 
 # Parameters for the bend damage type
 bend:  # Bend may randomly be either a single-sided or double-sided bend
@@ -58,7 +59,7 @@ annotations:
 # Number of grid cell sectors on each sign, over which damage is calculated
 num_damage_sectors: 4  # Must be a perfect square
 # 'ssim' will calculate structural difference relative to all pixels in each image/sector
-#      This means damage values will be dependent on the shape of the sign
+#      This means the magnitude of damage values will be dependent on the shape of the sign (i.e. max < 1.0)
 # 'pixel_wise' will calculate the pixel-by-pixel difference only for pixels part of the original sign (i.e. visible)
 damage_measure_method: 'pixel_wise'
 

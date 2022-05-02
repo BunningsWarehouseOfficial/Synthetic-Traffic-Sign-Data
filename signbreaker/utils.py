@@ -129,11 +129,12 @@ def delete_background(image_path, save_path):
 def to_png(directory):
     """Convert all files in 'directory' to PNG images."""
     for files in load_paths(directory):
-        title, extension = files.split('.')
-        img = Image.open(files).convert('RGBA')
+        splits = files.split('.')
+        title, extension = splits[0], splits[-1]
         if (not extension == "png"):
+            img = Image.open(files).convert('RGBA')
             os.remove(files)
-        img.save(title + ".png")
+            img.save(title + ".png")
 
 def png_to_jpeg(filepath):
     sep = os.sep

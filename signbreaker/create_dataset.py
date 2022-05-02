@@ -1,3 +1,6 @@
+class ConfigError(Exception):
+    pass
+
 def main():
     import os
     import sys
@@ -51,40 +54,41 @@ def main():
     valid_ann = ['retinanet', 'coco']
     valid_dmg_methods = ['ssim', 'pixel_wise']
     if config['sign_width'] <= 0:
-        raise ValueError("Config error: 'sign_width' must be > 0.\n")
+        raise ConfigError("Config error: 'sign_width' must be > 0.\n")
     if not config['final_op'] in valid_final:
-        raise ValueError(f"Config error: '{config['final_op']}' is an invalid final_op value.\n")
+        raise ConfigError(f"Config error: '{config['final_op']}' is an invalid final_op value.\n")
     if config['num_transform'] < 0 or config['num_transform'] > 15:
-        raise ValueError("Config error: must have 0 <= 'num_transform' <= 15.\n")
+        raise ConfigError("Config error: must have 0 <= 'num_transform' <= 15.\n")
     if not config['man_method'] in man_methods:
-        raise ValueError(f"Config error: '{config['man_method']}' is an invalid manipulation type.\n")
+        raise ConfigError(f"Config error: '{config['man_method']}' is an invalid manipulation type.\n")
     for dmg in config['num_damages']:
         if not dmg in valid_dmg:
-            raise ValueError(f"Config error: '{dmg}' is an invalid damage type.\n")
+            raise ConfigError(f"Config error: '{dmg}' is an invalid damage type.\n")
     if not config['annotations']['type'] in valid_ann:
-        raise ValueError(f"Config error: '{config['annotations']['type']}' is an invalid annotation type.\n")
+        raise ConfigError(f"Config error: '{config['annotations']['type']}' is an invalid annotation type.\n")
     if not config['damage_measure_method'] in valid_dmg_methods:
-        raise ValueError(f"Config error: '{config['damage_measure_method']}' is an invalid damage measure.\n")
+        raise ConfigError(f"Config error: '{config['damage_measure_method']}' is an invalid damage measure.\n")
 
     b_params = config['bullet_holes']
     if b_params['min_holes'] <= 0 or b_params['max_holes'] <= 0:
-        raise ValueError(f"Config error: 'bullet_holes' parameters must be > 0.\n")
+        raise ConfigError(f"Config error: 'bullet_holes' parameters must be > 0.\n")
     if b_params['min_holes'] > b_params['max_holes']:
-        raise ValueError(f"Config error: 'bullet_holes:min_holes' must be <= 'bullet_holes:max_holes'.\n")
+        raise ConfigError(f"Config error: 'bullet_holes:min_holes' must be <= 'bullet_holes:max_holes'.\n")
     if (b_params['target'] <= 0.0 or b_params['target'] >= 1.0) and b_params['target'] != -1:
-        raise ValueError(f"Config error: 'bullet_holes:target' must be either -1 or in the range (0.0,1.0).\n")
+        raise ConfigError(f"Config error: 'bullet_holes:target' must be either -1 or in the range (0.0,1.0).\n")
 
     g_params = config['graffiti']
     for g_param in g_params:
         if (g_params[g_param] <= 0.0 or g_params[g_param] > 1.0) and g_param != 'solid':
             raise ValueError(f"Config error: must have 0.0 < 'graffiti:{g_param}' <= 1.0.\n")
+            raise ConfigError(f"Config error: must have 0.0 < 'graffiti:{g_param}' <= 1.0.\n")
     if g_params['initial'] > g_params['final']:
-        raise ValueError("Config error: 'graffiti:initial' must be <= 'graffiti:final'.\n")
+        raise ConfigError("Config error: 'graffiti:initial' must be <= 'graffiti:final'.\n")
 
     # TODO: Bounds checking for bend damage type
     
     if not config['reuse_data']['damage'] and config['reuse_data']['manipulate']:
-        raise ValueError("Config error: 'reuse_data:damage' must be true if 'reuse_data:manipulate' is true.\n")
+        raise ConfigError("Config error: 'reuse_data:damage' must be true if 'reuse_data:manipulate' is true.\n")
 
     print("Generating dataset using the 'config.yaml' configuration.\n")
 
@@ -436,5 +440,5 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except ValueError as e:
+    except ConfigError as e:
         print(e)
