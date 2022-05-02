@@ -26,7 +26,7 @@ def img_transform(damaged_image, output_path, num_transform):
 
     dst = []
 
-    # Transform fn names are numbered in order of (my subjective) significance in visual difference
+    # Transform function names are numbered in order of (my subjective) significance in visual difference
     #[0] 0 FORWARD FACING
     def t0():
         dst.append( img )
@@ -52,18 +52,18 @@ def img_transform(damaged_image, output_path, num_transform):
         M = cv2.getAffineTransform(pts5,pts6)
         dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #4 RIGHT TILTED FORWARD FACING (disabled: consistently gets cut off)
+    #4 RIGHT TILTED FORWARD FACING (disabled: consistently gets cut off for UK templates)
     # pts7 = np.float32( [[width*9/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
     # pts8 = np.float32( [[width*10/12,height/6], [width/2.2,height/8], [width*8.4/10,height/1.8]] )
     # M = cv2.getAffineTransform(pts7,pts8)
     # dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #[7] 5 WEST FACING
-    def t7():
-        pts9  = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-        pts10 = np.float32( [[width/9.95,height/10], [width/2.05,height/9.95], [width*9/10,height/2.05]] )
-        M = cv2.getAffineTransform(pts9,pts10)
-        dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[7] 5 WEST FACING (disabled: consistently gets cut off for GTSDB Wikipedia templates)
+    # def t7():
+    #     pts9  = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+    #     pts10 = np.float32( [[width/9.95,height/10], [width/2.05,height/9.95], [width*9/10,height/2.05]] )
+    #     M = cv2.getAffineTransform(pts9,pts10)
+    #     dst.append( cv2.warpAffine(img,M,(width,height)) )
     
     #[12] 6 RIGHT TILTED FORWARD FACING
     def t12():
@@ -72,40 +72,40 @@ def img_transform(damaged_image, output_path, num_transform):
         M = cv2.getAffineTransform(pts11,pts12)
         dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #[10] 7 FORWARD FACING W/ DISTORTION
-    def t10():
-        pts13 = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-        pts14 = np.float32( [[width/9.8,height/9.8], [width/2,height/9.8], [width*8.8/10,height/2.05]] )
-        M = cv2.getAffineTransform(pts13,pts14)
-        dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[10] 7 FORWARD FACING W/ DISTORTION (disabled: consistently gets cut off for GTSDB Wikipedia templates)
+    # def t10():
+    #     pts13 = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+    #     pts14 = np.float32( [[width/9.8,height/9.8], [width/2,height/9.8], [width*8.8/10,height/2.05]] )
+    #     M = cv2.getAffineTransform(pts13,pts14)
+    #     dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #8 FORWARD FACING W/ DISTORTION 2 (disabled: consistently gets cut off)
+    #8 FORWARD FACING W/ DISTORTION 2 (disabled: consistently gets cut off for UK templates)
     # pts15 = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
     # pts16 = np.float32( [[width/11,height/10], [width/2.1,height/10], [width*8.5/10,height/1.95]] )
     # M = cv2.getAffineTransform(pts15,pts16)
     # dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #9 FORWARD FACING W/ DISTORTION 3 (disabled: consistently gets cut off)
+    #9 FORWARD FACING W/ DISTORTION 3 (disabled: consistently gets cut off for UK templates)
     # pts17 = np.float32( [[width/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
     # pts18 = np.float32( [[width/11,height/11], [width/2.1,height/10], [width*10/11,height/1.95]] )
     # M = cv2.getAffineTransform(pts17,pts18)
     # dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #[11] 10 FORWARD FACING W/ DISTORTION 4
-    def t11():
-        pts19 = np.float32( [[width*9.5/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-        pts20 = np.float32( [[width*9.35/10,height/9.99], [width/2.05,height/9.95], [width*9.05/10,height/2.03]] )
-        M = cv2.getAffineTransform(pts19,pts20)
-        dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[11] 10 FORWARD FACING W/ DISTORTION 4 (disabled: consistently gets cut off for GTSDB Wikipedia templates)
+    # def t11():
+    #     pts19 = np.float32( [[width*9.5/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+    #     pts20 = np.float32( [[width*9.35/10,height/9.99], [width/2.05,height/9.95], [width*9.05/10,height/2.03]] )
+    #     M = cv2.getAffineTransform(pts19,pts20)
+    #     dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #[14] 11 FORWARD FACING W/ DISTORTION 5
-    def t14():
-        pts21 = np.float32( [[width*9.5/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
-        pts22 = np.float32( [[width*9.65/10,height/9.95], [width/1.95,height/9.95], [width*9.1/10,height/2.02]] )
-        M = cv2.getAffineTransform(pts21,pts22)
-        dst.append( cv2.warpAffine(img,M,(width,height)) )
+    #[14] 11 FORWARD FACING W/ DISTORTION 5 (disabled: consistently gets cut off for GTSDB Wikipedia templates)
+    # def t14():
+    #     pts21 = np.float32( [[width*9.5/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
+    #     pts22 = np.float32( [[width*9.65/10,height/9.95], [width/1.95,height/9.95], [width*9.1/10,height/2.02]] )
+    #     M = cv2.getAffineTransform(pts21,pts22)
+    #     dst.append( cv2.warpAffine(img,M,(width,height)) )
     
-    #12 FORWARD FACING W/ DISTORTION 6 (disabled: consistently gets cut off)
+    #12 FORWARD FACING W/ DISTORTION 6 (disabled: consistently gets cut off for UK templates)
     # pts23 = np.float32( [[width*9.25/10,height/10], [width/2,height/10], [width*9/10,height/2]] )
     # pts24 = np.float32( [[width*9.55/10,height/9.85], [width/1.9,height/10], [width*9.3/10,height/2.04]] )
     # M = cv2.getAffineTransform(pts23,pts24)
@@ -162,7 +162,7 @@ def img_transform(damaged_image, output_path, num_transform):
 
     # Apply the number of transformations desired
     transformed_images = []
-    transforms = [t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15]
+    transforms = [t0,t1,t2,t3,t4,t5,t6,t8,t9,t12,t13,t15]
     for ii in range(0, num_transform + 1):
         transforms[ii]()
 

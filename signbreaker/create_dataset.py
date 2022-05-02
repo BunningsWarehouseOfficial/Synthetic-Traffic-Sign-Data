@@ -58,7 +58,7 @@ def main():
         raise ConfigError("Config error: 'sign_width' must be > 0.\n")
     if not config['final_op'] in valid_final:
         raise ConfigError(f"Config error: '{config['final_op']}' is an invalid final_op value.\n")
-    if config['num_transform'] < 0 or config['num_transform'] > 15:
+    if config['num_transform'] < 0 or config['num_transform'] > 11:
         raise ConfigError("Config error: must have 0 <= 'num_transform' <= 15.\n")
     if not config['man_method'] in man_methods:
         raise ConfigError(f"Config error: '{config['man_method']}' is an invalid manipulation type.\n")
