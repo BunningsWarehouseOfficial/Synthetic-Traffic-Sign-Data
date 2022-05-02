@@ -22,7 +22,7 @@ def main():
     from damage import damage_image
     from utils import load_paths, load_files, scale_image, delete_background, to_png
     import manipulate
-    from manipulate import ExposureMan, GammaMan, GammaExposureMan, HistogramMan
+    from manipulate import ExposureMan, GammaMan, GammaExposureAccurateMan, HistogramMan, GammaExposureFastMan
     import generate
     
     current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -47,7 +47,8 @@ def main():
     man_methods = {
         'exposure': ExposureMan(),
         'gamma': GammaMan(),
-        'gamma_exposure': GammaExposureMan(),
+        'gamma_exposure': GammaExposureAccurateMan(),
+        'gamma_exposure_fast': GammaExposureFastMan(),
         'histogram': HistogramMan()
     }
     valid_dmg = ['original', 'quadrant', 'big_hole', 'bullet_holes', 'graffiti', 'bend', 'tint_yellow', 'grey']
@@ -80,7 +81,6 @@ def main():
     g_params = config['graffiti']
     for g_param in g_params:
         if (g_params[g_param] <= 0.0 or g_params[g_param] > 1.0) and g_param != 'solid':
-            raise ValueError(f"Config error: must have 0.0 < 'graffiti:{g_param}' <= 1.0.\n")
             raise ConfigError(f"Config error: must have 0.0 < 'graffiti:{g_param}' <= 1.0.\n")
     if g_params['initial'] > g_params['final']:
         raise ConfigError("Config error: 'graffiti:initial' must be <= 'graffiti:final'.\n")

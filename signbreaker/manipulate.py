@@ -191,24 +191,26 @@ def img_transform(damaged_image, output_path, num_transform):
 ################################
 ###  MANIPULATION FUNCTIONS  ###
 ################################
-def find_image_exposures(paths, n_channels, descriptor="sign"):
+def find_image_exposures(paths, descriptor="sign"):
     """Determines the level of exposure for each image in the provided paths.
     Originally authored by Alexandros Stergiou."""
     ii = 0
     exposures = []
     for image_path in paths:
         print(f"Calculating {descriptor} exposures: {float(ii) / float(len(paths)):06.2%}", end='\r')
-        exposures.append(find_image_exposure(image_path, n_channels))
+        exposures.append(find_image_exposure(image_path))
 
         ii += 1
 
     print(f"Calculating {descriptor} exposures: 100.0%\r")
     return exposures
 
-def find_image_exposure(image_path, n_channels):
+def find_image_exposure(image_path):
     img_grey = Image.open(image_path).convert('LA')  # Greyscale with alpha
     img_rgba = Image.open(image_path)
-    
+    return image_exposure(img_grey, img_rgba)
+
+def image_exposure(img_grey, img_rgba):
     stat1 = ImageStat.Stat(img_grey)
     # Average pixel brighness
     avg_grey = stat1.mean[0]
@@ -216,22 +218,16 @@ def find_image_exposure(image_path, n_channels):
     rms_grey = stat1.rms[0]
     
     stat2 = ImageStat.Stat(img_rgba)
-    # Consider the number of channels
-    # Perceived brightness using HSPcolour model, adjusting for degree of influence of each channel
-    if (n_channels == 3):  # Background may have RGB while traffic sign has RGBA
-        # Average pixels preceived brightness
-        r,g,b = stat2.mean
-        avg_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
-        # RMS pixels perceived brightness
-        r,g,b = stat2.rms
-        rms_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
-    else:
-        # Average pixels preceived brightness
-        r,g,b,a = stat2.mean
-        avg_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
-        # RMS pixels perceived brightness
-        r,g,b,a = stat2.rms
-        rms_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2)) 
+    # Perceived brightness using HSPcolour model, adjusting for degree of influence of each channel:
+
+    rgba = stat2.mean  # Average pixels preceived brightness
+    r, g, b = rgba[0], rgba[1], rgba[2]  # Ignore rgba[3] if it exists (alpha channel)
+    avg_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
+
+    rgba = stat2.rms  # RMS pixels perceived brightness
+    r, g, b = rgba[0], rgba[1], rgba[2]
+    rms_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
+
     return {
         'avg_grey': avg_grey,
         'rms_grey': rms_grey,
@@ -318,7 +314,7 @@ class HistogramMan(AbstractManipulation):
 class ExposureMan(AbstractManipulation):
     """Refactored original exposure manipulation implementation by Stergiou."""
     def manipulation(self, fg):
-        background_exposure = find_image_exposure(self.bg_path, 4)
+        bg_exposure = find_image_exposure(self.bg_path)
 
         if self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path:
             return
@@ -349,7 +345,7 @@ class ExposureMan(AbstractManipulation):
         
         ### IMAGE MANIPULATION MAIN CODE STARTS ###
         # MINIMISE MARGIN BASED ON AVERAGE FOR TWO CHANNEL BRIGHTNESS VARIATION
-        margin = abs(avrg - float(background_exposure[1]))
+        margin = abs(avrg - float(bg_exposure[1]))
         brightness_avrg = margin / avrg_ratio
         
         enhancer = ImageEnhance.Brightness(img_rgba)
@@ -359,7 +355,7 @@ class ExposureMan(AbstractManipulation):
 
         
         # MINIMISE MARGIN BASED ON ROOT MEAN SQUARE FOR TWO CHANNEL BRIGHTNESS VARIATION
-        margin = abs(rms - float(background_exposure[2]))
+        margin = abs(rms - float(bg_exposure[2]))
         brightness_rms = margin / rms_ratio 
         
         enhancer = ImageEnhance.Brightness(img_rgba)
@@ -374,7 +370,7 @@ class ExposureMan(AbstractManipulation):
         r, g, b, a = stat2.mean
         avrg_perceived = math.sqrt(0.241*(r**2) + 0.691*(g**2) + 0.068*(b**2))
 
-        margin = abs(avrg_perceived - float(background_exposure[3]))
+        margin = abs(avrg_perceived - float(bg_exposure[3]))
         brightness_avrg_perceived = margin / percieved_avrg_ratio
         
         enhancer = ImageEnhance.Brightness(img_rgba)
@@ -389,7 +385,7 @@ class ExposureMan(AbstractManipulation):
         r, g, b, a = stat2.rms
         rms_perceived = math.sqrt(0.241 * (r**2) + 0.691 * (g**2) + 0.068 * (b**2))
 
-        margin = abs(rms_perceived - float(background_exposure[4]))
+        margin = abs(rms_perceived - float(bg_exposure[4]))
         brightness_rms_perceived = margin / percieved_rms_ratio 
 
         enhancer = ImageEnhance.Brightness(img_rgba)
@@ -404,7 +400,7 @@ class ExposureMan(AbstractManipulation):
 
 
         #FUSION OF THE TWO AVERAGING METHODS
-        margin = abs(avrg2-float(background_exposure[1]))
+        margin = abs(avrg2-float(bg_exposure[1]))
         brightness_avrg2 = margin / avrg2_ratio
 
         enhancer = ImageEnhance.Brightness(img_rgba)
@@ -414,7 +410,7 @@ class ExposureMan(AbstractManipulation):
 
 
         #FUSION OF THE TWO RMS METHODS
-        margin = abs(rms2-float(background_exposure[2]))
+        margin = abs(rms2-float(bg_exposure[2]))
         brightness_rms2 = margin / rms2_ratio
 
         enhancer = ImageEnhance.Brightness(img_rgba)
@@ -431,9 +427,22 @@ class ExposureMan(AbstractManipulation):
         self.man_images.append(self.save_synth(rms_bright2,           "rms2"))
 
 
-class GammaExposureMan(AbstractManipulation):
+class GammaExposureFastMan(AbstractManipulation):
+    """A faster alternative to GammaExposureAccurateMan() that uses a single calculated gamma value rather than
+    iterating through a predefined set of gamma values. The calculation provides a rough estimation of the ideal gamma.
+
+    TEST (GTSDB Wikipedia templates, no_damage only, 6 transforms, 600 GTSDB train backgrounds):
+      Sped up find_gamma() speed (pre-sort): 3-4 ms
+      ~10x faster than GammaExposureAccurateMan() if using just 1 brightness metric ('average_perceived', 'rms_grey', etc.).
+      ~2-3x faster than GammaExposureAccurateMan() if using 4 brightness metrics.
+
+      ~2.5 - 3x wider average brightness margin between background and manipulated foreground (i.e. less accurate)
+      ~32.5 vs. ~11.5 in domain [0,255]
+    """
+
     def manipulation(self, fg):
-        background_exposure = find_image_exposure(self.bg_path, 4)
+        bg_exposure = find_image_exposure(self.bg_path)
+        fg_exposure = find_image_exposure(self.sign_path)
 
         if self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path:
             return
@@ -441,30 +450,115 @@ class GammaExposureMan(AbstractManipulation):
         ## For debug visualisations
         # avrg = ImageStat.Stat(Image.open(self.sign_path).convert('RGBA')).mean[0]
 
-        # margin = abs(avrg - float(background_exposure['avg']))
+        # margin = abs(avrg - float(bg_exposure['avg']))
         # print(f"original: {margin}")
         ##
         
-        def find_gamma(bg_brightness: float):
+        import time  ##
+
+        # Pre-define gamma lookup tables to save processing time when > 1 brightness metrics are used
+        start = time.time()
+        gammas = [0.1, 0.2, 0.4, 0.67, 1.0, 1.5, 3.0, 5.0, 10.0]  # Using 3.0 and not 2.5 because the latter was not noticeable
+        g_lookups = []
+        for g in gammas:
+            # Adapted from: https://docs.opencv.org/3.4/d3/dc1/tutorial_basic_linear_transform.html
+            g_lookup = np.empty((1,256), np.uint8)
+            for i in range(256):  # Create look-up table for gamma correction
+                g_lookup[0,i] = np.clip(pow(i / 255.0, g) * 255.0, 0, 255)
+            g_lookups.append(g_lookup)
+        pretime = time.time() - start
+
+        def find_gamma(bg_brightness: float, fg_brightness: float):
             """Iterate through pre-selected gamma values to minimise marginal brightness difference to background."""
             man_imgs = []
-            gammas = [0.1, 0.2, 0.4, 0.67, 1.0, 1.5, 3.0, 5.0, 10.0]  # Using 3.0 and not 2.5 because the latter was not noticeable
-            for g in gammas:
-                # Adapted from: https://docs.opencv.org/3.4/d3/dc1/tutorial_basic_linear_transform.html
-                g_lookup = np.empty((1,256), np.uint8)
-                for i in range(256):  # Create look-up table for gamma correction
-                    g_lookup[0,i] = np.clip(pow(i / 255.0, g) * 255.0, 0, 255)
+            
+            # Calculated estimated gamma required to match brightness with background
+            # Inspired by: Babakhani, P., & Zarei, P. (2015). Automatic gamma correction based on average of brightness.
+            gamma = math.log10(bg_brightness / 255) / math.log10(fg_brightness / 255)
 
+            # Adapted from: https://docs.opencv.org/3.4/d3/dc1/tutorial_basic_linear_transform.html
+            g_lookup = np.empty((1,256), np.uint8)
+            for i in range(256):  # Create look-up table for gamma correction
+                g_lookup[0,i] = np.clip(pow(i / 255.0, gamma) * 255.0, 0, 255)
+
+            man_img = cv2.LUT(fg, g_lookup)
+            man_img_convert = cv2.cvtColor(man_img, cv2.COLOR_BGRA2RGBA)  # Convert from OpenCV BGR to PIL RGB
+            man_img_pil     = Image.fromarray(man_img_convert)
+
+            ## For calculating accuracy (average brightness margin)
+            # global cum_calculated_margin, cum_iterated_margin, count
+            # count += 1
+            # calc_found = False
+            # it_found = False
+            # for ii in range(len(man_imgs)):  # Go in ascending order of margin
+            #     if (not man_imgs[ii]['gamma'] in gammas):  # Calculated
+            #         cum_calculated_margin += man_imgs[ii]['margin']
+            #         calc_found = True
+            #     else: # Iterated
+            #         if it_found == False:
+            #             cum_iterated_margin += man_imgs[ii]['margin']
+            #             it_found = True
+            #     if calc_found and it_found:
+            #         break
+            # print(f"Cumulative mean calculated margin: {cum_calculated_margin / count:.2f}")
+            # print(f"Cumulative mean iterated margin: {cum_iterated_margin / count:.2f}\n")
+            ##
+            
+            return man_img_pil
+
+        # For 'perceived' RGB brightness comparisons, see: Stergiou et al. section 3.2 https://tinyurl.com/ydxzv9nx)
+        avrg_bright_perceived = find_gamma(float(bg_exposure['avg_perceived']), float(fg_exposure['avg_perceived']))
+        # rms_bright_perceived  = find_gamma(float(bg_exposure['rms_perceived']), float(fg_exposure['rms_perceived']))
+        # avrg_bright_grey      = find_gamma(float(bg_exposure['avg_grey']), float(fg_exposure['avg_grey']))
+        # rms_bright_grey       = find_gamma(float(bg_exposure['rms_grey']), float(fg_exposure['rms_grey']))
+
+        self.man_images.append(self.save_synth(avrg_bright_perceived, "average_perceived"))
+        # self.man_images.append(self.save_synth(rms_bright_perceived,  "rms_perceived"))
+        # self.man_images.append(self.save_synth(avrg_bright_grey,      "average_grey"))
+        # self.man_images.append(self.save_synth(rms_bright_grey,       "rms_grey"))
+
+
+class GammaExposureAccurateMan(AbstractManipulation):
+    """See GammaExposureFastMan() for speed/accuracy tradeoff description."""
+
+    def manipulation(self, fg):
+        bg_exposure = find_image_exposure(self.bg_path)
+
+        if self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path:
+            return
+
+        ## For debug visualisations
+        # avrg = ImageStat.Stat(Image.open(self.sign_path).convert('RGBA')).mean[0]
+
+        # margin = abs(avrg - float(bg_exposure['avg']))
+        # print(f"original: {margin}")
+        ##
+        
+        # Pre-define gamma lookup tables to save processing time when > 1 brightness metrics are used
+        gammas = [0.1, 0.2, 0.4, 0.67, 1.0, 1.5, 3.0, 5.0, 10.0]  # Using 3.0 and not 2.5 because the latter was not noticeable
+        g_lookups = []
+        for g in gammas:
+            # Adapted from: https://docs.opencv.org/3.4/d3/dc1/tutorial_basic_linear_transform.html
+            g_lookup = np.empty((1,256), np.uint8)
+            for i in range(256):  # Create look-up table for gamma correction
+                g_lookup[0,i] = np.clip(pow(i / 255.0, g) * 255.0, 0, 255)
+            g_lookups.append(g_lookup)
+
+        def find_gamma(bg_exposure, brightness_metric: str):
+            """Iterate through pre-selected gamma values to minimise marginal brightness difference to background."""
+            man_imgs = []
+            for g_lookup, gamma in zip(g_lookups, gammas):
                 man_img = cv2.LUT(fg, g_lookup)
-
                 man_img_convert = cv2.cvtColor(man_img, cv2.COLOR_BGRA2RGBA)  # Convert from OpenCV BGR to PIL RGB
                 man_img_pil     = Image.fromarray(man_img_convert)
                 
-                man_brightness = ImageStat.Stat(man_img_pil).mean[0]
-                new_margin     = abs(man_brightness - bg_brightness)
+                # BUG: mean[0] is only the mean for R channel, see above
+                # man_brightness = ImageStat.Stat(man_img_pil).mean[0]
+                man_brightness = image_exposure(man_img_pil.convert('LA'), man_img_pil)[brightness_metric]
+                new_margin     = abs(man_brightness - bg_exposure[brightness_metric])
 
                 man_imgs.append({
-                    'gamma' : g,
+                    'gamma' : gamma,
                     'img'   : man_img_pil,
                     'margin': new_margin
                 })
@@ -475,26 +569,22 @@ class GammaExposureMan(AbstractManipulation):
             ## For debug visualisations
             # for thing in man_imgs:
             #     print(f"{thing['gamma']}: {thing['margin']}")
-
             # print(f"best gamma: {man_imgs[0]['gamma']}\n")
-
             # print()
             ##
             
             return man_imgs[0]['img']
 
-        # # Brightness comparisons using greyscale images
-        # avrg_bright_grey      = find_gamma(float(background_exposure['avg_grey']))
-        # rms_bright_grey       = find_gamma(float(background_exposure['rms_grey']))
+        # For 'perceived' RGB brightness comparisons, see: Stergiou et al. section 3.2 https://tinyurl.com/ydxzv9nx)
+        avrg_bright_perceived = find_gamma(bg_exposure, 'avg_perceived')
+        # rms_bright_perceived  = find_gamma(bg_exposure, 'rms_perceived')
+        # avrg_bright_grey      = find_gamma(bg_exposure, 'avg_grey')
+        # rms_bright_grey       = find_gamma(bg_exposure, 'rms_grey')
 
-        # 'Perceived' RGB brightness comparisons (see Stergiou et al. section 3.2 https://tinyurl.com/ydxzv9nx)
-        avrg_bright_perceived = find_gamma(float(background_exposure['avg_perceived']))
-        rms_bright_perceived  = find_gamma(float(background_exposure['rms_perceived']))
-
+        self.man_images.append(self.save_synth(avrg_bright_perceived, "average_perceived"))
+        # self.man_images.append(self.save_synth(rms_bright_perceived,  "rms_perceived"))
         # self.man_images.append(self.save_synth(avrg_bright_grey,      "average_grey"))
         # self.man_images.append(self.save_synth(rms_bright_grey,       "rms_grey"))
-        self.man_images.append(self.save_synth(avrg_bright_perceived, "average_perceived"))
-        self.man_images.append(self.save_synth(rms_bright_perceived,  "rms_perceived"))
 
 
 def avrg_pixel_rgb(image, chanels):
@@ -541,7 +631,7 @@ def find_useful_signs(manipulated_images, damaged_dir):
         temp.append(man.fg_path)
         pr += 1
 
-    exposures = find_image_exposures(temp, 4, "manipulated sign")
+    exposures = find_image_exposures(temp, "manipulated sign")
 
     # Compile list of black and white signs to be deleted under differnet metrics below
     is_bw = []
