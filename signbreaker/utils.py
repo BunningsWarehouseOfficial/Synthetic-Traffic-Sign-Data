@@ -267,21 +267,17 @@ def overlay(fg, bg, x1=-1, y1=-1):
 def count_pixels(img):
     """Return the number of non-transparent pixels in the imported image weighted according
     to the transparency of each pixel."""
-    sum = 0  # Initialise to 0 in case there is no alpha channel
+    pixel_sum = 0
     split = cv2.split(img)
-    if len(split) == 4:  # Proceed if the image has an alpha channel
-        alpha = split[3]
-        # Loop through alpha channel
-        for ii in range(0, len(alpha)):
-            for jj in range(0, len(alpha[0])):
-                sum += alpha[ii][jj] / 255  # Divide by 255 to weight the transparency
+    if len(split) == 4:
+        alpha_weights = img[..., 3] / 255  # Weight pixel transparency
+        pixel_sum = np.sum(alpha_weights)
     elif len(split) == 1:  # Alternative method for greyscale images
-        for ii in range(0, len(img)):
-            for jj in range(0, len(img[0])):
-                sum += img[ii][jj] / 255  # Weight the brightness of the pixel
+        alpha_weights = img[...] / 255  # Weight pixel brightness
+        pixel_sum = np.sum(alpha_weights)
     else:
-        raise ValueError("Error: Can only count pixels for greyscale images and images with an alpha channel.")
-    return sum
+        raise TypeError("Error: Can only count pixels for greyscale images and images with an alpha channel.")
+    return pixel_sum
 
 def calc_ratio(fg, bg):
     """Calculate the ratio of obscurity in the first image as compared to the second image.
@@ -342,7 +338,6 @@ def calc_quadrant_diff(new, original):
 
 
 def count_damaged_pixels(new, original):
-        #"""Count how many opaque pixels are different between the two imported images. Based on count_pixels()."""
     """Count how many pixels are different between the two imported images weighted by the transparency difference of
     each pixel first and the colour difference second. Based on count_pixels().""" ##
     
