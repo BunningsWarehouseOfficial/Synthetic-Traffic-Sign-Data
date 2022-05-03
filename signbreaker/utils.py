@@ -441,7 +441,6 @@ def calc_damage_ssim(new, original):
     return 1 - score
 
 
-# TODO: num_damage_sectors, which should be equal to the eponymous config parameter, isn't used by any functions yet
 def calc_damage_sectors(new, original, num_sectors=4, method='pixel_wise'):
     """Calculates a list of damage ratios for an arbitrary number of sectors.
     Each 'sector' is a cell in a grid, so `num_damage_sectors` must be a perfect square.
@@ -465,6 +464,12 @@ def calc_damage_sectors(new, original, num_sectors=4, method='pixel_wise'):
     # print(np.reshape(ratios, (int(math.sqrt(len(ratios))), int(math.sqrt(len(ratios))))))
     ##
     
+    return ratios
+
+def sectors_no_damage(num_sectors):
+    ratios = []
+    for i in range(num_sectors):
+        ratios.append(0.0)
     return ratios
 
 

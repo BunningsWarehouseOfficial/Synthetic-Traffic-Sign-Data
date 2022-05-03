@@ -10,13 +10,13 @@ import numpy as np
 import cv2 as cv
 from pathlib import Path
 from skimage import draw
-from utils import calc_damage_ssim, overlay, calc_damage, calc_damage_ssim, calc_damage_sectors, calc_ratio, remove_padding, pad
+from utils import overlay, calc_damage, calc_damage_ssim, calc_damage_sectors, sectors_no_damage, calc_ratio, remove_padding, pad
 from synth_image import SynthImage
 
 attributes = {
-    "damage_type" : "None",
-    "tag"    : "-1",  # Set of parameters used to generate damage as string 
-    "damage_ratio"  : 0.0, # Quantity of damage (0 for no damage, 1 for all damage)
+    "damage_type"  : "None",
+    "tag"          : "-1",   # Set of parameters used to generate damage as string 
+    "damage_ratio" : "0.0",  # Quantity of damage (0 for no damage, 1 for all damage)
     }
 
 dmg_measure = "pixel_wise"
@@ -173,8 +173,8 @@ def no_damage(img):
     att = attributes
     att["damage_type"]   = "no_damage"
     att["tag"]           = ""
-    att["damage_ratio"]  = str(calc_damage(dmg, img, dmg_measure))  # This should be 0.0
-    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
+    att["damage_ratio"]  = "0.0"  # This should be 0.0
+    att["sector_damage"] = sectors_no_damage(num_sectors)
 
     return dmg, att
 
