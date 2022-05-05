@@ -387,24 +387,28 @@ def count_damaged_pixels(new, original):
     return sum
 
 
-# TODO: Figure out why this isn't working properly
 def count_damaged_pixels_vectorized(new, original):
+    """~125x faster than count_damaged_pixels()."""
     if new.shape[2] != 4 or original.shape[2] != 4:
         raise TypeError(f"The two images need 4 channels, but new has {new.shape[2]} and original has {original.shape[2]}")
-    alpha_diffs = np.abs(new[...,3] - original[...,3]) / 255
-    col_diffs = np.sum(np.abs(new[...,:3] - original[...,:3]), axis=-1)
+
+    def abs_diff(a, b):  # Allow for calculating diffs without uint8 overflow
+        return np.maximum(a, b) - np.minimum(a, b)
+
+    alpha_diffs = abs_diff(new[...,3], original[...,3]) / 255
+    
+    col_diffs   = np.sum(abs_diff(new[...,:3], original[...,:3]), axis=-1)
     colour_diff_max = 255
     col_diffs = np.minimum(col_diffs, colour_diff_max) / colour_diff_max
     
-    diffs = np.where(original[...,3] > 0, col_diffs + alpha_diffs, 0)
+    diffs = np.where(original[...,3] > 0, np.minimum(col_diffs + alpha_diffs, 1.0), 0)
     
     ## For debug visualisations
     # vis = np.ones(new.shape) * np.array([0, 255, 0, 255])
     # vis[..., 1] = vis[..., 1] * diffs
-    # # For debug visualisations
     # cv2.imshow("new", new)
-    # cv2.waitKey(0) 
     # cv2.imshow("count_damaged_pixels_vectorized", vis)
+    # cv2.waitKey(0)
     # cv2.destroyAllWindows() 
     ##
     
@@ -423,7 +427,7 @@ def calc_damage(new, original, method):
     if method == 'ssim':
         return calc_damage_ssim(new, original)
     elif method == 'pixel_wise':
-        return count_damaged_pixels(new, original) / count_pixels(original)
+        return count_damaged_pixels_vectorized(new, original) / count_pixels(original)
     else:
         raise ValueError(f"Method {method} not recognised. Choose between <ssim> and <pixel_wise>")
 

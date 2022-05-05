@@ -431,6 +431,9 @@ class GammaExposureFastMan(AbstractManipulation):
     """A faster alternative to GammaExposureAccurateMan() that uses a single calculated gamma value rather than
     iterating through a predefined set of gamma values. The calculation provides a rough estimation of the ideal gamma.
 
+    Due to the gamma being a continuous predicted value, as opposed to a selection from a set, the final manipulation
+    results are far more visually consistent across transformations as compared to GammaExposureAccurateMan().
+
     TEST (GTSDB Wikipedia templates, no_damage only, 6 transforms, 600 GTSDB train backgrounds):
       Sped up find_gamma() speed (pre-sort): 3-4 ms
       ~10x faster than GammaExposureAccurateMan() if using just 1 brightness metric ('average_perceived', 'rms_grey', etc.).

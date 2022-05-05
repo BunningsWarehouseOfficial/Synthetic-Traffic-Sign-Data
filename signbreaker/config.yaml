@@ -49,7 +49,7 @@ bend:  # Bend may randomly be either a single-sided or double-sided bend
 # but varied shading and angle do you want over the same background image?
 prune_dataset:
   prune: True
-  max_images: 6
+  max_images: 1
 
 # Paramaters defining the annotation type, and whether damage labelling is used
 annotations:
