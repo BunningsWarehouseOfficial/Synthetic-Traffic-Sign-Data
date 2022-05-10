@@ -87,10 +87,10 @@ def new_data(synth_image):
     else:
         x, y, new_size = SynthImage.gen_sign_coords(bg.shape[:2], fg.shape[:2])
 
-    pad = 40 # pixels to pad on each side of the image
+    pad = 40  # pixels to pad on each side of the image
     fg = cv2.copyMakeBorder(fg, pad, pad, pad, pad, cv2.BORDER_CONSTANT)
-    if(np.random.randint(5) < 10): # 50% chance of rotating
-        angle = int(np.random.normal(0,0.5)*180) # Normal distribution of rotation angle
+    if(np.random.randint(5) < 10):  # 50% chance of rotating
+        angle = int(np.random.normal(0,0.5)*180)  # Normal distribution of rotation angle
         # https://stackoverflow.com/questions/9041681/opencv-python-rotate-image-by-x-degrees-around-specific-point  
         image_center = tuple(np.array(fg.shape[1::-1]) / 2)
         rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
