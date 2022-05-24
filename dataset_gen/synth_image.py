@@ -107,7 +107,7 @@ class SynthImage:
             raise TypeError(f"damage_ratio={damage_ratio} is invalid: must have 0.0 <= damage_ratio <= 1.0")
 
     def __check_transformation(self, transform_type):
-        if transform_type < 0:
+        if not isinstance(transform_type, str) and transform_type < 0:
             raise TypeError(f"transform_type={transform_type} is invalid: must be >= 0")
 
     def __check_manipulation(self, man_type):

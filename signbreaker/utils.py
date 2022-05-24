@@ -6,6 +6,7 @@ import numpy as np
 import os
 import math
 from PIL import Image, ImageOps
+from scipy.stats import truncnorm
 
 def load_paths(directory, ignored=['.npy']):
     """Returns a list with the paths of all files in the directory."""
@@ -492,4 +493,9 @@ def remove_padding(img):
     x, y, w, h = cv2.boundingRect(coords)  # Find minimum spanning bounding box
     rect = img[y:y+h, x:x+w]  # Crop the image - note we do this on the original image
     return rect
-            
+
+
+def get_truncated_normal(mean, sd=1, low=-10, upp=10):
+    """Returns normal distribution truncated to be within specified range."""
+    return truncnorm(
+        (low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd)

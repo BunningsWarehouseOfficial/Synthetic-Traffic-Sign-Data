@@ -22,6 +22,7 @@ def main():
     from damage import damage_image
     from utils import load_paths, load_files, scale_image, delete_background, to_png
     import manipulate
+    from manipulate import RotationTransform, FixedAffineTransform
     from manipulate import ExposureMan, GammaMan, GammaExposureAccurateMan, HistogramMan, GammaExposureFastMan
     import generate
     
@@ -44,6 +45,10 @@ def main():
     # TODO: Refactor into config validation function
     # Input validation of config file
     valid_final = ['process', 'damage', 'transform', 'manipulate', 'dataset']
+    tform_methods = {
+        '3d_rotation': RotationTransform(),
+        'fixed_affine': FixedAffineTransform()
+    }
     man_methods = {
         'exposure': ExposureMan(),
         'gamma': GammaMan(),
@@ -60,6 +65,8 @@ def main():
         raise ConfigError(f"Config error: '{config['final_op']}' is an invalid final_op value.\n")
     if config['num_transform'] < 0 or config['num_transform'] > 11:
         raise ConfigError("Config error: must have 0 <= 'num_transform' <= 15.\n")
+    if not config['tform_method'] in tform_methods:
+        raise ConfigError(f"Config error: '{config['tform_method']}' is an invalid transformation type.\n")
     if not config['man_method'] in man_methods:
         raise ConfigError(f"Config error: '{config['man_method']}' is an invalid manipulation type.\n")
     for dmg in config['num_damages']:
@@ -201,13 +208,16 @@ def main():
         shutil.rmtree(transformed_dir)
     os.mkdir(transformed_dir)
 
+    print("Transforming images...", end='\r')  # TODO: Progress bar?
     transformed_data = []
+    method = config['tform_method']
     for damaged in damaged_data:
         save_dir = os.path.join(transformed_dir, str(damaged.class_num))
-        transformed_data.append(manipulate.img_transform(damaged, save_dir, config['num_transform']))
+        transformed_data.append(tform_methods[method].transform(damaged, save_dir, config['num_transform']))
         del damaged  # Clear memory that will no longer be needed as we go
     del damaged_data
     transformed_data = [cell for row in transformed_data for cell in row]  # Flatten the list
+    print('\n')
 
     if config['final_op'] == 'transform':
         return
