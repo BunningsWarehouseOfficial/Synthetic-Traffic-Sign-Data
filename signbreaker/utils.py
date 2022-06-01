@@ -223,17 +223,31 @@ def overlay(fg, bg, x1=-1, y1=-1):
     Arguments:
     x1, y1 -- top-left coordinates for where to place foreground image
     """
-    # If the background doesn't have an alpha channel, add one
-    if len(cv2.split(bg)) == 3:
-        bg = cv2.cvtColor(bg, cv2.COLOR_RGB2RGBA)
-        bg[:, :, 3] = 255  # Keep it opaque
-    # Same for foreground
+    # Background doesn't need alpha channel
+    # If the foreground doesn't have an alpha channel, add one
     if len(cv2.split(fg)) == 3:
         fg = cv2.cvtColor(fg, cv2.COLOR_RGB2RGBA)
-        fg[:, :, 3] = 255
+        fg[:, :, 3] = 255 # Keep it opaque
     
     # Make a copy of the background for making changes
     new_img = bg.copy()
+
+    ret, masktemp = cv2.threshold(fg[:, :, 3], 0, 255, cv2.THRESH_BINARY)    
+    mask = np.ones((200,200,3),dtype=np.uint8)
+    mask = cv2.bitwise_and(mask, mask, mask=masktemp)
+
+    steps = 3 # Controls how much of the image is eroded #? could be increased
+
+    # ### Start of code referenced from Lucas Tabelini ###
+    #   # https://github.com/LCAD-UFES/publications-tabelini-ijcnn-2019/blob/master/generate_dataset.py
+    blend_mask = mask.astype(np.float32) * (1.0 / steps)
+    kernel = np.ones((3, 3), np.uint8)
+
+    for step in range(steps - 1):
+        mask = cv2.erode(mask, kernel)
+        blend_mask += mask * (1.0 / steps)
+    # ### End of code from Lucas Tabelini ###
+
 
     # Retrieve image dimentions
     height_FG, width_FG, _ = fg.shape  # Discard channel
@@ -249,18 +263,23 @@ def overlay(fg, bg, x1=-1, y1=-1):
     x2 = x1 + width_FG
     y2 = y1 + height_FG
 
-    ### Start of code from fireant ###
-    # https://stackoverflow.com/questions/14063070/overlay-a-smaller-image-on-a-larger-image-python-opencv
-    # Retrieve an array of alpha values from the foreground image
-    # Divide by 255 to get values between 0.0 and 1.0
-    alpha = fg[:,:,3] / 255.0
-    beta = 1.0 - alpha
+    # ### Lucas Tabelini ###
+    blended = (new_img[y1:y2, x1:x2] * (1 - blend_mask)) + (fg[:, :, [0, 1, 2]] * blend_mask)
+    new_img[y1:y2, x1:x2] = blended
+    # ### End of code from Lucas Tabelini ###
 
-    # Loop over BGR channels (but not alpha)
-    for ch in range(0, 3):
-        new_img[y1:y2, x1:x2, ch] = (alpha * fg[:, :, ch] +
-                                     beta * new_img[y1:y2, x1:x2, ch])
-    ### End of code from fireant ###
+    # ### Start of code from fireant ###
+    # # https://stackoverflow.com/questions/14063070/overlay-a-smaller-image-on-a-larger-image-python-opencv
+    # # Retrieve an array of alpha values from the foreground image
+    # # Divide by 255 to get values between 0.0 and 1.0
+    # alpha = fg[:,:,3] / 255.0
+    # beta = 1.0 - alpha
+
+    # # Loop over BGR channels (but not alpha)
+    # for ch in range(0, 3):
+    #     new_img[y1:y2, x1:x2, ch] = (alpha * fg[:, :, ch] +
+    #                                  beta * new_img[y1:y2, x1:x2, ch])
+    # ### End of code from fireant ###
 
     return new_img
 
