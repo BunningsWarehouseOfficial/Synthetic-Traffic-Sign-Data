@@ -1,7 +1,7 @@
 """Module of functions for generating a synthetic manipulated sign dataset."""
 
 import os
-from utils import load_paths, dir_split, overlay
+from utils import load_paths, dir_split, overlay2
 from datetime import datetime
 import imutils
 import cv2
@@ -104,7 +104,7 @@ def new_data(synth_image):
     axes[2] += y
     axes[3] += y
     synth_image.bounding_axes = axes
-    image = overlay(fg, bg, x, y)
+    image = overlay2(fg, bg, x, y)
     return image
 
 

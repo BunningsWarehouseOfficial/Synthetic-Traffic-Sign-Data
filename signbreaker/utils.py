@@ -213,7 +213,6 @@ def add_pole(filename, color):
 
     return new_img
 
-
 def overlay(fg, bg, x1=-1, y1=-1):
     """Overlay foreground image on background image, keeping transparency.
 
@@ -223,7 +222,61 @@ def overlay(fg, bg, x1=-1, y1=-1):
     Arguments:
     x1, y1 -- top-left coordinates for where to place foreground image
     """
+    # If the background doesn't have an alpha channel, add one
+    if len(cv2.split(bg)) == 3:
+        bg = cv2.cvtColor(bg, cv2.COLOR_RGB2RGBA)
+        bg[:, :, 3] = 255  # Keep it opaque
+    # Same for foreground
+    if len(cv2.split(fg)) == 3:
+        fg = cv2.cvtColor(fg, cv2.COLOR_RGB2RGBA)
+        fg[:, :, 3] = 255
+    
+    # Make a copy of the background for making changes
+    new_img = bg.copy()
+
+    # Retrieve image dimentions
+    height_FG, width_FG, _ = fg.shape  # Discard channel
+    height_BG, width_BG, _ = bg.shape
+
+    # If either of the coordinates were omitted, calculate start/end positions
+    # using the difference in image size, centring foreground on background
+    if x1 == -1 or y1 == -1:
+        # Start coordinates 
+        x1 = (width_BG - width_FG) // 2    # Floor division to truncate as
+        y1 = (height_BG - height_FG) // 2  # coordinates don't need to be exact
+    # End coordinates
+    x2 = x1 + width_FG
+    y2 = y1 + height_FG
+
+    ### Start of code from fireant ###
+    # https://stackoverflow.com/questions/14063070/overlay-a-smaller-image-on-a-larger-image-python-opencv
+    # Retrieve an array of alpha values from the foreground image
+    # Divide by 255 to get values between 0.0 and 1.0
+    alpha = fg[:,:,3] / 255.0
+    beta = 1.0 - alpha
+
+    # Loop over BGR channels (but not alpha)
+    for ch in range(0, 3):
+        new_img[y1:y2, x1:x2, ch] = (alpha * fg[:, :, ch] +
+                                     beta * new_img[y1:y2, x1:x2, ch])
+    ### End of code from fireant ###
+
+    return new_img
+
+
+
+def overlay2(fg, bg, x1=-1, y1=-1):
+    """Erodes and blends foreground into background removing transparency.
+
+    Foreground iamge will be centred on background if x1 or y1 are omitted.
+    Images may be RGB or RGBA.
+
+    Arguments:
+    x1, y1 -- top-left coordinates for where to place foreground image
+    """
     # Background doesn't need alpha channel
+    if len(cv2.split(bg)) == 4:
+        bg = cv2.cvtColor(bg, cv2.COLOR_RGBA2RGB)
     # If the foreground doesn't have an alpha channel, add one
     if len(cv2.split(fg)) == 3:
         fg = cv2.cvtColor(fg, cv2.COLOR_RGB2RGBA)
@@ -232,8 +285,8 @@ def overlay(fg, bg, x1=-1, y1=-1):
     # Make a copy of the background for making changes
     new_img = bg.copy()
 
-    ret, masktemp = cv2.threshold(fg[:, :, 3], 0, 255, cv2.THRESH_BINARY)    
-    mask = np.ones((200,200,3),dtype=np.uint8)
+    ret, masktemp = cv2.threshold(fg[:, :, 3], 0, 255, cv2.THRESH_BINARY)
+    mask = np.ones((masktemp.shape + (3,)),dtype=np.uint8)
     mask = cv2.bitwise_and(mask, mask, mask=masktemp)
 
     steps = 3 # Controls how much of the image is eroded #? could be increased
@@ -247,7 +300,6 @@ def overlay(fg, bg, x1=-1, y1=-1):
         mask = cv2.erode(mask, kernel)
         blend_mask += mask * (1.0 / steps)
     # ### End of code from Lucas Tabelini ###
-
 
     # Retrieve image dimentions
     height_FG, width_FG, _ = fg.shape  # Discard channel
@@ -267,19 +319,6 @@ def overlay(fg, bg, x1=-1, y1=-1):
     blended = (new_img[y1:y2, x1:x2] * (1 - blend_mask)) + (fg[:, :, [0, 1, 2]] * blend_mask)
     new_img[y1:y2, x1:x2] = blended
     # ### End of code from Lucas Tabelini ###
-
-    # ### Start of code from fireant ###
-    # # https://stackoverflow.com/questions/14063070/overlay-a-smaller-image-on-a-larger-image-python-opencv
-    # # Retrieve an array of alpha values from the foreground image
-    # # Divide by 255 to get values between 0.0 and 1.0
-    # alpha = fg[:,:,3] / 255.0
-    # beta = 1.0 - alpha
-
-    # # Loop over BGR channels (but not alpha)
-    # for ch in range(0, 3):
-    #     new_img[y1:y2, x1:x2, ch] = (alpha * fg[:, :, ch] +
-    #                                  beta * new_img[y1:y2, x1:x2, ch])
-    # ### End of code from fireant ###
 
     return new_img
 
