@@ -14,10 +14,11 @@ tform_method: 3d_rotation
 
 # TODO: Finish adding configurations for rotation
 # TODO: Finish refactoring flow of program to allow switching between offline and online (on the fly) transformations
-# transforms:
-#   SD_range: 30
-#   X_range: 70
-#   Y_range: 180
+transforms:
+  SD_X: 30
+  X_range: 70
+  SD_Y: 90
+  Y_range: 180
 #   online: False
 #   # The following only apply if online is False
 #   num_transform: 11
