@@ -69,17 +69,16 @@ class AbstractTransform(ABC):
 class RotationTransform(AbstractTransform):
     """Author: Prasanna Asokan"""
     def transformation(self, img):
-        SD_X = config['transformations']['SD_X']
-        X_range = config['transformations']['X_range']
-        SD_Y = config['transformations']['SD_Y']
-        Y_range = config['transformations']['Y_range']
+        SD_X = config['transforms']['SD_X']
+        X_range = config['transforms']['X_range']
+        SD_Y = config['transforms']['SD_Y']
+        Y_range = config['transforms']['Y_range']
         angle = np.zeros(3)
-        X = get_truncated_normal(mean=0, sd=SD_X, low=X_range, upp=X_range)
+        X = get_truncated_normal(mean=0, sd=SD_X, low=(-1)*X_range, upp=X_range)
         angle[0:2] = X.rvs(2)
-        Y = get_truncated_normal(mean=0, sd=SD_Y, low=-180, upp=180)
+        Y = get_truncated_normal(mean=0, sd=SD_Y, low=(-1)*Y_range, upp=Y_range)
         angle[2] = Y.rvs(1)
 
-        # FIXME: Change use of dz and f values so that size of signs remain consistent
         dest = self.rotate_image(img, angle[0], angle[1], angle[2], 0, 0, 300, 200)
         self.num_transformed += 1
         return dest, f"{angle[0]:.2f}_{angle[1]:.2f}_{angle[2]:.2f}"
