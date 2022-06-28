@@ -70,5 +70,3 @@ if __name__ == '__main__':
     mean_gt_damage = np.mean(gt_damages)
     
     print(f'MAE: {metrics.mae}\nRMSE: {metrics.rmse}\nMBE: {metrics.mbe}\nMean Predicted Damage {mean_pred_damage}\nMean Ground Truth Damage {mean_gt_damage}')
-    
-    

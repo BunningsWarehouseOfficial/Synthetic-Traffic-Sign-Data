@@ -56,9 +56,9 @@ def get_ap_metrics(gt_pred_map, num_sectors, dmg_threshold):
         pred_damages = np.array([d > dmg_threshold for d in pred])
         gt_damages = np.array([d > dmg_threshold for d in gt])
         npos += np.sum(gt_damages)
-        # tp if sector is damaged in both gt and pred
+        # tp if sector is damaged above threshold in both gt and pred
         tps[i, :] = np.bitwise_and(pred_damages, gt_damages)
-        # fp if sector is damaged in pred but not in gt
+        # fp if sector is damaged above threshold in pred but not in gt
         fps[i, :] = np.bitwise_and(pred_damages, np.invert(gt_damages))
     
     # Compute precision, recall and average precision
@@ -102,7 +102,7 @@ def get_roc_metrics(gt_pred_map, num_thres=50):
     return fp_rates, tp_rates, auc
 
 
-# Get basic error metrics
+# Get basic regression style error metrics
 def get_basic_metrics(gt_pred_map):
     gt_damages, pred_damages = zip(*gt_pred_map)
     gt_damages = np.array(gt_damages)
@@ -113,6 +113,7 @@ def get_basic_metrics(gt_pred_map):
     return mae, rmse, mbe
 
 
+# TODO: iou_threshold in docstring but not used... perhaps it should be used?
 def get_all_metrics(gold_standard: List[BoundingBox],
                     predictions: List[BoundingBox],
                     dmg_threshold: float = 0.2, 
@@ -153,12 +154,13 @@ def get_all_metrics(gold_standard: List[BoundingBox],
         for b in golds:
             image_id2gt[b.image_id].append(b)
             
-        # Loop through detections
+        # Loop through detections to map them with respective ground truths
         for i in range(len(preds)):
             # Find ground truth image
             gt = image_id2gt[preds[i].image_id]
             max_iou = sys.float_info.min
             mas_idx = -1
+            # Check IOU with ground truths from image
             for j in range(len(gt)):
                 iou = Box.intersection_over_union(preds[i], gt[j])
                 if iou > max_iou:
@@ -187,7 +189,7 @@ def get_all_metrics(gold_standard: List[BoundingBox],
             print('Computing basic metrics')
             mae, rmse, mbe = get_basic_metrics(gt_pred_map)
             r.update_basic_metrics(mae, rmse, mbe)
-        
+    
     if len(ret.keys()) == 1:
         ret = list(ret.values())[0]
     return ret

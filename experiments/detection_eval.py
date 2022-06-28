@@ -195,8 +195,6 @@ def get_voc_metrics(gold_standard: List[BoundingBox],
         gold_standard: ground truth bounding boxes;
         predictions: detected bounding boxes;
         iou_threshold: IOU threshold indicating which detections will be considered TP or FP (default value = 0.5);
-        dmg_threshold: required damage level for sector to be marked as 'damaged';
-        correct_threshold: number of correctly damaged sectors required for tp;
         method: Pascal VOC metrics or damage metrics
     Returns:
         A dictionary containing metrics of each class.
@@ -230,12 +228,13 @@ def get_voc_metrics(gold_standard: List[BoundingBox],
 
         tp_IOUs = []
         tp_scores = []
-        # Loop through detections
+        # Loop through detections to map them with respective ground truths
         for i in range(len(preds)):
             # Find ground truth image
             gt = image_id2gt[preds[i].image_id]
             max_iou = sys.float_info.min
             mas_idx = -1
+            # Check IOU with ground truths from image
             for j in range(len(gt)):
                 iou = Box.intersection_over_union(preds[i], gt[j])
                 if iou > max_iou:
