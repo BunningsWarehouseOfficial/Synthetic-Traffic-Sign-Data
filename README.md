@@ -62,7 +62,7 @@ Please allow for sufficient storage space when running the dataset generator. Wi
 MIT
 
 ## Contributors
-Kristian Rados *(Primary)* \
+Kristian Radoš *(Primary)* \
 kristian.rados@student.curtin.edu.au
 
 Seana Dale \
