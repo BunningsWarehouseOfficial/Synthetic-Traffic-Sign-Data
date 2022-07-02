@@ -47,9 +47,9 @@ The generator can be configured with by modifying the `config.yaml` file.
 Please allow for sufficient storage space when running the dataset generator. With the default config values and the below example inputs, the size of the dataset will be on the order of 50-100 GB.
 
 **Example traffic sign templates** for data generation can be downloaded below. Place these templates into the `signbreaker/Sign_Templates/1_Input` directory. \
-[[download]](https://drive.google.com/file/d/1kMAPRSOs9RqAtQu6-fUEn1fqkazIC3Kt/view?usp=sharing) | GTSDB | classes matched as closely as possible using [German](https://en.wikipedia.org/wiki/Road_signs_in_Germany) Wikipedia templates sourced using `wikipedia_sign_templates.py`. \
+[[download]](https://drive.google.com/file/d/1kMAPRSOs9RqAtQu6-fUEn1fqkazIC3Kt/view?usp=sharing) | GTSDB | classes matched using [German](https://en.wikipedia.org/wiki/Road_signs_in_Germany) Wikipedia templates sourced using `wikipedia_sign_templates.py`, with extra speed limit templates created manually using SVG editing software. Covers 43/43 classes. \
 [[download]](https://drive.google.com/file/d/1dALYTwtGMGrEXROh8KWBdLzH2_1Jxzmu/view?usp=sharing) | GTSDB | [UK](https://www.gov.uk/guidance/traffic-sign-images) templates used by Stergiou et al. in their paper. \
-[[download]](https://drive.google.com/file/d/19_muDfADDh83zwIndZE3bsfbFh9KrGKD/view?usp=sharing) | GTSDB |  classes matched as closely as possible using [UK](https://www.gov.uk/guidance/traffic-sign-images) templates.
+[[download]](https://drive.google.com/file/d/19_muDfADDh83zwIndZE3bsfbFh9KrGKD/view?usp=sharing) | GTSDB | classes matched as closely as possible using [UK](https://www.gov.uk/guidance/traffic-sign-images) templates. Covers ~31/43 classes.
 
 **Example backgrounds** for data generation can be downloaded below. \
 [[download]](https://drive.google.com/file/d/1WCfWVruL0_WxnMaYJ-qzQD0cnFO478fh/view?usp=sharing) | GTSDB | 4 GTSDB background images for quick testing. \
