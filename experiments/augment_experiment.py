@@ -49,7 +49,7 @@ if __name__ == "__main__":
         augment_dict[aug] = df
     
     fig = px.scatter(title=args.experiment.capitalize() + ' vs ' + args.metric)
-    
+
     # Axis labels   
     fig.update_yaxes(title='Mean Average Precision (mAP)', title_font=dict(size=16))
     if is_damage_experiment or is_sequence_experiment:
@@ -65,8 +65,8 @@ if __name__ == "__main__":
         font_color="black",
         title_font_size=20,
     )
-            
-    # Plot given experiment
+    
+    # Plot given experiment with new line for each augmentation level
     for aug in augment_dict:
         df = augment_dict[aug]
         if is_damage_experiment or is_sequence_experiment:
@@ -76,5 +76,3 @@ if __name__ == "__main__":
             fig = fig.add_trace(go.Scatter(x = df['Area'], y = df[args.metric], 
                                         name=aug, mode='lines+markers'))
     plotly.io.write_image(fig, 'fig1.png', format='png', scale=2.5, width=1000, height=500)
-    
-            

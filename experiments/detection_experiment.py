@@ -36,6 +36,9 @@ class SequenceEvaluation:
     def __init__(self, gt_boxes, pred_boxes):
         self.pred_boxes = pred_boxes
         self.gt_boxes = sorted(gt_boxes, key=lambda x: x.image_id)
+
+    # TODO: These herustics currently aren't used anywhere, add them to new versions of downstream functions
+    #       See here, search for 'heuristic': https://github.com/ai-research-students-at-curtin/Traffic-Sign-Damage-Detection-using-Synthesised-Training-Data/commit/ee2afa2687d3f35230539826bde784d101efb22f
     
     # Proposed heuristic 1: use the bounding box with the maximum score for each image sequence.    
     def score_heuristic(self):
@@ -51,7 +54,7 @@ class SequenceEvaluation:
         """
         Choose the detection among the ones generated for this sequence which has size closest to the optimal width.
         """
-        area_diffs = []
+        area_diffs = []  # Diffs between this sequence's detection areas and optimal area
         for det in self.pred_boxes:
             det_area = (det.xbr - det.xtl) * (det.ybr - det.ytl)
             area_diffs.append(abs(det_area - opt_area))
@@ -64,7 +67,9 @@ def get_metrics(gt, pred):
     """
     Calculates the metrics for a given set of ground truth and predicted detections.
     Metrics in the format [AP50, AP75, AP95, max precision, max recall, min precision, min recall]
-    """   
+    """
+    # TODO: Match format listed in metrics_by_param(), or change format listed there:
+    #       [AP50, mAP, Maximum IOU, Minimum IOU, Mean IOU, Maximum Score, Minimum Score, Mean Score] 
     columns = ['AP50', 'mAP', 'Mean IOU', 'Mean Score']
     metrics = np.zeros(len(columns))
     AP40_metrics = get_voc_metrics(gt, pred, iou_threshold=0.4)
@@ -167,6 +172,7 @@ def metrics_by_param(gt_arr, pred_arr, num_frames=8, param='sequence'):
     param_preds = [prune_detections(arr, max_detections) for arr in param_preds]
     
     # Format [param, AP50, mAP, Maximum IOU, Minimum IOU, Mean IOU, Maximum Score, Minimum Score, Mean Score] 
+    # TODO: ^ This is out of date
     metrics_array = None
     
     # Iterate over each image sequence
@@ -224,6 +230,7 @@ if __name__ == '__main__':
     if args.experiment == 'sequence':
         df = sequence_experiment(gt_arr, pred_arr, args.num_frames)
         print(df)
+        # See get_metrics() columns for possible value_vars values
         df_long = pd.melt(df, id_vars=['Damage'], value_vars=['Mean IOU'])
         fig = px.line(df_long, x='Damage', y='value', title='IOU vs. Damage Level', color='variable')
         
@@ -239,10 +246,9 @@ if __name__ == '__main__':
         df = damage_experiment(gt_arr, pred_arr)
         print(df)
         fig = px.line(df, x='Damage', y='mAP', title='Average Precision (AP) vs. Damage Level')
-    fig.show()
-
-    directory = "C:/Users/Kristian/Code/Datasets"
+    
+    cwd = os.getcwd()
     name = args.eval_file.split('.')[0].split('/')[-1]
-    fig.write_html(f"{directory}/{name}.html")
-    with open(f"{directory}/{name}.txt", 'w') as f:
+    fig.write_html(f"{cwd}/{name}.html")
+    with open(f"{cwd}/{name}.txt", 'w') as f:
         f.write(str(df))
