@@ -371,7 +371,7 @@ class AbstractManipulation(ABC):
 
             fg = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
 
-            print(f"Manipulating signs: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
+            print(f"Manipulating sign brightnesses: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
             for jj in range(0, len(background_paths)):
                 bg_path = background_paths[jj]
                 self.bg_path   = bg_path
@@ -379,7 +379,7 @@ class AbstractManipulation(ABC):
 
                 self.manipulation(fg)
 
-        print("Manipulating signs: 100.0%\r\n")
+        print("Manipulating sign brightnesses: 100.0%\r\n")
         return self.man_images
 
     def save_synth(self, man_img, man_type):
