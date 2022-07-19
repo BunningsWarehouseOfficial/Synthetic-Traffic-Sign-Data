@@ -54,7 +54,7 @@ Please allow for sufficient storage space when running the dataset generator. Wi
 **Example backgrounds** for data generation can be downloaded below. \
 [[download]](https://drive.google.com/file/d/1WCfWVruL0_WxnMaYJ-qzQD0cnFO478fh/view?usp=sharing) | GTSDB | 4 GTSDB background images for quick testing. \
 [[download]](https://drive.google.com/file/d/1dWkyX9-lGEE59odbthu3zFdZT9ksQ2nS/view?usp=sharing) | GTSDB | all 600 images from the GTSDB training set. \
-[[download]](https://drive.google.com/file/d/1LvKXLakMttnXL7w4R3dl-dgmkv59cpQK/view?usp=sharing) | GTSDB | UK Google Images backgrounds used by Stergiou et al. in their paper.
+[[download]](https://drive.google.com/file/d/1LvKXLakMttnXL7w4R3dl-dgmkv59cpQK/view?usp=sharing) | GTSDB | UK Google Images backgrounds used by Stergiou et al. in their paper, suitable only for creating image patch datasets for recognition tasks.
 
 ## License
 - [ ] TODO: *Properly* update LICENSE file (sublicense?), then delete this heading
