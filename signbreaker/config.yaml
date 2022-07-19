@@ -4,21 +4,24 @@ sign_width: 240  # Default: 200 for UK templates, 240 for GTSDB Wikipedia templa
 # When to stop the program, in the case that not all of the sequential steps are required
 final_op: dataset  # Either 'process', 'damage', 'transform', 'manipulate', or 'dataset'
 
-# The number of transformations applied to each damaged sign template
-# Transformations are ordered by intensity (i.e. t12 is more visually similar to the original image than t1)
-num_transform: 11  # Range: [0,11], default: 11
-
 # Method of image transformation
 # Either '3d_rotation' or 'fixed_affine'
 tform_method: 3d_rotation
 
-# TODO: Finish adding configurations for rotation
+# Number of transformations applied to each damaged sign template
+# fixed_affine ransformations are ordered by intensity (i.e. t12 is more
+# visually similar to the original image than t1)
+num_transform: 11  # Range (only for fixed_affine): [0,11], default: 11
+
 # TODO: Finish refactoring flow of program to allow switching between offline and online (on the fly) transformations
+# Parameters for transformation by 3d_rotation
+# tilt: 3D tilt rotation around the X and Y axes
+# Z:    2D clockwise/anti-clockwise rotation
 transforms:
-  SD_X: 30
-  X_range: 70
-  SD_Y: 90
-  Y_range: 180
+  SD_tilt: 30
+  tilt_range: 70
+  SD_Z: 60  # Std. dev. for Z axis rotation
+  Z_range: 180  # Max pos/neg value for Z axis rotation
 #   online: False
 #   # The following only apply if online is False
 #   num_transform: 11
