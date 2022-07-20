@@ -208,7 +208,7 @@ def main():
         shutil.rmtree(transformed_dir)
     os.mkdir(transformed_dir)
 
-    print("Transforming images...", end='\r')  # TODO: Progress bar?
+    print("Transforming signs...", end='\r')
     transformed_data = []
     method = config['tform_method']
     for damaged in damaged_data:
@@ -237,6 +237,7 @@ def main():
         ImageFile.LOAD_TRUNCATED_IMAGES = True
         for bg_folders in load_paths(bg_dir):
             to_png(bg_folders)
+        print('\n', end='')
             
         background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True)
         

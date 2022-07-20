@@ -36,7 +36,7 @@ class AbstractTransform(ABC):
         assert self.num_transformed == num_transform, f"There were meant to be {num_transform} transformations, but {self.num_transformed} occured"
 
         # Retrieve the filename to save as
-        _, tail  = ntpath.split(image_path)  # Filename of the image, parent directories removed
+        _, tail  = ntpath.split(image_path)  # Filename of img, parent directories removed
         title, _ = tail.rsplit('.', 1)  # Discard extension
         
         # Save the transformed images
@@ -62,22 +62,24 @@ class AbstractTransform(ABC):
         return transformed_images
 
     @abstractmethod
-    def transformation(self, img, num_transform):
+    def transformation(self, img):
         pass
 
 
 class RotationTransform(AbstractTransform):
     """Author: Prasanna Asokan"""
     def transformation(self, img):
-        SD_X = config['transforms']['SD_X']
-        X_range = config['transforms']['X_range']
-        SD_Y = config['transforms']['SD_Y']
-        Y_range = config['transforms']['Y_range']
+        SD_tilt = config['transforms']['SD_tilt']
+        tilt_range = config['transforms']['tilt_range']
+        SD_Y = config['transforms']['SD_Z']
+        Z_range = config['transforms']['Z_range']
         angle = np.zeros(3)
-        X = get_truncated_normal(mean=0, sd=SD_X, low=(-1)*X_range, upp=X_range)
-        angle[0:2] = X.rvs(2)
-        Y = get_truncated_normal(mean=0, sd=SD_Y, low=(-1)*Y_range, upp=Y_range)
-        angle[2] = Y.rvs(1)
+        tilt = get_truncated_normal(mean=0, sd=SD_tilt, low=(-1)*tilt_range,
+                                    upp=tilt_range)
+        angle[0:2] = tilt.rvs(2)
+        Z = get_truncated_normal(mean=0, sd=SD_Y, low=(-1)*Z_range, upp=Z_range)
+        angle[2] = Z.rvs(1)
+        
         if(img.shape[0] > 320):
             dz = img.shape[0]
             f = 200 + img.shape[0]/5
@@ -90,17 +92,17 @@ class RotationTransform(AbstractTransform):
         return dest, f"{angle[0]:.2f}_{angle[1]:.2f}_{angle[2]:.2f}"
         
     def rotate_image(self, src, alpha, beta, gamma, dx, dy, dz, f):
-        """
-        Rotates any input image by a given angle in the x, y and z planes.
+        """Rotates any input image by a given angle in the x, y and z planes.
         :param src: the input image
-        :param alpha: rotation around the x axis
-        :param beta: rotation around the y axis
-        :param gamma: rotation around the z axis (2d rotation)
-        :param dx: translation around the axis
+        :param alpha: rotation around the x axis in degrees
+        :param beta: rotation around the y axis in degrees
+        :param gamma: rotation around the z axis (2d rotation) in degrees
+        :param dx: translation around the x axis
         :param dy: translation around the y axis
         :param dz: translation around the z axis (distance to image)
         :param f: focal distance (distance between camera and image)
-        referenced from http://jepsonsblog.blogspot.com/2012/11/rotation-in-3d-using-opencvs.html
+        referenced from
+        http://jepsonsblog.blogspot.com/2012/11/rotation-in-3d-using-opencvs.html
         """
         # Convert to radians and start on x axis?
         alpha = math.radians(alpha)
@@ -117,7 +119,6 @@ class RotationTransform(AbstractTransform):
             [ 0, 0, 1   ],
             [ 0, 0, 1   ]])
 
-
         # Rotation matrices around the X, Y, and Z axis
         xa1 = math.cos(alpha)
         xa2 = math.sin(alpha)
@@ -126,7 +127,6 @@ class RotationTransform(AbstractTransform):
             [ 0, xa1, -xa2, 0],
             [ 0, xa2, xa1,  0],
             [ 0, 0,   0,    1]])
-
         ya1 = math.cos(beta)
         ya2 = math.sin(beta)
         RY = np.array(
@@ -134,7 +134,6 @@ class RotationTransform(AbstractTransform):
             [ 0,   1, 0,    0],
             [ ya2, 0, ya1,  0],
             [ 0,   0, 0,    1]])
-
         za1 = math.cos(gamma)
         za2 = math.sin(gamma)
         RZ = np.array(
@@ -142,7 +141,6 @@ class RotationTransform(AbstractTransform):
             [ za2,  za1, 0, 0],
             [ 0,    0,   1, 0],
             [ 0,    0,   0, 1]])
-
 
         # Composed rotation matrix with (RX, RY, RZ)
         R = np.dot(np.dot(RX, RY), RZ)
@@ -170,7 +168,8 @@ class RotationTransform(AbstractTransform):
 class FixedAffineTransform(AbstractTransform):
     def transformation(self, img):
         """Creates and saves different angles of the imported image.
-        Adapted from code originally authored by Alexandros Stergiou."""
+        Adapted from code originally authored by Alexandros Stergiou.
+        """
         width, height = self.width, self.height
 
         # Transform function names are numbered in order of (my subjective) significance in visual difference
@@ -323,13 +322,13 @@ class FixedAffineTransform(AbstractTransform):
 ################################
 def find_image_exposures(paths, descriptor="sign"):
     """Determines the level of exposure for each image in the provided paths.
-    Originally authored by Alexandros Stergiou."""
+    Originally authored by Alexandros Stergiou.
+    """
     ii = 0
     exposures = []
     for image_path in paths:
         print(f"Calculating {descriptor} exposures: {float(ii) / float(len(paths)):06.2%}", end='\r')
         exposures.append(find_image_exposure(image_path))
-
         ii += 1
 
     print(f"Calculating {descriptor} exposures: 100.0%\r")
@@ -379,7 +378,7 @@ class AbstractManipulation(ABC):
 
             fg = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
 
-            print(f"Manipulating signs: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
+            print(f"Manipulating sign brightnesses: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
             for jj in range(0, len(background_paths)):
                 bg_path = background_paths[jj]
                 self.bg_path   = bg_path
@@ -387,7 +386,7 @@ class AbstractManipulation(ABC):
 
                 self.manipulation(fg)
 
-        print("Manipulating signs: 100.0%\r\n")
+        print("Manipulating sign brightnesses: 100.0%\r\n")
         return self.man_images
 
     def save_synth(self, man_img, man_type):
