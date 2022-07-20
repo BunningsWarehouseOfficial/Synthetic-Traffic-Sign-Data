@@ -78,8 +78,14 @@ class RotationTransform(AbstractTransform):
         angle[0:2] = X.rvs(2)
         Y = get_truncated_normal(mean=0, sd=SD_Y, low=(-1)*Y_range, upp=Y_range)
         angle[2] = Y.rvs(1)
+        if(img.shape[0] > 320):
+            dz = img.shape[0]
+            f = 200 + img.shape[0]/5
+        else:
+            dz = 320 - 0.25*(320-img.shape[0])
+            f = 200
 
-        dest = self.rotate_image(img, angle[0], angle[1], angle[2], 0, 0, 300, 200)
+        dest = self.rotate_image(img, angle[0], angle[1], angle[2], 0, 0, dz, f)
         self.num_transformed += 1
         return dest, f"{angle[0]:.2f}_{angle[1]:.2f}_{angle[2]:.2f}"
         
