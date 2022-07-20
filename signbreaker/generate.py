@@ -96,15 +96,14 @@ def new_data(synth_image):
     #     rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
     #     fg = cv2.warpAffine(fg, rot_mat, fg.shape[1::-1], flags=cv2.INTER_LINEAR)
 
+    image = overlay2(fg, bg, new_size, x, y)
     fg = cv2.resize(fg, (new_size, new_size))
-
     axes = __bounding_axes(fg)  # Retrieve bounding axes of the sign image
     axes[0] += x  # Adjusting bounding axis to make it relative to the whole bg image
     axes[1] += x
     axes[2] += y
     axes[3] += y
     synth_image.bounding_axes = axes
-    image = overlay2(fg, bg, x, y)
     return image
 
 

@@ -270,7 +270,7 @@ def overlay(fg, bg, x1=-1, y1=-1):
 
 
 #TODO make modular with other overlay
-def overlay2(fg, bg, x1=-1, y1=-1):
+def overlay2(fg, bg, new_size, x1=-1, y1=-1):
     """Erodes and blends foreground into background removing transparency.
 
     Foreground iamge will be centred on background if x1 or y1 are omitted.
@@ -291,38 +291,52 @@ def overlay2(fg, bg, x1=-1, y1=-1):
     # Make a copy of the background for making changes
     new_img = bg.copy()
 
+    # Retrieve image dimentions
+    height_FG = new_size 
+    width_FG = new_size
+    height_BG, width_BG, _ = bg.shape
+
+    # If either of the coordinates were omitted, calculate start/end positions
+    # using the difference in image size, centring foreground on background
+    x1 = -1
+    if x1 == -1 or y1 == -1:
+        # Start coordinates 
+        x1 = (width_BG - width_FG) // 4    # Floor division to truncate as
+        y1 = (height_BG - height_FG) // 4  # coordinates don't need to be exact
+        x1 = 0
+        y1 = 0
+    # End coordinates
+    x2 = x1 + width_FG
+    y2 = y1 + height_FG
+
     ret, masktemp = cv2.threshold(fg[:, :, 3], 0, 255, cv2.THRESH_BINARY)
     mask = np.ones((masktemp.shape + (3,)),dtype=np.uint8)
     mask = cv2.bitwise_and(mask, mask, mask=masktemp)
+
+    ellipse = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(9,9)) # Large disk kernel for closing gaps
+    cross = cv2.getStructuringElement(cv2.MORPH_CROSS,(3,3))     # Small cross kernel for eroding edges 
+    pad = 20
+    mask = cv2.copyMakeBorder(mask, pad, pad, pad, pad, cv2.BORDER_CONSTANT)  # padding to stop close morph_close from attaching to border 
+
+    mask = cv2.erode(mask, cross, iterations=2)  # erodes black border
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel=ellipse, iterations=5)  # smooths out mask
+    mask = mask[pad:-pad, pad:-pad]
 
     steps = 3 # Controls how much of the image is eroded #? could be increased
 
     # ### Start of code referenced from Lucas Tabelini ###
     #   # https://github.com/LCAD-UFES/publications-tabelini-ijcnn-2019/blob/master/generate_dataset.py
     blend_mask = mask.astype(np.float32) * (1.0 / steps)
-    kernel = np.ones((3, 3), np.uint8)
 
     for step in range(steps - 1):
-        mask = cv2.erode(mask, kernel)
+        mask = cv2.erode(mask, cross)
         blend_mask += mask * (1.0 / steps)
-    # ### End of code from Lucas Tabelini ###
 
-    # Retrieve image dimentions
-    height_FG, width_FG, _ = fg.shape  # Discard channel
-    height_BG, width_BG, _ = bg.shape
+    fg = cv2.resize(fg, (new_size, new_size))
+    blend_mask = cv2.resize(blend_mask, (new_size, new_size))
 
-    # If either of the coordinates were omitted, calculate start/end positions
-    # using the difference in image size, centring foreground on background
-    if x1 == -1 or y1 == -1:
-        # Start coordinates 
-        x1 = (width_BG - width_FG) // 2    # Floor division to truncate as
-        y1 = (height_BG - height_FG) // 2  # coordinates don't need to be exact
-    # End coordinates
-    x2 = x1 + width_FG
-    y2 = y1 + height_FG
-
-    # ### Lucas Tabelini ###
-    blended = (new_img[y1:y2, x1:x2] * (1 - blend_mask)) + (fg[:, :, [0, 1, 2]] * blend_mask)
+    blended = (new_img[y1:y2, x1:x2] * (1 - blend_mask)) 
+    blended += (fg[:, :, [0, 1, 2]] * blend_mask)
     new_img[y1:y2, x1:x2] = blended
     # ### End of code from Lucas Tabelini ###
 
