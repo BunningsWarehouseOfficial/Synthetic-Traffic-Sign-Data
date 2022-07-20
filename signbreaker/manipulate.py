@@ -33,32 +33,40 @@ class AbstractTransform(ABC):
         for ii in range(num_transform):
             tform_img, descriptor = self.transformation(img)
             tform_imgs.append((tform_img, descriptor))
-        assert self.num_transformed == num_transform, f"There were meant to be {num_transform} transformations, but {self.num_transformed} occured"
+        assert self.num_transformed == num_transform, f"There were meant to be " \
+            "{num_transform} transformations, but {self.num_transformed} occured"
 
         # Retrieve the filename to save as
         _, tail  = ntpath.split(image_path)  # Filename of img, parent directories removed
         title, _ = tail.rsplit('.', 1)  # Discard extension
         
-        # Save the transformed images
         transformed_images = []  # Collection of transformed SynthImage objects
         for ii, tform_img_tuple in enumerate(tform_imgs):
-            save_dir = os.path.join(output_path, title)
-            if not os.path.exists(save_dir):
-                os.makedirs(save_dir)
-            
             descriptor = tform_img_tuple[1]
-            # TODO: Make sure no two rotations are the same (or just add ii to filename)
-            if descriptor == None:
-                descriptor = ii
-                save_path = os.path.join(save_dir, f"{descriptor}.png")
+            # Only return the transformed images
+            if output_path is None:
+                transformed_image = input_image.clone()
+                transformed_image.set_fg_image(tform_img_tuple[0])
+                transformed_image.set_transformation(descriptor)
+                transformed_images.append(transformed_image)
+            # Save to disk and return the transformed images
             else:
-                save_path = os.path.join(save_dir, f"{ii}_{descriptor}.png")
-            cv2.imwrite(save_path, tform_img_tuple[0])
+                save_dir = os.path.join(output_path, title)
+                if not os.path.exists(save_dir):
+                    os.makedirs(save_dir)
 
-            transformed_image = input_image.clone()
-            transformed_image.fg_path = save_path
-            transformed_image.set_transformation(descriptor)
-            transformed_images.append(transformed_image)
+                # TODO: Make sure no two rotations are the same (or just add ii to filename)
+                if descriptor is None:
+                    descriptor = ii
+                    save_path = os.path.join(save_dir, f"{descriptor}.png")
+                else:
+                    save_path = os.path.join(save_dir, f"{ii}_{descriptor}.png")
+                cv2.imwrite(save_path, tform_img_tuple[0])
+
+                transformed_image = input_image.clone()
+                transformed_image.fg_path = save_path
+                transformed_image.set_transformation(descriptor)
+                transformed_images.append(transformed_image)
         return transformed_images
 
     @abstractmethod
@@ -69,9 +77,9 @@ class AbstractTransform(ABC):
 class RotationTransform(AbstractTransform):
     """Author: Prasanna Asokan"""
     def transformation(self, img):
-        SD_tilt = config['transforms']['SD_tilt']
+        SD_tilt = config['transforms']['tilt_SD']
         tilt_range = config['transforms']['tilt_range']
-        SD_Y = config['transforms']['SD_Z']
+        SD_Y = config['transforms']['Z_SD']
         Z_range = config['transforms']['Z_range']
         angle = np.zeros(3)
         tilt = get_truncated_normal(mean=0, sd=SD_tilt, low=(-1)*tilt_range,
@@ -359,7 +367,7 @@ def image_exposure(img_grey, img_rgba):
 
 
 class AbstractManipulation(ABC):
-    """Image manipulation template pattern abstract class."""
+    """Image brightness manipulation template pattern abstract class."""
     def manipulate(self, transformed_data, background_paths, out_dir):
         self.out_dir = out_dir
         sign_paths = [transformed.fg_path for transformed in transformed_data]
@@ -371,7 +379,7 @@ class AbstractManipulation(ABC):
 
             fg = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
 
-            print(f"Manipulating sign brightnesses: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
+            print(f"Manipulating brightness of signs: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
             for jj in range(0, len(background_paths)):
                 bg_path = background_paths[jj]
                 self.bg_path   = bg_path
@@ -379,15 +387,22 @@ class AbstractManipulation(ABC):
 
                 self.manipulation(fg)
 
-        print("Manipulating sign brightnesses: 100.0%\r\n")
+        print("Manipulating brightness of signs: 100.0%\r\n")
         return self.man_images
 
     def save_synth(self, man_img, man_type):
         _, sub, el = dir_split(self.bg_path)
         title, _ = el.rsplit('.', 1)
 
-        _, _, sign_dir, dmg_dir, element = dir_split(self.sign_path)
-        head, tail = element.rsplit('.', 1)
+        splits = dir_split(self.sign_path)
+        if len(splits) == 5:
+            _, _, sign_dir, dmg_dir, element = splits
+            head, tail = element.rsplit('.', 1)
+        elif len(splits) == 4:
+            _, _, sign_dir, dmg_dir = splits
+            head, tail = dmg_dir.rsplit('.', 1)
+        else:
+            raise ValueError(f"Not enough values to unpack (expected 5 or 4, got {len(splits)})")
 
         save_dir = os.path.join(self.out_dir, sub, "BG_" + title, "SIGN_" + sign_dir, dmg_dir)
         os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically

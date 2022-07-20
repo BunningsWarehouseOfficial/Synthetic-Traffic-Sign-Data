@@ -8,7 +8,7 @@ final_op: dataset  # Either 'process', 'damage', 'transform', 'manipulate', or '
 # Either '3d_rotation' or 'fixed_affine'
 tform_method: 3d_rotation
 
-# Number of transformations applied to each damaged sign template
+# Number of (offline) transformations applied to each damaged sign template
 # fixed_affine ransformations are ordered by intensity (i.e. t12 is more
 # visually similar to the original image than t1)
 num_transform: 11  # Range (only for fixed_affine): [0,11], default: 11
@@ -17,14 +17,13 @@ num_transform: 11  # Range (only for fixed_affine): [0,11], default: 11
 # Parameters for transformation by 3d_rotation
 # tilt: 3D tilt rotation around the X and Y axes
 # Z:    2D clockwise/anti-clockwise rotation
-transforms:
-  SD_tilt: 30
+transforms:  # TODO: Rename to rotation_params?
+  tilt_SD: 30
   tilt_range: 70
-  SD_Z: 60  # Std. dev. for Z axis rotation
+  Z_SD: 45  # Std. dev. for Z axis rotation
   Z_range: 180  # Max pos/neg value for Z axis rotation
-#   online: False
-#   # The following only apply if online is False
-#   num_transform: 11
+  online: True  # On-the-fly or not
+  # TODO: ^ Bounds validation for numeric params
 
 # Method of image manipulation
 # Either 'gamma_exposure_fast', 'gamma_exposure', 'exposure', 'gamma', or 'histogram' (broken)

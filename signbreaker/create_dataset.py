@@ -42,7 +42,7 @@ def main():
     with open("config.yaml", "r") as ymlfile:
         config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
-    # TODO: Refactor into config validation function
+    # TODO: Refactor into config validation function/module
     # Input validation of config file
     valid_final = ['process', 'damage', 'transform', 'manipulate', 'dataset']
     tform_methods = {
@@ -76,6 +76,11 @@ def main():
         raise ConfigError(f"Config error: '{config['annotations']['type']}' is an invalid annotation type.\n")
     if not config['damage_measure_method'] in valid_dmg_methods:
         raise ConfigError(f"Config error: '{config['damage_measure_method']}' is an invalid damage measure.\n")
+
+    r_params = config['transforms']
+    if r_params['online'] is True and config['tform_method'] != '3d_rotation':
+        raise ConfigError(f"Config error: online transformations only work "
+                          f"with the 3d_rotation transformation method.\n")
 
     b_params = config['bullet_holes']
     if b_params['min_holes'] <= 0 or b_params['max_holes'] <= 0:
@@ -200,24 +205,28 @@ def main():
 
 
 
-    #FIXME(old): 'transform_type' final label keeps having value None despite synth_image.set_transformation() working
     ##################################
     ###  APPLYING TRANSFORMATIONS  ###
     ##################################
     if os.path.exists(transformed_dir):
         shutil.rmtree(transformed_dir)
-    os.mkdir(transformed_dir)
 
-    print("Transforming signs...", end='\r')
-    transformed_data = []
-    method = config['tform_method']
-    for damaged in damaged_data:
-        save_dir = os.path.join(transformed_dir, str(damaged.class_num))
-        transformed_data.append(tform_methods[method].transform(damaged, save_dir, config['num_transform']))
-        del damaged  # Clear memory that will no longer be needed as we go
-    del damaged_data
-    transformed_data = [cell for row in transformed_data for cell in row]  # Flatten the list
-    print('\n')
+    t_method = config['tform_method']
+    if config['transforms']['online'] is False:
+        os.mkdir(transformed_dir)
+
+        print("Transforming signs...", end='\r')
+        transformed_data = []
+        for damaged in damaged_data:
+            save_dir = os.path.join(transformed_dir, str(damaged.class_num))
+            transformed_data.append(tform_methods[t_method].transform(damaged, save_dir, config['num_transform']))
+            del damaged  # Clear memory that's no longer be needed as we go
+        del damaged_data
+        transformed_data = [cell for row in transformed_data for cell in row]  # Flatten the list
+        print('\n')
+    else:
+        transformed_data = damaged_data
+        print("Transforming signs on-the-fly.\n")
 
     if config['final_op'] == 'transform':
         return
@@ -241,9 +250,9 @@ def main():
             
         background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True)
         
-        method = config['man_method']
-        manipulated_data = man_methods[method].manipulate(transformed_data, background_paths, manipulated_dir)
-        if method == 'exposure':
+        m_method = config['man_method']
+        manipulated_data = man_methods[m_method].manipulate(transformed_data, background_paths, manipulated_dir)
+        if m_method == 'exposure':
             manipulate.find_useful_signs(manipulated_data, damaged_dir)
 
         # Delete SynthImage objects for any signs that were removed
@@ -260,8 +269,9 @@ def main():
         for img in manipulated_data:
             images_dict[os.path.dirname(img.fg_path)].append(img)
         # Sample manipulated-transformed images for each background/class/damage
-        images_dict = {k:random.sample(v, max_images) for k,v in images_dict.items() if len(v) > max_images}
+        images_dict = {k:random.sample(v, max_images) for k,v in images_dict.items() if len(v) >= max_images}
         manipulated_data = [img for images_list in images_dict.values() for img in images_list]
+        assert len(manipulated_data) != 0, "Set of manipulated images is empty after pruning"
 
     if config['final_op'] == 'manipulate':
         return
@@ -271,9 +281,9 @@ def main():
     ###############################
     ###  GENERATING FINAL DATA  ###
     ###############################
-    if os.path.exists(final_dir):  # Create timestamped directory instead of overwriting
-        dir_head, dir_tail = ntpath.split(final_dir)
-        final_dir = os.path.join(dir_head, f"{dir_tail}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
+    # Create timestamped directory instead of overwriting
+    dir_head, dir_tail = ntpath.split(final_dir)
+    final_dir = os.path.join(dir_head, f"{dir_tail}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
 
     images_dir = os.path.join(final_dir, "Images")
     labels_format = config['annotations']['type']
@@ -313,6 +323,9 @@ def main():
         
         fg_path =  os.path.join(class_dir, f"{c_num}_{d_type}_{ii}")
         final_fg_path = fg_path + ".jpg"
+
+        if config['transforms']['online'] is True:
+            synth_image = tform_methods[t_method].transform(synth_image, None, 1)[0]
 
         image = generate.new_data(synth_image)
         if labels_format == 'retinanet':

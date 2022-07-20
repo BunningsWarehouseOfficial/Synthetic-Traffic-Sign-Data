@@ -9,6 +9,7 @@ class SynthImage:
         self.__check_damage(damage_ratio)
 
         self.fg_path = fg_path
+        self.fg_image = None
         self.class_num = class_num
 
         self.damage_type = damage_type
@@ -28,6 +29,13 @@ class SynthImage:
         return f"fg_path={self.fg_path}"
 
 
+    def set_fg_image(self, fg_image):
+        """Images should only be saved in memory when doing on-the-fly/online
+        operations where fg_path is irrelevant.
+        """
+        self.fg_path = None
+        self.fg_image = fg_image
+    
     def set_damage(self, fg_path, damage_type, damage_tag, damage_ratio):
         self.__check_damage(damage_ratio)
         self.damage_type = damage_type
@@ -117,7 +125,7 @@ class SynthImage:
         _, fg_width = fg_dims
         
         current_ratio = fg_width / bg_width  
-        target_ratio = random.uniform(0.033, 0.066)
+        target_ratio = random.uniform(0.033, 0.132)
         scale_factor = target_ratio / current_ratio
         new_size = int(fg_width * scale_factor)
         

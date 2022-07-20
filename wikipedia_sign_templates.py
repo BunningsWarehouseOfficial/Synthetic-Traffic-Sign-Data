@@ -102,15 +102,3 @@ if __name__ == "__main__":
         file_name  = str(i + 1) + extension
         os.system(f'wget -O {os.path.join(args.out_dir, file_name)} {sign_template.url}')
         time.sleep(0.25)  # Prevents cascading errors which corrupt the images
-        
-    
-    
-    
-
-
-            
-
-
-
-
-

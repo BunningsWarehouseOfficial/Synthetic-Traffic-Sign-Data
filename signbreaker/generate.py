@@ -1,7 +1,7 @@
 """Module of functions for generating a synthetic manipulated sign dataset."""
 
 import os
-from utils import load_paths, dir_split, overlay2
+from utils import load_paths, dir_split, overlay, overlay_new
 from datetime import datetime
 import imutils
 import cv2
@@ -77,9 +77,15 @@ def __bounding_axes(img):
 def new_data(synth_image):
     """Blends a synthetic sign with its corresponding background."""
     bg_path = synth_image.bg_path
-    fg_path = synth_image.fg_path
     bg = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
-    fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
+    assert bg is not None, "Background image not found"
+
+    fg_path = synth_image.fg_path
+    if fg_path is None and synth_image.fg_image is not None:
+        fg = synth_image.fg_image
+    else:
+        fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
+    assert fg is not None, "Foreground image not found"
 
     if synth_image.fg_coords is not None and synth_image.fg_size is not None:
         x, y = synth_image.fg_coords
@@ -104,7 +110,7 @@ def new_data(synth_image):
     axes[2] += y
     axes[3] += y
     synth_image.bounding_axes = axes
-    image = overlay2(fg, bg, x, y)
+    image = overlay(fg, bg, x, y)
     return image
 
 
