@@ -298,13 +298,10 @@ def overlay2(fg, bg, new_size, x1=-1, y1=-1):
 
     # If either of the coordinates were omitted, calculate start/end positions
     # using the difference in image size, centring foreground on background
-    x1 = -1
     if x1 == -1 or y1 == -1:
         # Start coordinates 
         x1 = (width_BG - width_FG) // 4    # Floor division to truncate as
         y1 = (height_BG - height_FG) // 4  # coordinates don't need to be exact
-        x1 = 0
-        y1 = 0
     # End coordinates
     x2 = x1 + width_FG
     y2 = y1 + height_FG
