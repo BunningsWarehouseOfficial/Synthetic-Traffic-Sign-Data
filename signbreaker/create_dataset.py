@@ -78,9 +78,17 @@ def main():
         raise ConfigError(f"Config error: '{config['damage_measure_method']}' is an invalid damage measure.\n")
 
     r_params = config['transforms']
+    if (r_params['tilt_SD'] < 0 or r_params['tilt_SD'] > 90 or
+            r_params['tilt_range'] < 0 or r_params['tilt_range'] > 90):
+        raise ConfigError("Config error: must have 0 <= 'tilt_SD' <= 90 and 0 <= 'tilt_range' <= 90.\n")
+    if (r_params['Z_SD'] < 0 or r_params['Z_SD'] > 180 or
+            r_params['Z_range'] < 0 or r_params['Z_range'] > 180):
+        raise ConfigError("Config error: must have 0 <= 'Z_SD' <= 180 and 0 <= 'Z_range' <= 180.\n")
     if r_params['online'] is True and config['tform_method'] != '3d_rotation':
         raise ConfigError(f"Config error: online transformations only work "
                           f"with the 3d_rotation transformation method.\n")
+    if r_params['prob'] < 0 or r_params['prob'] > 1:
+        raise ConfigError("Config error: must have 0 <= 'prob' <= 1.\n")
 
     b_params = config['bullet_holes']
     if b_params['min_holes'] <= 0 or b_params['max_holes'] <= 0:
@@ -324,7 +332,8 @@ def main():
         fg_path =  os.path.join(class_dir, f"{c_num}_{d_type}_{ii}")
         final_fg_path = fg_path + ".jpg"
 
-        if config['transforms']['online'] is True:
+        p = random.random()
+        if config['transforms']['online'] is True and p <= config['transforms']['prob']:
             synth_image = tform_methods[t_method].transform(synth_image, None, 1)[0]
 
         image = generate.new_data(synth_image)
