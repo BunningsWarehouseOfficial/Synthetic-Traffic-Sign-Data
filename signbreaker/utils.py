@@ -329,11 +329,17 @@ def overlay2(fg, bg, new_size, x1=-1, y1=-1):
         mask = cv2.erode(mask, cross)
         blend_mask += mask * (1.0 / steps)
 
+    # finds the pixels where the mask is white but the orginal is transparent
+    # This is for intentional holes in the mask that got closed
+    # eg bullet holes 
+    temp = (blend_mask[:,:,0] == 255) + (fg[:,:,3] == 0)  
+    temp = temp[..., np.newaxis]
+    blend_mask = np.where(temp, [0,0,0], blend_mask)
+
     fg = cv2.resize(fg, (new_size, new_size))
     blend_mask = cv2.resize(blend_mask, (new_size, new_size))
 
-    blended = (new_img[y1:y2, x1:x2] * (1 - blend_mask)) 
-    blended += (fg[:, :, [0, 1, 2]] * blend_mask)
+    blended = (new_img[y1:y2, x1:x2] * (1 - blend_mask)) + (fg[:, :, [0, 1, 2]] * blend_mask)
     new_img[y1:y2, x1:x2] = blended
     # ### End of code from Lucas Tabelini ###
 
