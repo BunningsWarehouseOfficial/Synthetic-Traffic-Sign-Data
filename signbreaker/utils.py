@@ -269,8 +269,8 @@ def overlay(fg, bg, x1=-1, y1=-1):
     return new_img
 
 
-#TODO make modular with other overlay
-def overlay2(fg, bg, new_size, x1=-1, y1=-1):
+# TODO: Make modular with other overlay
+def overlay_new(fg, bg, new_size, x1=-1, y1=-1):
     """Erodes and blends foreground into background removing transparency.
 
     Foreground iamge will be centred on background if x1 or y1 are omitted.
@@ -279,7 +279,7 @@ def overlay2(fg, bg, new_size, x1=-1, y1=-1):
     Arguments:
     x1, y1 -- top-left coordinates for where to place foreground image
     """
-    #TODO does final image need alpha?
+    # TODO: Does final image need alpha?
     # Background doesn't need alpha channel
     if len(cv2.split(bg)) == 4:
         bg = cv2.cvtColor(bg, cv2.COLOR_RGBA2RGB)

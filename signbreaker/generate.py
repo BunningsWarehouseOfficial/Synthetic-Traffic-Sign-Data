@@ -1,7 +1,7 @@
 """Module of functions for generating a synthetic manipulated sign dataset."""
 
 import os
-from utils import load_paths, dir_split, overlay2
+from utils import load_paths, dir_split, overlay, overlay_new
 from datetime import datetime
 import imutils
 import cv2
@@ -74,12 +74,18 @@ def __bounding_axes(img):
 
     return [x_left, x_right, y_top, y_bottom]
 
-def new_data(synth_image):
+def new_data(synth_image, online=False):
     """Blends a synthetic sign with its corresponding background."""
     bg_path = synth_image.bg_path
-    fg_path = synth_image.fg_path
     bg = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
-    fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
+    assert bg is not None, "Background image not found"
+
+    fg_path = synth_image.fg_path
+    if online is True:
+        fg = synth_image.fg_image
+    else:
+        fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
+    assert fg is not None, "Foreground image not found"
 
     if synth_image.fg_coords is not None and synth_image.fg_size is not None:
         x, y = synth_image.fg_coords
@@ -96,7 +102,7 @@ def new_data(synth_image):
     #     rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
     #     fg = cv2.warpAffine(fg, rot_mat, fg.shape[1::-1], flags=cv2.INTER_LINEAR)
 
-    image = overlay2(fg, bg, new_size, x, y)
+    image = overlay_new(fg, bg, new_size, x, y)
     fg = cv2.resize(fg, (new_size, new_size))
     axes = __bounding_axes(fg)  # Retrieve bounding axes of the sign image
     axes[0] += x  # Adjusting bounding axis to make it relative to the whole bg image
