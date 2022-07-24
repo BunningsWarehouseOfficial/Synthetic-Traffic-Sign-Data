@@ -6,6 +6,7 @@ import numpy as np
 import os
 import math
 from PIL import Image, ImageOps
+from scipy.stats import truncnorm
 
 def load_paths(directory, ignored=['.npy']):
     """Returns a list with the paths of all files in the directory."""
@@ -128,13 +129,18 @@ def delete_background(image_path, save_path):
 
 def to_png(directory):
     """Convert all files in 'directory' to PNG images."""
-    for files in load_paths(directory):
-        splits = files.split('.')
-        title, extension = splits[0], splits[-1]
-        if (not extension == "png"):
+    paths = load_paths(directory)
+    dir_name = dir_split(directory)[-1]
+    ii = 0
+    for files in paths:
+        print(f"Converting {dir_name} backgrounds to PNG: {float(ii) / float(len(paths)):06.2%}", end='\r')
+        title, extension = os.path.splitext(files)
+        if (not extension == ".png"):
             img = Image.open(files).convert('RGBA')
             os.remove(files)
             img.save(title + ".png")
+        ii += 1
+    print(f"Converting {dir_name} backgrounds to PNG: 100.0%\r")
 
 def png_to_jpeg(filepath):
     sep = os.sep
@@ -212,7 +218,6 @@ def add_pole(filename, color):
 
     return new_img
 
-
 def overlay(fg, bg, x1=-1, y1=-1):
     """Overlay foreground image on background image, keeping transparency.
 
@@ -260,6 +265,83 @@ def overlay(fg, bg, x1=-1, y1=-1):
         new_img[y1:y2, x1:x2, ch] = (alpha * fg[:, :, ch] +
                                      beta * new_img[y1:y2, x1:x2, ch])
     ### End of code from fireant ###
+
+    return new_img
+
+
+# TODO: Make modular with other overlay
+def overlay_new(fg, bg, new_size, x1=-1, y1=-1):
+    """Erodes and blends foreground into background removing transparency.
+
+    Foreground iamge will be centred on background if x1 or y1 are omitted.
+    Images may be RGB or RGBA.
+
+    Arguments:
+    x1, y1 -- top-left coordinates for where to place foreground image
+    """
+    # TODO: Does final image need alpha?
+    # Background doesn't need alpha channel
+    if len(cv2.split(bg)) == 4:
+        bg = cv2.cvtColor(bg, cv2.COLOR_RGBA2RGB)
+    # If the foreground doesn't have an alpha channel, add one
+    if len(cv2.split(fg)) == 3:
+        fg = cv2.cvtColor(fg, cv2.COLOR_RGB2RGBA)
+        fg[:, :, 3] = 255 # Keep it opaque
+    
+    # Make a copy of the background for making changes
+    new_img = bg.copy()
+
+    # Retrieve image dimentions
+    height_FG = new_size 
+    width_FG = new_size
+    height_BG, width_BG, _ = bg.shape
+
+    # If either of the coordinates were omitted, calculate start/end positions
+    # using the difference in image size, centring foreground on background
+    if x1 == -1 or y1 == -1:
+        # Start coordinates 
+        x1 = (width_BG - width_FG) // 4    # Floor division to truncate as
+        y1 = (height_BG - height_FG) // 4  # coordinates don't need to be exact
+    # End coordinates
+    x2 = x1 + width_FG
+    y2 = y1 + height_FG
+
+    ret, masktemp = cv2.threshold(fg[:, :, 3], 0, 255, cv2.THRESH_BINARY)
+    mask = np.ones((masktemp.shape + (3,)),dtype=np.uint8)
+    mask = cv2.bitwise_and(mask, mask, mask=masktemp)
+
+    ellipse = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(9,9)) # Large disk kernel for closing gaps
+    cross = cv2.getStructuringElement(cv2.MORPH_CROSS,(3,3))     # Small cross kernel for eroding edges 
+    pad = 20
+    mask = cv2.copyMakeBorder(mask, pad, pad, pad, pad, cv2.BORDER_CONSTANT)  # padding to stop close morph_close from attaching to border 
+
+    mask = cv2.erode(mask, cross, iterations=2)  # erodes black border
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel=ellipse, iterations=5)  # smooths out mask
+    mask = mask[pad:-pad, pad:-pad]
+
+    steps = 3 # Controls how much of the image is eroded #? could be increased
+
+    # ### Start of code referenced from Lucas Tabelini ###
+    #   # https://github.com/LCAD-UFES/publications-tabelini-ijcnn-2019/blob/master/generate_dataset.py
+    blend_mask = mask.astype(np.float32) * (1.0 / steps)
+
+    for step in range(steps - 1):
+        mask = cv2.erode(mask, cross)
+        blend_mask += mask * (1.0 / steps)
+
+    # finds the pixels where the mask is white but the orginal is transparent
+    # This is for intentional holes in the mask that got closed
+    # eg bullet holes 
+    temp = (blend_mask[:,:,0] == 255) + (fg[:,:,3] == 0)  
+    temp = temp[..., np.newaxis]
+    blend_mask = np.where(temp, [0,0,0], blend_mask)
+
+    fg = cv2.resize(fg, (new_size, new_size))
+    blend_mask = cv2.resize(blend_mask, (new_size, new_size))
+
+    blended = (new_img[y1:y2, x1:x2] * (1 - blend_mask)) + (fg[:, :, [0, 1, 2]] * blend_mask)
+    new_img[y1:y2, x1:x2] = blended
+    # ### End of code from Lucas Tabelini ###
 
     return new_img
 
@@ -492,4 +574,9 @@ def remove_padding(img):
     x, y, w, h = cv2.boundingRect(coords)  # Find minimum spanning bounding box
     rect = img[y:y+h, x:x+w]  # Crop the image - note we do this on the original image
     return rect
-            
+
+
+def get_truncated_normal(mean, sd=1, low=-10, upp=10):
+    """Returns normal distribution truncated to be within specified range."""
+    return truncnorm(
+        (low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd)

@@ -9,19 +9,21 @@ def main():
     import argparse
     from datetime import datetime
     import random
-
-    import cv2
     import json
     from collections import defaultdict
-    from PIL import ImageFile
     from pathlib import Path
+
     import glob
+    from PIL import ImageFile
     import numpy as np
+    import cv2
 
     from bg_image import BgImage
+    from synth_image import SynthImage
     from damage import damage_image
     from utils import load_paths, load_files, scale_image, delete_background, to_png
     import manipulate
+    from manipulate import RotationTransform, FixedAffineTransform
     from manipulate import ExposureMan, GammaMan, GammaExposureAccurateMan, HistogramMan, GammaExposureFastMan
     import generate
     
@@ -41,9 +43,13 @@ def main():
     with open("config.yaml", "r") as ymlfile:
         config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
-    # TODO: Refactor into config validation function
+    # TODO: Refactor into config validation function/module
     # Input validation of config file
     valid_final = ['process', 'damage', 'transform', 'manipulate', 'dataset']
+    tform_methods = {
+        '3d_rotation': RotationTransform(),
+        'fixed_affine': FixedAffineTransform()
+    }
     man_methods = {
         'exposure': ExposureMan(),
         'gamma': GammaMan(),
@@ -51,7 +57,7 @@ def main():
         'gamma_exposure_fast': GammaExposureFastMan(),
         'histogram': HistogramMan()
     }
-    valid_dmg = ['original', 'quadrant', 'big_hole', 'bullet_holes', 'graffiti', 'bend', 'tint_yellow', 'grey']
+    valid_dmg = ['no_damage', 'quadrant', 'big_hole', 'bullet_holes', 'graffiti', 'bend', 'tint_yellow', 'grey']
     valid_ann = ['retinanet', 'coco']
     valid_dmg_methods = ['ssim', 'pixel_wise']
     if config['sign_width'] <= 0:
@@ -60,15 +66,30 @@ def main():
         raise ConfigError(f"Config error: '{config['final_op']}' is an invalid final_op value.\n")
     if config['num_transform'] < 0 or config['num_transform'] > 11:
         raise ConfigError("Config error: must have 0 <= 'num_transform' <= 15.\n")
+    if not config['tform_method'] in tform_methods:
+        raise ConfigError(f"Config error: '{config['tform_method']}' is an invalid transformation type.\n")
     if not config['man_method'] in man_methods:
         raise ConfigError(f"Config error: '{config['man_method']}' is an invalid manipulation type.\n")
     for dmg in config['num_damages']:
-        if not dmg in valid_dmg:
+        if not dmg in valid_dmg and dmg != 'online':
             raise ConfigError(f"Config error: '{dmg}' is an invalid damage type.\n")
     if not config['annotations']['type'] in valid_ann:
         raise ConfigError(f"Config error: '{config['annotations']['type']}' is an invalid annotation type.\n")
     if not config['damage_measure_method'] in valid_dmg_methods:
         raise ConfigError(f"Config error: '{config['damage_measure_method']}' is an invalid damage measure.\n")
+
+    r_params = config['transforms']
+    if (r_params['tilt_SD'] < 0 or r_params['tilt_SD'] > 90 or
+            r_params['tilt_range'] < 0 or r_params['tilt_range'] > 90):
+        raise ConfigError("Config error: must have 0 <= 'tilt_SD' <= 90 and 0 <= 'tilt_range' <= 90.\n")
+    if (r_params['Z_SD'] < 0 or r_params['Z_SD'] > 180 or
+            r_params['Z_range'] < 0 or r_params['Z_range'] > 180):
+        raise ConfigError("Config error: must have 0 <= 'Z_SD' <= 180 and 0 <= 'Z_range' <= 180.\n")
+    if r_params['online'] is True and config['tform_method'] != '3d_rotation':
+        raise ConfigError(f"Config error: online transformations only work "
+                          f"with the 3d_rotation transformation method.\n")
+    if r_params['prob'] < 0 or r_params['prob'] > 1:
+        raise ConfigError("Config error: must have 0 <= 'prob' <= 1.\n")
 
     b_params = config['bullet_holes']
     if b_params['min_holes'] <= 0 or b_params['max_holes'] <= 0:
@@ -175,13 +196,19 @@ def main():
 
         ii = 0
         processed = load_files(processed_dir)
-        for image_path in processed:  # TODO: Propagate progress bar through different damage types if feasible
-            print(f"Damaging signs: {float(ii) / float(len(processed)):06.2%}", end='\r')
-            damaged_data.append(damage_image(image_path, damaged_dir, config, background_images))
+        for image_path in processed:
+            if config['num_damages']['online'] is False:
+                print(f"Damaging signs: {float(ii) / float(len(processed)):06.2%}", end='\r')
+            synth_img = SynthImage(image_path, int(ntpath.split(image_path)[1].rsplit('.', 1)[0]))
+            damaged_data.append(damage_image(synth_img, damaged_dir, config, background_images))
             ii += 1
-        print(f"Damaging signs: 100.0%\r\n")
+        if config['num_damages']['online'] is False:
+            print(f"Damaging signs: 100.0%\r\n")
+        else:
+            print(f"Damaging signs on-the-fly in file generation step.\n")
         damaged_data = [cell for row in damaged_data for cell in row]  # Flatten the list
-        np.save(data_file_path, damaged_data, allow_pickle=True)
+        if config['num_damages']['online'] is False:  # Saved data is useless in the online case
+            np.save(data_file_path, damaged_data, allow_pickle=True)
     elif os.path.exists(data_file_path):
         damaged_data = np.load(data_file_path, allow_pickle=True)
         print("Reusing pre-existing damaged signs.\n")
@@ -193,21 +220,28 @@ def main():
 
 
 
-    #FIXME(old): 'transform_type' final label keeps having value None despite synth_image.set_transformation() working
     ##################################
     ###  APPLYING TRANSFORMATIONS  ###
     ##################################
     if os.path.exists(transformed_dir):
         shutil.rmtree(transformed_dir)
-    os.mkdir(transformed_dir)
 
-    transformed_data = []
-    for damaged in damaged_data:
-        save_dir = os.path.join(transformed_dir, str(damaged.class_num))
-        transformed_data.append(manipulate.img_transform(damaged, save_dir, config['num_transform']))
-        del damaged  # Clear memory that will no longer be needed as we go
-    del damaged_data
-    transformed_data = [cell for row in transformed_data for cell in row]  # Flatten the list
+    t_method = config['tform_method']
+    if config['transforms']['online'] is False:
+        os.mkdir(transformed_dir)
+
+        print("Transforming signs...", end='\r')
+        transformed_data = []
+        for damaged in damaged_data:
+            save_dir = os.path.join(transformed_dir, str(damaged.class_num))
+            transformed_data.append(tform_methods[t_method].transform(damaged, save_dir, config['num_transform']))
+            del damaged  # Clear memory that's no longer be needed as we go
+        del damaged_data
+        transformed_data = [cell for row in transformed_data for cell in row]  # Flatten the list
+        print('\n')
+    else:
+        transformed_data = damaged_data
+        print("Transforming signs on-the-fly in file generation step.\n")
 
     if config['final_op'] == 'transform':
         return
@@ -227,12 +261,13 @@ def main():
         ImageFile.LOAD_TRUNCATED_IMAGES = True
         for bg_folders in load_paths(bg_dir):
             to_png(bg_folders)
+        print('\n', end='')
             
         background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True)
         
-        method = config['man_method']
-        manipulated_data = man_methods[method].manipulate(transformed_data, background_paths, manipulated_dir)
-        if method == 'exposure':
+        m_method = config['man_method']
+        manipulated_data = man_methods[m_method].manipulate(transformed_data, background_paths, manipulated_dir)
+        if m_method == 'exposure':
             manipulate.find_useful_signs(manipulated_data, damaged_dir)
 
         # Delete SynthImage objects for any signs that were removed
@@ -249,8 +284,9 @@ def main():
         for img in manipulated_data:
             images_dict[os.path.dirname(img.fg_path)].append(img)
         # Sample manipulated-transformed images for each background/class/damage
-        images_dict = {k:random.sample(v, max_images) for k,v in images_dict.items() if len(v) > max_images}
+        images_dict = {k:random.sample(v, max_images) for k,v in images_dict.items() if len(v) >= max_images}
         manipulated_data = [img for images_list in images_dict.values() for img in images_list]
+        assert len(manipulated_data) != 0, "Set of manipulated images is empty after pruning"
 
     if config['final_op'] == 'manipulate':
         return
@@ -260,9 +296,9 @@ def main():
     ###############################
     ###  GENERATING FINAL DATA  ###
     ###############################
-    if os.path.exists(final_dir):  # Create timestamped directory instead of overwriting
-        dir_head, dir_tail = ntpath.split(final_dir)
-        final_dir = os.path.join(dir_head, f"{dir_tail}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
+    # Create timestamped directory instead of overwriting
+    dir_head, dir_tail = ntpath.split(final_dir)
+    final_dir = os.path.join(dir_head, f"{dir_tail}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
 
     images_dir = os.path.join(final_dir, "Images")
     labels_format = config['annotations']['type']
@@ -283,7 +319,7 @@ def main():
     if os.path.exists(final_dir):
         shutil.rmtree(final_dir)
     os.makedirs(images_dir)
-        
+    
     total_gen = len(manipulated_data)
     print(f"Files to be generated: {total_gen}")
 
@@ -300,15 +336,24 @@ def main():
         if not os.path.exists(class_dir):
             os.makedirs(class_dir)
         
-        fg_path =  os.path.join(class_dir, f"{c_num}_{d_type}_{ii}")
+        fg_path = os.path.join(class_dir, f"{c_num}_{d_type}_{ii}")
         final_fg_path = fg_path + ".jpg"
 
-        image = generate.new_data(synth_image)
+        d_online = config['num_damages']['online']
+        t_online = config['transforms']['online']
+        if d_online is True:
+            synth_image = damage_image(synth_image, damaged_dir, config, background_images, single_image=True)
+        if t_online is True and random.random() <= config['transforms']['prob']:
+            synth_image = tform_methods[t_method].transform(synth_image, None, 1)[0]
+
+        random.seed()  # Prevent repeated placement over the same background location
+        image = generate.new_data(synth_image, (d_online or t_online))
+        random.seed(config['seed'])
         if labels_format == 'retinanet':
             synth_image.write_label_retinanet(labels_file, damage_labelling)
         elif labels_format == 'coco':
             synth_image.write_label_coco(labels_dict, ii, 
-                        os.path.relpath(final_fg_path, final_dir), image.shape, damage_labelling)
+                                         os.path.relpath(final_fg_path, final_dir), image.shape, damage_labelling)
         cv2.imwrite(final_fg_path, image, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
         ii += 1
     print(f"Generating files: 100.0%\r\n")
@@ -319,7 +364,8 @@ def main():
         json.dump(labels_dict, labels_file, indent=4)
     labels_file.close()
 
-    string = "-------------------------------------\nBREAKDOWN OF FILES GENERATED BY CLASS\n-------------------------------------\n"
+    string = "-------------------------------------\nBREAKDOWN OF FILES GENERATED BY " \
+             "CLASS\n-------------------------------------\n "
     for class_dir in load_paths(images_dir):
         c_total = 0
         for damage_dir in load_paths(class_dir):

@@ -1,6 +1,6 @@
-opencv-python
-scikit-image
+opencv-python==4.5.3.56
+scikit-image==0.18.3
 pillow
-imutils
+imutils==0.5.4
 pyyaml
-plotly
+plotly==5.9.0

@@ -1,11 +1,12 @@
 """Module of functions for generating a synthetic manipulated sign dataset."""
 
 import os
-from utils import load_paths, dir_split, overlay
+from utils import load_paths, dir_split, overlay, overlay_new
 from datetime import datetime
 import imutils
 import cv2
 import random
+import numpy as np
 
 from synth_image import SynthImage
 
@@ -73,27 +74,42 @@ def __bounding_axes(img):
 
     return [x_left, x_right, y_top, y_bottom]
 
-def new_data(synth_image):
+def new_data(synth_image, online=False):
     """Blends a synthetic sign with its corresponding background."""
     bg_path = synth_image.bg_path
-    fg_path = synth_image.fg_path
     bg = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
-    fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
+    assert bg is not None, "Background image not found"
+
+    fg_path = synth_image.fg_path
+    if online is True:
+        fg = synth_image.fg_image
+    else:
+        fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
+    assert fg is not None, "Foreground image not found"
 
     if synth_image.fg_coords is not None and synth_image.fg_size is not None:
         x, y = synth_image.fg_coords
         new_size = synth_image.fg_size
     else:
         x, y, new_size = SynthImage.gen_sign_coords(bg.shape[:2], fg.shape[:2])
-    fg = cv2.resize(fg, (new_size, new_size))
 
+    # pad = 40  # pixels to pad on each side of the image
+    # fg = cv2.copyMakeBorder(fg, pad, pad, pad, pad, cv2.BORDER_CONSTANT)
+    # if(np.random.randint(5) < 10):  # 50% chance of rotating
+    #     angle = int(np.random.normal(0,0.5)*180)  # Normal distribution of rotation angle
+    #     # https://stackoverflow.com/questions/9041681/opencv-python-rotate-image-by-x-degrees-around-specific-point  
+    #     image_center = tuple(np.array(fg.shape[1::-1]) / 2)
+    #     rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+    #     fg = cv2.warpAffine(fg, rot_mat, fg.shape[1::-1], flags=cv2.INTER_LINEAR)
+
+    image = overlay_new(fg, bg, new_size, x, y)
+    fg = cv2.resize(fg, (new_size, new_size))
     axes = __bounding_axes(fg)  # Retrieve bounding axes of the sign image
     axes[0] += x  # Adjusting bounding axis to make it relative to the whole bg image
     axes[1] += x
     axes[2] += y
     axes[3] += y
     synth_image.bounding_axes = axes
-    image = overlay(fg, bg, x, y)
     return image
 
 
