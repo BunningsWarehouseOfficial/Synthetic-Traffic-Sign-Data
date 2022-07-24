@@ -74,14 +74,14 @@ def __bounding_axes(img):
 
     return [x_left, x_right, y_top, y_bottom]
 
-def new_data(synth_image):
+def new_data(synth_image, online=False):
     """Blends a synthetic sign with its corresponding background."""
     bg_path = synth_image.bg_path
     bg = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
     assert bg is not None, "Background image not found"
 
     fg_path = synth_image.fg_path
-    if fg_path is None and synth_image.fg_image is not None:
+    if online is True:
         fg = synth_image.fg_image
     else:
         fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)

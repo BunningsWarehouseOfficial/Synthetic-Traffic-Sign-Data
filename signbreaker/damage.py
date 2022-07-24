@@ -2,14 +2,17 @@
 # Extended from original functions by Jack Downes: https://github.com/ai-research-students-at-curtin/sign_augmentation
 
 import os
-import imutils
 import random as rand
 import math
 import ntpath
+from pathlib import Path
+
+import imutils
 import numpy as np
 import cv2 as cv
-from pathlib import Path
 from skimage import draw
+import scipy.stats as stats
+
 from utils import overlay, calc_damage, calc_damage_ssim, calc_damage_sectors, sectors_no_damage, calc_ratio, remove_padding, pad
 from synth_image import SynthImage
 
@@ -23,82 +26,142 @@ dmg_measure = "pixel_wise"
 num_sectors = 4
 
 
-def damage_image(image_path, output_dir, config, backgrounds=[]):
+def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=False):
     """Applies all the different types of damage to the imported image, saving each one"""
     damaged_images = []
-    img = cv.imread(image_path, cv.IMREAD_UNCHANGED)
+    img = cv.imread(synth_img.fg_path, cv.IMREAD_UNCHANGED)
     img = img.astype('uint8')
     
     # Create file writing info: filename, class number, output directory, and labels directory
-    _, filename = ntpath.split(image_path)  # Remove parent directories to retrieve the image filename
+    _, filename = ntpath.split(synth_img.fg_path)  # Remove parent directories to retrieve the image filename
     class_num, _ = filename.rsplit('.', 1)  # Remove extension to get the sign/class number
 
     output_path = os.path.join(output_dir, class_num)
     # Create the output directory if it doesn't exist already
-    if (not os.path.exists(output_path)):
+    if not os.path.exists(output_path):
         os.makedirs(output_path)
 
-    num_damages = config['num_damages']
-    global dmg_measure; dmg_measure = config['damage_measure_method']
-    global num_sectors; num_sectors = config['num_damage_sectors']
+    n_dmgs = config['num_damages']
+    global dmg_measure
+    global num_sectors
+    dmg_measure = config['damage_measure_method']
+    num_sectors = config['num_damage_sectors']
+
+    # Seed the random number generator
+    rand.seed(config['seed'])
 
     def apply_damage(dmg, att):
         """Helper function to avoid repetition."""
+        # print('old path', synth_img.fg_path)
+        # print('output_path', output_path)
         dmg_path = os.path.join(output_path, f"{class_num}_{att['damage_type']}")
         if att['tag']:
             dmg_path += f"_{att['tag']}.png"
         else:
             dmg_path += ".png"
-        cv.imwrite(dmg_path, dmg)
-        damaged_images.append(SynthImage(
-            dmg_path, int(class_num), att["damage_type"], att["tag"], float(att["damage_ratio"]), att["sector_damage"]))
+        synth_dmg = synth_img.clone()
+        synth_dmg.set_damage(
+            att["damage_type"],
+            att["tag"],
+            float(att["damage_ratio"]),
+            att["sector_damage"]
+        )
+        synth_dmg.set_fg_image(dmg)
+        if single_image:
+            return synth_dmg
+        else:
+            synth_dmg.set_fg_path(dmg_path)
+            cv.imwrite(dmg_path, dmg)
+            damaged_images.append(synth_dmg)
+
+    total_p = 0
+    if single_image is True:
+        for dmg_type in config['num_damages']:
+            if dmg_type != 'online':
+                total_p += config['num_damages'][dmg_type]
+    rand.seed()
+    p = rand.random()
+    rand.seed(config['seed'])
+    p_thresh = 0.0
 
     # ORIGINAL UNDAMAGED
-    if num_damages['original'] > 0:
+    if single_image:
+        p_thresh += n_dmgs['no_damage'] / total_p
+        if p < p_thresh:
+            dmg, att = no_damage(img)
+            return apply_damage(dmg, att)
+    elif n_dmgs['no_damage'] > 0 or n_dmgs['online'] is True:
         dmg, att = no_damage(img)
         apply_damage(dmg, att)
 
+    # Only return undamaged sign so that flow of program continues
+    if n_dmgs['online'] is True and single_image is False:
+        return damaged_images
+
     # QUADRANT
-    if num_damages['quadrant'] > 0:
-        quad_nums = rand.sample(range(1, 5), min(num_damages['quadrant'], 4))
+    if single_image:
+        p_thresh += n_dmgs['quadrant'] / total_p
+        if p < p_thresh:
+            dmg, att = remove_quadrant(img, -1)
+            return apply_damage(dmg, att)
+    elif n_dmgs['quadrant'] > 0:
+        quad_nums = rand.sample(range(1, 5), min(n_dmgs['quadrant'], 4))
         for n in quad_nums:
             dmg, att = remove_quadrant(img, n)
             apply_damage(dmg, att)
     
     # BIG HOLE
-    if num_damages['big_hole'] > 0:
+    if single_image:
+        p_thresh += n_dmgs['big_hole'] / total_p
+        if p < p_thresh:
+            dmg, att = remove_hole(img, -1)
+            return apply_damage(dmg, att)
+    elif n_dmgs['big_hole'] > 0:
         angles = rand.sample(
-            range(0, 360, 20), num_damages['big_hole'])
+            range(0, 360, 20), n_dmgs['big_hole'])
         for a in angles:
             dmg, att = remove_hole(img, a)
             apply_damage(dmg, att)
     
     # RANDOMISED BULLET HOLES
     b_conf = config['bullet_holes']
-    if num_damages['bullet_holes'] > 0:
+    if single_image:
+        p_thresh += n_dmgs['bullet_holes'] / total_p
+        if p < p_thresh:
+            dmg, att = bullet_holes(img, rand.randint(b_conf['min_holes'],
+                                    b_conf['max_holes']), b_conf['target'])
+            return apply_damage(dmg, att)
+    elif n_dmgs['bullet_holes'] > 0:
         hole_counts = rand.sample(
-            range(b_conf['min_holes'], b_conf['max_holes'], 5), num_damages['quadrant'])
+            range(b_conf['min_holes'], b_conf['max_holes'], 5), n_dmgs['quadrant'])
         for num_holes in hole_counts:
             dmg, att = bullet_holes(img, int(num_holes), b_conf['target'])
             apply_damage(dmg, att)
             if 0 < b_conf['target'] < 1.0: break
 
+    # TODO: Refactor into separate function like other damage types
     # BEND
     bd_config = config['bend']
-    if num_damages['bend'] > 0:
+    if single_image:
+        p_thresh += n_dmgs['bend'] / total_p
+    if (n_dmgs['bend'] > 0 and not single_image) or (single_image and p < p_thresh):
         # num_bg_bends = max(1, num_damages['bend'] // (len(backgrounds) or 1))
-        num_bg_bends = max(1, num_damages['bend'])
+        num_bg_bends = max(1, n_dmgs['bend'])
         bend_angles = rand.sample(
             range(10, max(bd_config['max_bend'] + 5, 15), 5), num_bg_bends)
         
         for bend in bend_angles:
             axis = rand.randint(0, bd_config['max_axis'])
             if len(backgrounds) == 0:  # i.e. if detect_light_src == False
-                dmg, att = bend_vertical(img, axis, bend, beta_diff=0)
-                apply_damage(dmg, att)
+                if single_image:
+                    dmg, att = bend_vertical(img, axis, bend, beta_diff=0)
+                    return apply_damage(dmg, att)
+                else:
+                    dmg, att = bend_vertical(img, axis, bend, beta_diff=0)
+                    apply_damage(dmg, att)
             else:
                 # Create different bent sign image for each background
-                for bg in backgrounds:  # TODO Allen: "could be refactored so it looks a bit less ugly"
+                for bg in backgrounds:
                     light_x, light_y = bg.light_coords
                     intensity = bg.light_intensity
                     fg_height, fg_width = img.shape[:2]
@@ -111,28 +174,57 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
                     beta_diff = math.copysign(1, vec2[0]) * math.sin(angle) * intensity * (bend / 90) * 4
                     
                     # Apply bending damage
-                    dmg, att = bend_vertical(img, axis, bend, beta_diff=beta_diff)
+                    if single_image:
+                        dmg, att = bend_vertical(img, axis,
+                                                 rand.randint(max(bd_config['mad_bend'], 15)), beta_diff=beta_diff)
+                    else:
+                        dmg, att = bend_vertical(img, axis, bend, beta_diff=beta_diff)
                     
                     # Create SynthImage
                     dmg_path = os.path.join(
                         output_path, f"{class_num}_{att['damage_type']}_{att['tag']}_BG_{Path(bg.path).stem}.png")
-                    cv.imwrite(dmg_path, dmg)
-                    damaged_images.append(SynthImage(
-                        dmg_path, int(class_num), att["damage_type"], att["tag"], float(att["damage_ratio"]), 
-                        att["sector_damage"], bg_path=bg.path, fg_coords=(fg_x, fg_y), fg_size=fg_size))
+                    synth_dmg = synth_img.clone().set_damage(
+                        att["damage_type"],
+                        att["tag"],
+                        float(att["damage_ratio"]),
+                        att["sector_damage"]
+                    )
+                    synth_dmg.set_fg_path(dmg_path)
+                    synth_dmg.bg_path = bg.path
+                    synth_dmg.fg_coords = (fg_x, fg_y)
+                    synth_dmg.fg_size = fg_size
+                    if single_image:
+                        return synth_dmg
+                    else:
+                        cv.imwrite(dmg_path, dmg)
+                        damaged_images.append(synth_dmg)
 
     # GRAFFITI
     g_conf = config['graffiti']
-    if num_damages['graffiti'] > 0:
-        targets = np.linspace(g_conf['initial'], g_conf['final'], num_damages['graffiti'])
+    if single_image:
+        p_thresh += n_dmgs['graffiti'] / total_p
+        if p < p_thresh:
+            l, u = 0.0, g_conf['max']
+            mu, sigma = g_conf['max']/4, g_conf['max']/3
+            X = stats.truncnorm(
+                (l - mu) / sigma, (u - mu) / sigma, loc=mu, scale=sigma)
+            dmg, att = graffiti(img, target=X.rvs(1)[0], color=(0,0,0), solid=g_conf['solid'])
+            return apply_damage(dmg, att)
+    elif n_dmgs['graffiti'] > 0:
+        targets = np.linspace(g_conf['initial'], g_conf['final'], n_dmgs['graffiti'])
         for t in targets:
             dmg, att = graffiti(img, target=t, color=(0,0,0), solid=g_conf['solid'])
             apply_damage(dmg, att)
 
     # TINTED YELLOW
     # TODO: Utilise config file for max and min tint values with associated bounds checking in create_dataset.py
-    if num_damages['tint_yellow'] > 0:
-        tints = rand.sample(range(120, 240, 10), num_damages['tint_yellow'])
+    if single_image:
+        p_thresh += n_dmgs['tint_yellow'] / total_p
+        if p < p_thresh:
+            dmg, att = tint_yellow(img, tint=rand.randint(120, 240))
+            return apply_damage(dmg, att)
+    elif n_dmgs['tint_yellow'] > 0:
+        tints = rand.sample(range(120, 240, 10), n_dmgs['tint_yellow'])
         for t in tints:         # ^ I chose this range pretty arbitrarily when reimplementing this damage type
             dmg, att = tint_yellow(img, tint=t)
             apply_damage(dmg, att)
@@ -141,8 +233,13 @@ def damage_image(image_path, output_dir, config, backgrounds=[]):
     # TODO: Utilise config file for max and min beta values with associated bounds checking in create_dataset.py
     # FIXME: Completely oversaturates sign types which are already grey (i.e. STSDG sign 49)
     #        Try using gamma correction instead of convertScaleAbs (see manipulate.py)
-    if num_damages['grey'] > 0:
-        betas = rand.sample(range(100, 240, 5), num_damages['grey'])
+    if single_image:
+        p_thresh += n_dmgs['grey'] / total_p
+        if p < p_thresh:
+            dmg, att = grey(img, beta=rand.randint(100, 240))
+            return apply_damage(dmg, att)
+    elif n_dmgs['grey'] > 0:
+        betas = rand.sample(range(100, 240, 5), n_dmgs['grey'])
         for b in betas:         # ^ This min beta is arbitrary, should be in config; I think 240 is good max though
             dmg, att = grey(img, beta=b)
             apply_damage(dmg, att)
@@ -180,7 +277,6 @@ def no_damage(img):
 
 def tint_yellow(img, tint=180):
     dmg = validate_sign(img)
-    hole = dmg[:,:,3].copy()
     att = attributes
 
     height, width, ch = dmg.shape
@@ -253,7 +349,7 @@ def remove_quadrant(img, quad_num=-1):
 
     return dmg, att
 
-def remove_hole(img, angle):
+def remove_hole(img, angle=-1):
     """Remove a circle-shaped region from the edge of the sign."""
     dmg = validate_sign(img)
     hole = dmg[:,:,3].copy()
@@ -263,6 +359,8 @@ def remove_hole(img, angle):
     centre_x = int(round(width / 2))
     centre_y = int(round(height / 2))
 
+    if angle == -1:
+        angle = rand.randint(0, 359)
     radius = int(2 * height / 5)
     rad = -(angle * math.pi / 180)  # Radians
     x = centre_x + int(radius * math.cos(rad))  # x-coordinate of centre
@@ -493,12 +591,12 @@ def combine(img1, img2, beta_diff=-20):
 def tilt(img, angle, dims):                                                                     
         ht, wd = dims
         angle = math.radians(angle)  # Convert to radians
-        d = wd // 2 * math.cos(angle)  
+        d = wd // 2 * math.cos(angle)
         delta_x = int(d * math.cos(angle))
         delta_y = int(d * math.sin(angle))
         xx = wd // 2 - delta_x
         yy = -delta_y
-        
+
         # Keep top-middle and bottom-middle unchanged to bend on the vertical axis
         # Right             Top-left  Top-middle  Bottom-left  Bottom-middle
         src = np.float32( [ [0,0],    [wd//2,0],  [0,ht],      [wd//2,ht] ] )

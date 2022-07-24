@@ -9,16 +9,17 @@ def main():
     import argparse
     from datetime import datetime
     import random
-
-    import cv2
     import json
     from collections import defaultdict
-    from PIL import ImageFile
     from pathlib import Path
+
     import glob
+    from PIL import ImageFile
     import numpy as np
+    import cv2
 
     from bg_image import BgImage
+    from synth_image import SynthImage
     from damage import damage_image
     from utils import load_paths, load_files, scale_image, delete_background, to_png
     import manipulate
@@ -56,7 +57,7 @@ def main():
         'gamma_exposure_fast': GammaExposureFastMan(),
         'histogram': HistogramMan()
     }
-    valid_dmg = ['original', 'quadrant', 'big_hole', 'bullet_holes', 'graffiti', 'bend', 'tint_yellow', 'grey']
+    valid_dmg = ['no_damage', 'quadrant', 'big_hole', 'bullet_holes', 'graffiti', 'bend', 'tint_yellow', 'grey']
     valid_ann = ['retinanet', 'coco']
     valid_dmg_methods = ['ssim', 'pixel_wise']
     if config['sign_width'] <= 0:
@@ -70,7 +71,7 @@ def main():
     if not config['man_method'] in man_methods:
         raise ConfigError(f"Config error: '{config['man_method']}' is an invalid manipulation type.\n")
     for dmg in config['num_damages']:
-        if not dmg in valid_dmg:
+        if not dmg in valid_dmg and dmg != 'online':
             raise ConfigError(f"Config error: '{dmg}' is an invalid damage type.\n")
     if not config['annotations']['type'] in valid_ann:
         raise ConfigError(f"Config error: '{config['annotations']['type']}' is an invalid annotation type.\n")
@@ -195,13 +196,19 @@ def main():
 
         ii = 0
         processed = load_files(processed_dir)
-        for image_path in processed:  # TODO: Propagate progress bar through different damage types if feasible
-            print(f"Damaging signs: {float(ii) / float(len(processed)):06.2%}", end='\r')
-            damaged_data.append(damage_image(image_path, damaged_dir, config, background_images))
+        for image_path in processed:
+            if config['num_damages']['online'] is False:
+                print(f"Damaging signs: {float(ii) / float(len(processed)):06.2%}", end='\r')
+            synth_img = SynthImage(image_path, int(ntpath.split(image_path)[1].rsplit('.', 1)[0]))
+            damaged_data.append(damage_image(synth_img, damaged_dir, config, background_images))
             ii += 1
-        print(f"Damaging signs: 100.0%\r\n")
+        if config['num_damages']['online'] is False:
+            print(f"Damaging signs: 100.0%\r\n")
+        else:
+            print(f"Damaging signs on-the-fly in file generation step.\n")
         damaged_data = [cell for row in damaged_data for cell in row]  # Flatten the list
-        np.save(data_file_path, damaged_data, allow_pickle=True)
+        if config['num_damages']['online'] is False:  # Saved data is useless in the online case
+            np.save(data_file_path, damaged_data, allow_pickle=True)
     elif os.path.exists(data_file_path):
         damaged_data = np.load(data_file_path, allow_pickle=True)
         print("Reusing pre-existing damaged signs.\n")
@@ -234,7 +241,7 @@ def main():
         print('\n')
     else:
         transformed_data = damaged_data
-        print("Transforming signs on-the-fly.\n")
+        print("Transforming signs on-the-fly in file generation step.\n")
 
     if config['final_op'] == 'transform':
         return
@@ -312,7 +319,7 @@ def main():
     if os.path.exists(final_dir):
         shutil.rmtree(final_dir)
     os.makedirs(images_dir)
-        
+    
     total_gen = len(manipulated_data)
     print(f"Files to be generated: {total_gen}")
 
@@ -329,14 +336,17 @@ def main():
         if not os.path.exists(class_dir):
             os.makedirs(class_dir)
         
-        fg_path =  os.path.join(class_dir, f"{c_num}_{d_type}_{ii}")
+        fg_path = os.path.join(class_dir, f"{c_num}_{d_type}_{ii}")
         final_fg_path = fg_path + ".jpg"
 
-        p = random.random()
-        if config['transforms']['online'] is True and p <= config['transforms']['prob']:
+        d_online = config['num_damages']['online']
+        t_online = config['transforms']['online']
+        if d_online is True:
+            synth_image = damage_image(synth_image, damaged_dir, config, background_images, single_image=True)
+        if t_online is True and random.random() <= config['transforms']['prob']:
             synth_image = tform_methods[t_method].transform(synth_image, None, 1)[0]
 
-        image = generate.new_data(synth_image)
+        image = generate.new_data(synth_image, (d_online or t_online))
         if labels_format == 'retinanet':
             synth_image.write_label_retinanet(labels_file, damage_labelling)
         elif labels_format == 'coco':

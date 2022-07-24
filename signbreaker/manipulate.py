@@ -25,7 +25,10 @@ class AbstractTransform(ABC):
     """Image transformation template pattern abstract class."""
     def transform(self, input_image, output_path, num_transform):
         image_path = input_image.fg_path
-        img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+        if output_path is None:
+            img = input_image.fg_image
+        else:
+            img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
         self.height, self.width, _ = img.shape
 
         self.num_transformed = 0
@@ -64,7 +67,7 @@ class AbstractTransform(ABC):
                 cv2.imwrite(save_path, tform_img_tuple[0])
 
                 transformed_image = input_image.clone()
-                transformed_image.fg_path = save_path
+                transformed_image.set_fg_path(save_path)
                 transformed_image.set_transformation(descriptor)
                 transformed_images.append(transformed_image)
         return transformed_images
@@ -371,7 +374,9 @@ class AbstractManipulation(ABC):
     def manipulate(self, transformed_data, background_paths, out_dir):
         self.out_dir = out_dir
         sign_paths = [transformed.fg_path for transformed in transformed_data]
-        
+
+        pr = 0  # Progress
+        pr_total = len(sign_paths) * len(background_paths)
         self.man_images = []
         for ii in range(len(sign_paths)):
             self.original_synth = transformed_data[ii]
@@ -379,13 +384,14 @@ class AbstractManipulation(ABC):
 
             fg = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
 
-            print(f"Manipulating brightness of signs: {float(ii) / float(len(sign_paths)):06.2%}", end='\r')
             for jj in range(0, len(background_paths)):
+                print(f"Manipulating brightness of signs: {float(pr) / float(pr_total):06.2%}", end='\r')
                 bg_path = background_paths[jj]
                 self.bg_path   = bg_path
                 self.sign_path = sign_path
 
                 self.manipulation(fg)
+                pr += 1
 
         print("Manipulating brightness of signs: 100.0%\r\n")
         return self.man_images
@@ -412,7 +418,7 @@ class AbstractManipulation(ABC):
         elif 'PIL' in type(man_img).__module__:
             man_img.save(save_path)
         man_image = self.original_synth.clone()
-        man_image.fg_path = save_path
+        man_image.set_fg_path(save_path)
         man_image.set_manipulation(man_type)
         man_image.bg_path = self.bg_path
         return man_image

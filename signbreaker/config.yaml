@@ -28,16 +28,18 @@ transforms:  # TODO: Rename to rotation_params? Would need to deal with `online`
 # Either 'gamma_exposure_fast', 'gamma_exposure', 'exposure', 'gamma', or 'histogram' (broken)
 man_method: gamma_exposure_fast
 
-# The number of damages applied via each method
+# Number of times each damage is applied (online=False) OR relative likelihood of damage type (online=True)
 num_damages: 
-  original: 1      # Max 1 (no damage)
-  quadrant: 1      # Max 4
+  online: True
+  no_damage: 3  # Max 1 when online=False
+  quadrant: 1  # Max 4 when online=False
   big_hole: 1
   bullet_holes: 1
   graffiti: 2
-  bend: 2          # Will make n different bends for *each* background if detect_light_source=True
-  tint_yellow: 1   # TODO: Needs max value dependent on num of possible random sample values
-  grey: 1          # TODO: Needs max value dependent on num of possible random sample values
+  # FIXME: Extreme distortions generated when bend and 3D tilt rotations are mixed
+  bend: 0  # Will make n different bends for *each* background if detect_light_source=True
+  tint_yellow: 0
+  grey: 0
 
 # Parameters for the bullet_holes damage type (note: num_holes may include 'holes' that missed the sign)
 bullet_holes:
@@ -46,12 +48,13 @@ bullet_holes:
   target: -1   # The target level of damage, either -1 or in range (0.0,1.0), <= 0.50 is recommended
 
 # Parameters for the graffiti damage type, each in range (0.0,1.0]
-graffiti:  # The step size of intermediate damage levels is determined by num_damages above
+graffiti:  # Step size between damage levels is determined by num_damages above (only relevant if online=False)
   initial: 0.2  # First target level of damage
   final: 0.6    # Level of damage to stop at
+  max: 0.8      # Max graffiti coverage (only relevant if online=True); uses trunc. norm. with mu=max/4, sd=max/3
   solid: True   # Whether or not transparency is minimised through only alpha values of 255 and morphological dilation
 
-# Randomization seed
+# Randomization seed (online damage application does not use this seed)
 seed: 7  # Use different seeds for generating train vs. eval datasets
 
 # Parameters for the bend damage type
@@ -82,7 +85,7 @@ damage_measure_method: 'pixel_wise'
 # A setting that uses an algorithm to find the light source locations and intensities
 # in each background image, and adjusts relative exposure between bent and unbent portions of
 # a sign to mimic a shadow. Does not work with saturating manipulation methods (i.e. 'exposure').
-detect_light_src: True
+detect_light_src: False
 
 # Whether to reuse .npy file in the 'damage' or 'manipulate' intermediate folders.
 reuse_data: 
