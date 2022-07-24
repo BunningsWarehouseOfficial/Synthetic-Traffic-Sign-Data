@@ -142,6 +142,9 @@ class SynthImage:
         # Randomise sign placement within middle third of background
         fg_x = random.randint(0, bg_width - new_size)
         third = bg_height // 3
-        fg_y = random.randint(third, bg_height - third)
-        
+        if(new_size>third):
+            fg_y = random.randint(0, bg_height-new_size)
+        else:
+            fg_y = random.randint(third, bg_height - third)
+                
         return fg_x, fg_y, new_size
