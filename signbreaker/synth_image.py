@@ -73,14 +73,14 @@ class SynthImage:
         bounds = f"{axes[0]} {axes[1]} {axes[2]} {axes[3]}"
         if damage_labelling:
             labels_file.write(f"{self.fg_path} {bounds} class={self.class_num} "
-                        f"{self.damage_type}={self.damage_tag} damage={self.damage_ratio} "
-                        f"sector_damage={self.sector_damage} "
-                        f"transform_type={self.transform_type} man_type={self.man_type} "
-                        f"bg={self.bg_path}\n")
+                              f"{self.damage_type}={self.damage_tag} damage={self.damage_ratio} "
+                              f"sector_damage={self.sector_damage} "
+                              f"transform_type={self.transform_type} man_type={self.man_type} "
+                              f"bg={self.bg_path}\n")
         else:
             labels_file.write(f"{self.fg_path} {bounds} class={self.class_num} "
-                        f"transform_type={self.transform_type} man_type={self.man_type} "
-                        f"bg={self.bg_path}\n")
+                              f"transform_type={self.transform_type} man_type={self.man_type} "
+                              f"bg={self.bg_path}\n")
             
     def write_label_coco(self, labels_dict, id, img_path, img_dims, damage_labelling=True):
         axes = self.bounding_axes

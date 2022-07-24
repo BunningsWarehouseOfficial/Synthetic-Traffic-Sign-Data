@@ -1,7 +1,7 @@
 # The width of the square to which sign images will be scaled
 sign_width: 240  # Default: 200 for UK templates, 240 for GTSDB Wikipedia templates
 
-# When to stop the program, in the case that not all of the sequential steps are required
+# When to stop the program, in the case that not all the sequential steps are required
 final_op: dataset  # Either 'process', 'damage', 'transform', 'manipulate', or 'dataset'
 
 # Method of image transformation
@@ -9,14 +9,14 @@ final_op: dataset  # Either 'process', 'damage', 'transform', 'manipulate', or '
 tform_method: 3d_rotation
 
 # Number of (offline) transformations applied to each damaged sign template
-# fixed_affine ransformations are ordered by intensity (i.e. t12 is more
+# fixed_affine transformations are ordered by intensity (i.e. t12 is more
 # visually similar to the original image than t1)
 num_transform: 11  # Range (only for fixed_affine): [0,11], default: 11
 
 # Parameters for transformation by 3d_rotation
 # tilt: 3D tilt rotation around the X and Y axes
 # Z:    2D clockwise/anti-clockwise rotation
-transforms:  # TODO: Rename to rotation_params? Would need to deal with `online`
+transforms:  # TODO: Rename to rotation_params? Would need to place `online` elsewhere
   tilt_SD: 30
   tilt_range: 70  # Recommended: <=70
   Z_SD: 45  # Std. dev. for Z axis rotation
@@ -30,7 +30,7 @@ man_method: gamma_exposure_fast
 
 # Number of times each damage is applied (online=False) OR relative likelihood of damage type (online=True)
 num_damages: 
-  online: True
+  online: True  # On-the-fly or not
   no_damage: 3  # Max 1 when online=False
   quadrant: 1  # Max 4 when online=False
   big_hole: 1
