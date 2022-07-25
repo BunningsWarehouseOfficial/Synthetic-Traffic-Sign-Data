@@ -97,6 +97,8 @@ class RotationTransform(AbstractTransform):
         else:
             dz = 320 - 0.25*(320-img.shape[0])
             f = 200
+        f *= 2
+        dz *= 2
 
         dest = self.rotate_image(img, angle[0], angle[1], angle[2], 0, 0, dz, f)
         self.num_transformed += 1

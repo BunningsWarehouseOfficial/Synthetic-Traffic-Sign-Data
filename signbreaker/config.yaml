@@ -1,5 +1,5 @@
 # The width of the square to which sign images will be scaled
-sign_width: 240  # Default: 200 for UK templates, 240 for GTSDB Wikipedia templates
+sign_width: 480  # Recommended: 240 or 480 for GTSDB Wikipedia templates
 
 # When to stop the program, in the case that not all the sequential steps are required
 final_op: dataset  # Either 'process', 'damage', 'transform', 'manipulate', or 'dataset'
@@ -31,27 +31,28 @@ man_method: gamma_exposure_fast
 # Number of times each damage is applied (online=False) OR relative likelihood of damage type (online=True)
 num_damages: 
   online: True  # On-the-fly or not
-  no_damage: 3  # Max 1 when online=False
+  no_damage: 2  # Max 1 when online=False
   quadrant: 1  # Max 4 when online=False
   big_hole: 1
-  bullet_holes: 1
   graffiti: 2
+  bullet_holes: 0
   # FIXME: Extreme distortions generated when bend and 3D tilt rotations are mixed
   bend: 0  # Will make n different bends for *each* background if detect_light_source=True
   tint_yellow: 0
   grey: 0
 
 # Parameters for the bullet_holes damage type (note: num_holes may include 'holes' that missed the sign)
+                                      # TODO: ^ Change to only count holes which remove visible pixels
 bullet_holes:
   min_holes: 7  # Not relevant if target != -1
   max_holes: 30  # Not relevant if target != -1
   target: -1   # The target level of damage, either -1 or in range (0.0,1.0), <= 0.50 is recommended
 
 # Parameters for the graffiti damage type, each in range (0.0,1.0]
-graffiti:  # Step size between damage levels is determined by num_damages above (only relevant if online=False)
-  initial: 0.2  # First target level of damage
-  final: 0.6    # Level of damage to stop at
-  max: 0.8      # Max graffiti coverage (only relevant if online=True); uses trunc. norm. with mu=max/4, sd=max/3
+graffiti:  # Step size between damage levels is determined by num_damages above (relevant when online=False)
+  initial: 0.2  # First target level of damage (relevant when online=False)
+  final: 0.6    # Level of damage to stop at (relevant when online=False)
+  max: 0.8      # Max graffiti coverage (relevant when online=True); uses trunc. norm. with mu=max/4, sd=max/3
   solid: True   # Whether or not transparency is minimised through only alpha values of 255 and morphological dilation
 
 # Randomization seed (online damage application does not use this seed)
