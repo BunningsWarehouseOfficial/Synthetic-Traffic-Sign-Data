@@ -3,7 +3,8 @@ sign_templates. Since there are often hundreds, there is an argument (--categori
 of sign categories to specify the signs to download (by considering the max similarity of the description of any
 Wikipedia sign to any category in the categories_file).
 """
-
+# wget for windows needs to be downloaded and added to the PATH variable
+# https://eternallybored.org/misc/wget/
 import os
 import sys
 import argparse
