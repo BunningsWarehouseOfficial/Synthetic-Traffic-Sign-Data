@@ -10,36 +10,48 @@ import argparse
 import random
 from datetime import datetime
 from glob import glob
+import ntpath
 
 from utils import initialise_coco_anns, convert_to_single_label
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--orig_dataset', default=None, help='Path to dataset to be augmented', required=True)
-parser.add_argument('--orig_annotations', default=None, help='COCO annotations for original dataset', required=True)
-parser.add_argument('--augment_dataset', default=None, help='Path to dataset that will be used to augment the original dataset', required=True)
-parser.add_argument('--augment_annotations', default=None, help='Annotations for augment dataset', required=True)
-parser.add_argument('--datasets_dir', default='./SGTS_Augmented', help='Path to directory storing the dataset')
-parser.add_argument('--augmentation', default=0.25, help='Proportion of the original dataset to be augmented (default: 0.25)')
-parser.add_argument('--seed', default=0, help='Seed for random.sample function (default: 0)')
+parser.add_argument('--orig_dataset', default=None, type=str, required=True, help='Path to dataset to be augmented.')
+parser.add_argument('--orig_annotations', default=None, type=str, required=True,
+                    help='COCO annotations for original dataset.')
+parser.add_argument('--augment_dataset', default=None, type=str,
+                    help='Path to dataset that will be used to augment the original dataset.', required=True)
+parser.add_argument('--augment_annotations', default=None, type=str, required=True,
+                    help='Annotations for augment dataset')
+parser.add_argument('--datasets_dir', default='./SGTS_Augmented', type=str,
+                    help='Path to directory storing the dataset')
+parser.add_argument('--augmentation', default=0.25, type=float,
+                    help='Proportion of the original dataset to be augmented.')
+parser.add_argument('--extend', default=False, help='Whether or not to keep the entire original dataset, '
+                    'extending it so that it constitues the augmentation ratio in the final dataset.')
+parser.add_argument('--check_dir', default=None, type=str, help='Path to a directory which we want to check for '
+                    'cross-dataset duplicates. If one of our synthetic images is there already, it will not be added to '
+                    'this new dataset. This is helpful for ensuring a test set contains no training set images if '
+                    'pulling from the same pool of synthetic images.')
+parser.add_argument('--seed', default=0, type=int, help='Seed for random.sample function.')
 
 
 def extend_annotations(final_annotations, image_paths, annotations):
     image_paths = set([os.path.basename(p) for p in image_paths])
     image_id = len(final_annotations["images"])
     annotation_id = len(final_annotations["annotations"])
-    
+
     for img_json in annotations['images']:
         path = os.path.basename(img_json["file_name"])
-        
+
         if path not in image_paths:
             continue
-              
+
         image_anns = list(filter(lambda ann: ann['image_id'] == img_json['id'], annotations['annotations']))
         img_json['id'] = image_id
         img_json['file_name'] = path
         final_annotations['images'].append(img_json)
-        
+
         for ann in image_anns:
             ann['id'] = annotation_id
             ann['image_id'] = image_id
@@ -55,41 +67,60 @@ if __name__ == '__main__':
     orig_dataset = args.orig_dataset.rstrip('/')
     augment_dataset = args.augment_dataset.rstrip('/')
     args.datasets_dir = os.path.abspath(args.datasets_dir)
-    
+
     if not os.path.exists(args.datasets_dir):
         os.mkdir(args.datasets_dir)
-    
-    outdir = os.path.join(args.datasets_dir, f'{aug_factor}_augmented')
+
+    identifier = 'extended' if args.extend else 'augmented'
+    outdir = os.path.join(args.datasets_dir, f'{aug_factor}_{identifier}')
     if os.path.exists(outdir):
         shutil.rmtree(outdir)
     os.mkdir(outdir)
-    
+
     with open(args.orig_annotations, 'r') as f:
         orig_anns = json.load(f)
     with open(args.augment_annotations, 'r') as f:
         augment_anns = json.load(f)
     classes = [cat['name'] for cat in orig_anns['categories'][1:]]
     final_anns = initialise_coco_anns(classes)
-    
+
+    # Retrieve the full sets of data
     orig_paths = glob(args.orig_dataset + '/**/*.jpg', recursive=True)
-    augment_paths = glob(args.augment_dataset + '/**/*.jpg', recursive=True)
     num_train = len(orig_paths)
-    
-    orig_paths = random.sample(orig_paths, int((1 - aug_factor) * num_train))
-    augment_paths = random.sample(augment_paths, int(num_train * aug_factor))
+    augment_paths = glob(args.augment_dataset + '/**/*.jpg', recursive=True)
+    if args.check_dir is not None:
+        print('Checking for cross-dataset duplicates...')
+        def get_fn(path):  # Can't compare full paths for cross-dataset files
+            return ntpath.basename(path)
+        fn_pairs = {ntpath.basename(p): p for p in augment_paths}
+        check_paths = glob(args.check_dir + '/**/*.jpg', recursive=True)
+        augment_paths = list(
+            # Map returns iterable and duplicate subtraction requires sets
+            set(list(map(get_fn, augment_paths))) - set(list(map(get_fn, check_paths)))
+        )
+        augment_paths = [fn_pairs[p] for p in augment_paths]  # Retrieve full non-duplicate paths
+
+    # Randomly sample the full datasets to create a new dataset
+    print('Sampling datasets...')
+    if args.extend:
+        orig_paths = random.sample(orig_paths, num_train)
+        augment_paths = random.sample(augment_paths, int(num_train / aug_factor - num_train))
+    else:
+        orig_paths = random.sample(orig_paths, int((1 - aug_factor) * num_train))
+        augment_paths = random.sample(augment_paths, int(num_train * aug_factor))
     final_paths = orig_paths + augment_paths
-    
+
+    print('Generating annotations...')
     extend_annotations(final_anns, orig_paths, orig_anns)
     extend_annotations(final_anns, augment_paths, augment_anns)
-    
+
     outpath = os.path.join(outdir, '_annotations.coco.json')
     with open(outpath, 'w') as f:
         json.dump(final_anns, f, indent=4)
-        
-    print()
+
     for i, p in enumerate(final_paths):
         print(f"Copying files: {float(i) / float(len(final_paths)):06.2%}", end='\r')
         shutil.copyfile(p, os.path.join(outdir, os.path.basename(p)))
     print(f"Copying files: 100.0%\r\n")
-    
+
     convert_to_single_label(outdir, '_annotations.coco.json', '_single_annotations.coco.json')
