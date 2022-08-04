@@ -34,19 +34,23 @@ parser.add_argument('--check_dir', default=None, type=str, help='Path to a direc
                     'this new dataset. This is helpful for ensuring a test set contains no training set images if '
                     'pulling from the same pool of synthetic images.')
 parser.add_argument('--seed', default=0, type=int, help='Seed for random.sample function.')
+parser.add_argument('--include_damage', action='store_true', help='Whether or not to include (and enforce) the '
+                    'presence of damage in annotations')
+
+NUM_DMG_SECTORS = 4  # TODO: Make an argument?
 
 
-def extend_annotations(final_annotations, image_paths, annotations):
+def extend_annotations(final_annotations, image_paths, annotations, include_damage):
     image_paths = set([os.path.basename(p) for p in image_paths])
-    image_id = len(final_annotations["images"])
-    annotation_id = len(final_annotations["annotations"])
-
+    image_id = len(final_annotations['images'])
+    annotation_id = len(final_annotations['annotations'])
+    
     for img_json in annotations['images']:
-        path = os.path.basename(img_json["file_name"])
-
+        path = os.path.basename(img_json['file_name'])
+        
         if path not in image_paths:
             continue
-
+        
         image_anns = list(filter(lambda ann: ann['image_id'] == img_json['id'], annotations['annotations']))
         img_json['id'] = image_id
         img_json['file_name'] = path
@@ -55,6 +59,11 @@ def extend_annotations(final_annotations, image_paths, annotations):
         for ann in image_anns:
             ann['id'] = annotation_id
             ann['image_id'] = image_id
+            if include_damage and 'sector_damage' not in ann:
+                # Assume no damage for original (presumably real) images
+                ann['damage'] = 0.0
+                ann['damage'] = "no_damage"
+                ann['sector_damage'] = [0.0 for i in range(NUM_DMG_SECTORS)]
             final_annotations['annotations'].append(ann)
             annotation_id += 1
         image_id += 1
@@ -68,6 +77,9 @@ if __name__ == '__main__':
     augment_dataset = args.augment_dataset.rstrip('/')
     args.datasets_dir = os.path.abspath(args.datasets_dir)
 
+    if args.include_damage is None:
+        raise TypeError("Invalid 'include_damage' value, must be either or True or False")
+    
     if not os.path.exists(args.datasets_dir):
         os.mkdir(args.datasets_dir)
 
@@ -111,8 +123,8 @@ if __name__ == '__main__':
     final_paths = orig_paths + augment_paths
 
     print('Generating annotations...')
-    extend_annotations(final_anns, orig_paths, orig_anns)
-    extend_annotations(final_anns, augment_paths, augment_anns)
+    extend_annotations(final_anns, orig_paths, orig_anns, args.include_damage)
+    extend_annotations(final_anns, augment_paths, augment_anns, args.include_damage)
 
     outpath = os.path.join(outdir, '_annotations.coco.json')
     with open(outpath, 'w') as f:
@@ -122,5 +134,5 @@ if __name__ == '__main__':
         print(f"Copying files: {float(i) / float(len(final_paths)):06.2%}", end='\r')
         shutil.copyfile(p, os.path.join(outdir, os.path.basename(p)))
     print(f"Copying files: 100.0%\r\n")
-
-    convert_to_single_label(outdir, '_annotations.coco.json', '_single_annotations.coco.json')
+    
+    convert_to_single_label(outdir, '_annotations.coco.json', '_single_annotations.coco.json', use_damages=args.include_damage)
