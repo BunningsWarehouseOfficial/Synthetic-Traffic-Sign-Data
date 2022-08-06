@@ -34,8 +34,10 @@ class SignTemplate:
 def initialise_sign_templates(html_text):
     soup = BeautifulSoup(html_text, 'html.parser')
     gallery_boxes = soup.find_all('li', attrs={'class': 'gallerybox'})
+    srcsets = soup.findAll('img', attrs = {'srcset' : True})
     sign_templates = []
 
+    x = 0
     for gbox in gallery_boxes:
         gallerytext = gbox.find('div', attrs={'class': 'gallerytext'}).p
         thumb = gbox.find('div', attrs={'class': 'thumb'}).img
@@ -48,8 +50,12 @@ def initialise_sign_templates(html_text):
             gallerytext.b.decompose()
 
         desc = gallerytext.get_text().strip()
-        url = thumb['srcset'].split(' ')[-2]  # Get the largest image
-        sign_templates.append(SignTemplate(desc, 'https:' + url))
+        # url = thumb['srcset'].split(' ')[-2]  # Get the largest image
+        url = srcsets[x]['srcset'].split(' ')[-2]
+        if not url.startswith(('https:','http:')):
+            url = 'https:' + url
+        sign_templates.append(SignTemplate(desc, url))
+        x += 1
     return sign_templates
             
 
