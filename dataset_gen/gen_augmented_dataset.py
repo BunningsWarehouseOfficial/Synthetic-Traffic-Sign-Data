@@ -33,14 +33,15 @@ parser.add_argument('--check_dir', default=None, type=str, help='Path to a direc
                     'cross-dataset duplicates. If one of our synthetic images is there already, it will not be added to '
                     'this new dataset. This is helpful for ensuring a test set contains no training set images if '
                     'pulling from the same pool of synthetic images.')
+parser.add_argument('--check_dir_2', default=None, type=str)
 parser.add_argument('--seed', default=0, type=int, help='Seed for random.sample function.')
-parser.add_argument('--include_damage', action='store_true', help='Whether or not to include (and enforce) the '
+parser.add_argument('--no_damage', action='store_true', help='Specify when we do not want to include (and enforce) the '
                     'presence of damage in annotations')
 
 NUM_DMG_SECTORS = 4  # TODO: Make an argument?
 
 
-def extend_annotations(final_annotations, image_paths, annotations, include_damage):
+def extend_annotations(final_annotations, image_paths, annotations, no_damage):
     image_paths = set([os.path.basename(p) for p in image_paths])
     image_id = len(final_annotations['images'])
     annotation_id = len(final_annotations['annotations'])
@@ -59,10 +60,10 @@ def extend_annotations(final_annotations, image_paths, annotations, include_dama
         for ann in image_anns:
             ann['id'] = annotation_id
             ann['image_id'] = image_id
-            if include_damage and 'sector_damage' not in ann:
+            if not no_damage and 'sector_damage' not in ann:
                 # Assume no damage for original (presumably real) images
                 ann['damage'] = 0.0
-                ann['damage'] = "no_damage"
+                ann['damage_type'] = "no_damage"
                 ann['sector_damage'] = [0.0 for i in range(NUM_DMG_SECTORS)]
             final_annotations['annotations'].append(ann)
             annotation_id += 1
@@ -77,14 +78,15 @@ if __name__ == '__main__':
     augment_dataset = args.augment_dataset.rstrip('/')
     args.datasets_dir = os.path.abspath(args.datasets_dir)
 
-    if args.include_damage is None:
-        raise TypeError("Invalid 'include_damage' value, must be either or True or False")
+    if args.no_damage is not True:
+        # Make sure that the value isn't None
+        args.no_damage = False
     
     if not os.path.exists(args.datasets_dir):
         os.mkdir(args.datasets_dir)
 
     identifier = 'extended' if args.extend else 'augmented'
-    outdir = os.path.join(args.datasets_dir, f'{aug_factor}_{identifier}')
+    outdir = os.path.join(args.datasets_dir, f'{aug_factor}-synth_{identifier}')
     if os.path.exists(outdir):
         shutil.rmtree(outdir)
     os.mkdir(outdir)
@@ -97,34 +99,41 @@ if __name__ == '__main__':
     final_anns = initialise_coco_anns(classes)
 
     # Retrieve the full sets of data
-    orig_paths = glob(args.orig_dataset + '/**/*.jpg', recursive=True)
+    orig_paths = glob(orig_dataset + '/**/*.jpg', recursive=True)
     num_train = len(orig_paths)
-    augment_paths = glob(args.augment_dataset + '/**/*.jpg', recursive=True)
-    if args.check_dir is not None:
-        print('Checking for cross-dataset duplicates...')
-        def get_fn(path):  # Can't compare full paths for cross-dataset files
-            return ntpath.basename(path)
-        fn_pairs = {ntpath.basename(p): p for p in augment_paths}
-        check_paths = glob(args.check_dir + '/**/*.jpg', recursive=True)
-        augment_paths = list(
-            # Map returns iterable and duplicate subtraction requires sets
-            set(list(map(get_fn, augment_paths))) - set(list(map(get_fn, check_paths)))
-        )
-        augment_paths = [fn_pairs[p] for p in augment_paths]  # Retrieve full non-duplicate paths
+    augment_paths = glob(augment_dataset + '/**/*.jpg', recursive=True)
+    def check_duplicates(check_dir_path, augment_paths):
+        if check_dir_path is not None:
+            if os.path.exists (check_dir_path):
+                print('Checking for cross-dataset duplicates...')
+                def get_fn(path):  # Can't compare full paths for cross-dataset files
+                    return ntpath.basename(path)
+                fn_pairs = {ntpath.basename(p): p for p in augment_paths}
+                check_paths = glob(check_dir_path + '/**/*.jpg', recursive=True)
+                augment_paths = list(
+                    # Map returns iterable and duplicate subtraction requires sets
+                    set(list(map(get_fn, augment_paths))) - set(list(map(get_fn, check_paths)))
+                )
+                augment_paths = [fn_pairs[p] for p in augment_paths]  # Retrieve full non-duplicate paths
+            else:
+                print(f'Check directory {check_dir_path} does not exist. Continuing without checking.')
+        return augment_paths
+    augment_paths = check_duplicates(args.check_dir, augment_paths)
+    augment_paths = check_duplicates(args.check_dir_2, augment_paths)  # TODO: The check_dir argument should be a list that is iterated through
 
     # Randomly sample the full datasets to create a new dataset
     print('Sampling datasets...')
     if args.extend:
         orig_paths = random.sample(orig_paths, num_train)
-        augment_paths = random.sample(augment_paths, int(num_train / aug_factor - num_train))
+        augment_paths = random.sample(augment_paths, int(num_train / (1 - aug_factor) - num_train))
     else:
         orig_paths = random.sample(orig_paths, int((1 - aug_factor) * num_train))
         augment_paths = random.sample(augment_paths, int(num_train * aug_factor))
     final_paths = orig_paths + augment_paths
 
     print('Generating annotations...')
-    extend_annotations(final_anns, orig_paths, orig_anns, args.include_damage)
-    extend_annotations(final_anns, augment_paths, augment_anns, args.include_damage)
+    extend_annotations(final_anns, orig_paths, orig_anns, args.no_damage)
+    extend_annotations(final_anns, augment_paths, augment_anns, args.no_damage)
 
     outpath = os.path.join(outdir, '_annotations.coco.json')
     with open(outpath, 'w') as f:
@@ -135,4 +144,4 @@ if __name__ == '__main__':
         shutil.copyfile(p, os.path.join(outdir, os.path.basename(p)))
     print(f"Copying files: 100.0%\r\n")
     
-    convert_to_single_label(outdir, '_annotations.coco.json', '_single_annotations.coco.json', use_damages=args.include_damage)
+    convert_to_single_label(outdir, '_annotations.coco.json', '_single_annotations.coco.json', use_damages=(not args.no_damage))
