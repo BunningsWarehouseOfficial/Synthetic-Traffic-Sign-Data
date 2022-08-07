@@ -15,6 +15,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from bs4 import BeautifulSoup
 import time
+import re
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(current_dir)
@@ -35,6 +36,7 @@ def initialise_sign_templates(html_text):
     soup = BeautifulSoup(html_text, 'html.parser')
     gallery_boxes = soup.find_all('li', attrs={'class': 'gallerybox'})
     sign_templates = []
+    resolution = "480px"
 
     for gbox in gallery_boxes:
         gallerytext = gbox.find('div', attrs={'class': 'gallerytext'}).p
@@ -51,8 +53,9 @@ def initialise_sign_templates(html_text):
         desc = gallerytext.get_text().strip()
         # url = thumb['srcset'].split(' ')[-2]  # Get the largest image
         url = srcsets['srcset'].split(' ')[-2]
-        if not url.startswith(('https:','http:')):
+        if not url.startswith(('https:','http:')):  # fixes start of url
             url = 'https:' + url
+        url = re.sub("\d+px", resolution, url)  # downloads at specified resolution
         sign_templates.append(SignTemplate(desc, url))
     return sign_templates
             
