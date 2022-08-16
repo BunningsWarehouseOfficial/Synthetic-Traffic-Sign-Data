@@ -25,18 +25,19 @@ parser = argparse.ArgumentParser(description='Downloads sign templates from any 
 parser.add_argument('--categories_file', help='a text file containing a line seperated list of sign categories to download', default=None)
 parser.add_argument('--out_dir', help='the directory to save the templates to', default='./Wiki_Templates')
 parser.add_argument('--resolution', help='The resolution for the signs to be downloaded at in px', default='240px')
-parser.add_argument('--url', help='Specifies a wiki link' required=True)
+parser.add_argument('--url', help='Specifies a wiki link', required=True)
 
 
 class SignTemplate:
-        def __init__(self, desc, url):
+        def __init__(self, desc, url, path):
             self.url = url
             self.description = desc
+            self.path = path
             
 
 def initialise_sign_templates(html_text, resolution, dir):
     soup = BeautifulSoup(html_text, 'html.parser')
-    sign_templates = [[],[]]
+    sign_templates = []
 
     top_level = soup.find("div", class_="mw-parser-output")  # The top level of the html file that contains only the images and text we need
     dir_1 = ""
@@ -57,14 +58,11 @@ def initialise_sign_templates(html_text, resolution, dir):
             dir_3 = "/" + str(elem.find("span", class_="mw-headline".split()).get_text()).replace("/","_").replace(" ","_")
         elif(elem.name == 'ul'):
             sign_path = dir + dir_1 + dir_2 + dir_3
-            temp = get_templates(elem, resolution, sign_path)
-            sign_templates[0] = sign_templates[0] + temp[0]
-            sign_templates[1] = sign_templates[1] + temp[1]
+            get_templates(sign_templates, elem, resolution, sign_path)
     return sign_templates
 
 
-def get_templates(soup, resolution, sign_path):
-    sign_templates = [[],[]]
+def get_templates(sign_templates, soup, resolution, sign_path):
     gallery_boxes = soup.find_all('li', attrs={'class': 'gallerybox'})
 
     for gbox in gallery_boxes:
@@ -85,8 +83,7 @@ def get_templates(soup, resolution, sign_path):
         if not url.startswith(('https:','http:')):  # fixes start of url
             url = 'https:' + url
         url = re.sub("\d+px", resolution, url)  # downloads at specified resolution
-        sign_templates[0].append(SignTemplate(desc, url))
-        sign_templates[1].append(sign_path)
+        sign_templates.append(SignTemplate(desc, url, sign_path))
     return sign_templates
             
 
@@ -138,7 +135,7 @@ if __name__ == "__main__":
             cats_file.write(f'{i + 1}:{categories[i]}\n')
         extension = '.' + sign_template.url.split('.')[-1]
         file_name  = str(i + 1) + extension
-        if not os.path.exists(sign_templates[1][i]):
-            os.makedirs(sign_templates[1][i])
-        os.system(f'wget -O {os.path.join(sign_templates[1][i], file_name)} {sign_template.url}')
+        if not os.path.exists(sign_template.path):
+            os.makedirs(sign_template.path)
+        os.system(f'wget -O {os.path.join(sign_template.path, file_name)} {sign_template.url}')
         time.sleep(0.45)  # Prevents cascading errors which corrupt the images
