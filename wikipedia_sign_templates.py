@@ -130,7 +130,7 @@ if __name__ == "__main__":
         sign_templates = filter_templates(categories, sign_templates)
         
     # Download the sign templates
-    for i, sign_template in enumerate(sign_templates[0][:]):
+    for i, sign_template in enumerate(sign_templates[:]):
         if categories != []:
             cats_file.write(f'{i + 1}:{categories[i]}\n')
         extension = '.' + sign_template.url.split('.')[-1]

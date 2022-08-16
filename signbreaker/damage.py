@@ -307,6 +307,7 @@ def grey(img, beta=200):  # TODO: Imitates complete fading of colour in sign: pe
     cv.convertScaleAbs(dmg, dmg, alpha=1, beta=beta)  # No change to contrast, scale brightness
     dmg = cv.cvtColor(dmg, cv.COLOR_GRAY2BGRA)  # Convert back to BGRA to add back the alpha channel
     dmg[:,:,3] = channels[3]
+    dmg[np.where(dmg[:,:,3] == 0)] = (0, 0, 0, 0)
 
     # Assign labels
     att = attributes
