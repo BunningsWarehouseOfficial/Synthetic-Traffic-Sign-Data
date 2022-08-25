@@ -36,6 +36,7 @@ num_damages:
   big_hole: 1
   bullet_holes: 1
   graffiti: 2
+  stickers: 1    # Number of sticker to be overlayed #TODO
   # FIXME: Extreme distortions generated when bend and 3D tilt rotations are mixed
   bend: 0  # Will make n different bends for *each* background if detect_light_source=True
   tint_yellow: 0

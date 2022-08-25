@@ -57,7 +57,7 @@ def main():
         'gamma_exposure_fast': GammaExposureFastMan(),
         'histogram': HistogramMan()
     }
-    valid_dmg = ['no_damage', 'quadrant', 'big_hole', 'bullet_holes', 'graffiti', 'bend', 'tint_yellow', 'grey']
+    valid_dmg = ['no_damage', 'quadrant', 'big_hole', 'bullet_holes', 'graffiti', 'stickers', 'bend', 'tint_yellow', 'grey']
     valid_ann = ['retinanet', 'coco']
     valid_dmg_methods = ['ssim', 'pixel_wise']
     if config['sign_width'] <= 0:
