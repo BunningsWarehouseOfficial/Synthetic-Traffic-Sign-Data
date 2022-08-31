@@ -486,7 +486,7 @@ def sticker(img, n=1):
         y1 = int(Y_norm.rvs(1))
         y2 = y1 + fg_y
 
-        slice = img[x1:x2, y1:y2,0:3]
+        slice = dmg[x1:x2, y1:y2,0:3]
         slice[np.where(sticker_sml[:,:,3] != 0)] = sticker_sml[:,:,0:3][np.where(sticker_sml[:,:,3] != 0)]
 
 
