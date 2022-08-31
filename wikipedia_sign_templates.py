@@ -25,9 +25,9 @@ parser.add_argument('--out_dir', help='the directory to save the templates to', 
 
 
 class SignTemplate:
-        def __init__(self, desc, url):
-            self.url = url
-            self.description = desc
+    def __init__(self, desc, url):
+        self.url = url
+        self.description = desc
             
 
 def initialise_sign_templates(html_text):

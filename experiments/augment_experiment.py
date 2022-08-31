@@ -9,7 +9,7 @@ import plotly.express as px
 import plotly
 from tqdm import tqdm
 
-from experiments.detection_experiment import damage_experiment, distance_experiment, sequence_experiment
+from detection_experiment import damage_experiment, distance_experiment, sequence_experiment
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/datasets/sgts_sequences/_single_annotations_array.npy', 
                     help='Ground truth annotations for dataset as a numpy file')
 parser.add_argument('--eval_files', default='/home/allenator/Pawsey-Internship/eval_dir/sgts_sequences/augments.json',
-                    help='Json of augment_level:file_path pairs')
+                    help='Json of augment_level:file_path pairs, where file_path is for eval numpy files')
 parser.add_argument('--num_frames', default=8, type=int, help='Number of frames per sequence the dataset')
 parser.add_argument('--experiment', default='damage', choices=['damage', 'distance', 'sequence'] , help='Type of experiment to evaluate')
 parser.add_argument('--metric', default='mAP', choices=['AP50','mAP', 'Mean IOU', 'Mean Score'] , help='Type of metric to evaluate')
@@ -29,7 +29,12 @@ if __name__ == "__main__":
     is_sequence_experiment = args.experiment == 'sequence'
     is_damage_experiment = args.experiment == 'damage'
     
-    gt_array = np.array(np.load(args.gt_file), dtype=np.float32)
+    try:
+        gt_array = np.array(np.load(args.gt_file), dtype=np.float32)
+    except ValueError:
+        # Flatten each entry into a single numpy array
+        gt_array = np.array(np.load(args.gt_file, allow_pickle=True))
+        gt_array = np.array([np.hstack([np.array(i) for i in x]) for x in gt_array], dtype=np.float32)
     
     with open(args.eval_files) as f:
         eval_json = json.load(f)
@@ -76,3 +81,9 @@ if __name__ == "__main__":
             fig = fig.add_trace(go.Scatter(x = df['Area'], y = df[args.metric], 
                                         name=aug, mode='lines+markers'))
     plotly.io.write_image(fig, 'fig1.png', format='png', scale=2.5, width=1000, height=500)
+
+    cwd = os.getcwd()
+    name = args.gt_file.split('.')[0].split(os.sep)[-2]
+    fig.write_html(f"{cwd}/{name}.html")
+    with open(f"{cwd}/{name}.txt", 'w') as f:
+        f.write(str(df))
