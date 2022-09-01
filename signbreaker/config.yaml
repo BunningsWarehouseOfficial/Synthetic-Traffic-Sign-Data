@@ -35,6 +35,7 @@ num_damages:
   quadrant: 1  # Max 4 when online=False
   big_hole: 1
   graffiti: 2
+  stickers: 1    # Number of sticker to be overlayed
   bullet_holes: 0
   # FIXME: Extreme distortions generated when bend and 3D tilt rotations are mixed
   bend: 0  # Will make n different bends for *each* background if detect_light_source=True

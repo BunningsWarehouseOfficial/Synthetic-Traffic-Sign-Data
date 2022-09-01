@@ -13,7 +13,7 @@ import cv2 as cv
 from skimage import draw
 import scipy.stats as stats
 
-from utils import overlay, calc_damage, calc_damage_ssim, calc_damage_sectors, sectors_no_damage, calc_ratio, remove_padding, pad
+from utils import overlay, calc_damage, calc_damage_ssim, calc_damage_sectors, sectors_no_damage, calc_ratio, remove_padding, pad, get_truncated_normal
 from synth_image import SynthImage
 
 attributes = {
@@ -47,9 +47,6 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
     dmg_measure = config['damage_measure_method']
     num_sectors = config['num_damage_sectors']
 
-    # Seed the random number generator
-    rand.seed(config['seed'])
-
     def apply_damage(dmg, att):
         """Helper function to avoid repetition."""
         # print('old path', synth_img.fg_path)
@@ -79,9 +76,7 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
         for dmg_type in config['num_damages']:
             if dmg_type != 'online':
                 total_p += config['num_damages'][dmg_type]
-    rand.seed()
     p = rand.random()
-    rand.seed(config['seed'])
     p_thresh = 0.0
 
     # ORIGINAL UNDAMAGED
@@ -215,6 +210,18 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
         for t in targets:
             dmg, att = graffiti(img, target=t, color=(0,0,0), solid=g_conf['solid'])
             apply_damage(dmg, att)
+    
+    # Stickers
+    if single_image:
+        p_thresh += n_dmgs['stickers'] / total_p
+        if p < p_thresh:
+            dmg, att = sticker(img)
+            return apply_damage(dmg, att)
+    elif n_dmgs['stickers'] > 0:
+        num_stickers = n_dmgs['stickers']
+        for s in range(num_stickers):
+            dmg, att = sticker(img)
+            apply_damage(dmg, att)
 
     # TINTED YELLOW
     # TODO: Utilise config file for max and min tint values with associated bounds checking in create_dataset.py
@@ -307,6 +314,7 @@ def grey(img, beta=200):  # TODO: Imitates complete fading of colour in sign: pe
     cv.convertScaleAbs(dmg, dmg, alpha=1, beta=beta)  # No change to contrast, scale brightness
     dmg = cv.cvtColor(dmg, cv.COLOR_GRAY2BGRA)  # Convert back to BGRA to add back the alpha channel
     dmg[:,:,3] = channels[3]
+    dmg[np.where(dmg[:,:,3] == 0)] = (0, 0, 0, 0)
 
     # Assign labels
     att = attributes
@@ -446,6 +454,48 @@ def bullet_holes(img, num_holes=40, target=-1):
 
     return dmg, att
 
+def sticker(img, n=1):
+    """overlay arbitrary images over sign"""
+    dmg = validate_sign(img)
+    bg_x, bg_y = img.shape[0:2]
+
+    stickerList = []
+    for file in os.listdir("stickers"):
+        if file.endswith(".png"):
+            stickerList.append(file)
+
+    for i in range(n):
+        sticker_name = rand.choice(stickerList)
+        sticker_path = os.path.join("stickers",sticker_name)
+        sticker = cv.imread(sticker_path, cv.IMREAD_UNCHANGED)
+        scale_heigth = 100  # The height that the image will be scaled to
+        scale_factor = scale_heigth/sticker.shape[1] # percent of original size
+        width = int(sticker.shape[1] * scale_factor)
+        height = int(sticker.shape[0] * scale_factor)
+        dim = (width, height)
+
+        sticker_sml = cv.resize(sticker, dim, cv.INTER_AREA)
+        fg_x, fg_y = sticker_sml.shape[0:2]
+
+        X_norm = get_truncated_normal(mean=bg_x/2 - fg_x, sd=15, low=0, upp=bg_x - fg_x)
+        Y_norm = get_truncated_normal(mean=bg_y/2 - fg_y, sd=30, low=0, upp=bg_y - fg_y)
+        x1 = int(X_norm.rvs(1))
+        x2 = x1 + fg_x
+        y1 = int(Y_norm.rvs(1))
+        y2 = y1 + fg_y
+
+        slice = dmg[x1:x2, y1:y2,0:3]
+        slice[np.where(sticker_sml[:,:,3] != 0)] = sticker_sml[:,:,0:3][np.where(sticker_sml[:,:,3] != 0)]
+
+
+    # Assign labels
+    att = attributes
+    att["damage_type"]  = "sticker"
+    att["tag"]          = str(sticker_name)
+    att["damage_ratio"] = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
+
+    return dmg, att
 
 ### The following methods are all for the 'graffiti' damage type ###
 
