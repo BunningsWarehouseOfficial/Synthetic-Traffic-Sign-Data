@@ -29,11 +29,11 @@ parser.add_argument('--url', help='Specifies a wiki link', required=True)
 
 
 class SignTemplate:
-        def __init__(self, desc, url, path):
-            self.url = url
-            self.description = desc
-            self.path = path
-            
+    def __init__(self, desc, url, path):
+        self.url = url
+        self.description = desc
+        self.path = path            
+
 
 def initialise_sign_templates(html_text, resolution, dir):
     soup = BeautifulSoup(html_text, 'html.parser')

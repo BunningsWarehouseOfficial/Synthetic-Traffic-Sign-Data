@@ -135,7 +135,7 @@ class SynthImage:
         _, fg_width = fg_dims
         
         current_ratio = fg_width / bg_width  
-        target_ratio = random.uniform(0.033, 0.132)
+        target_ratio = random.uniform(0.033, 0.099)
         scale_factor = target_ratio / current_ratio
         new_size = int(fg_width * scale_factor)
         

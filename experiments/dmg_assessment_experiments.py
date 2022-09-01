@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-from experiments.damage_assessment_eval import BoundingBox, get_all_metrics, get_roc_metrics, get_ap_metrics
+from damage_assessment_eval import BoundingBox, get_all_metrics, get_roc_metrics, get_ap_metrics
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 os.chdir(current_dir)
@@ -29,6 +29,8 @@ def get_bounding_boxes(gt_detections, pred_detections):
 
 
 if __name__ == '__main__':
+    # TODO: command line arg for number of damage sectors
+
     args = parser.parse_args()
     gt_arr = np.load(args.gt_file)
     pred_arr = np.load(args.eval_file)
@@ -69,4 +71,4 @@ if __name__ == '__main__':
     mean_pred_damage = np.mean(pred_damages)
     mean_gt_damage = np.mean(gt_damages)
     
-    print(f'MAE: {metrics.mae}\nRMSE: {metrics.rmse}\nMBE: {metrics.mbe}\nMean Predicted Damage {mean_pred_damage}\nMean Ground Truth Damage {mean_gt_damage}')
+    print(f'MAE: {metrics.mae}\nRMSE: {metrics.rmse}\nMBE: {metrics.mbe}\nMean Predicted Damage: {mean_pred_damage}\nMean Ground Truth Damage: {mean_gt_damage}')

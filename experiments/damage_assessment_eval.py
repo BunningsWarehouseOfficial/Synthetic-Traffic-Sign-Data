@@ -110,6 +110,14 @@ def get_basic_metrics(gt_pred_map):
     mae = np.mean(np.abs(gt_damages - pred_damages))
     rmse = np.sqrt(np.mean((gt_damages - pred_damages) ** 2))
     mbe = np.mean(gt_damages - pred_damages)
+
+    ## DEBUG
+    # print("\ngt_damages | pred_damages")
+    # for gt_damages, pred_damages in zip(gt_damages, pred_damages):
+    #     print(gt_damages, '|', pred_damages)
+    # print()
+    ##
+
     return mae, rmse, mbe
 
 

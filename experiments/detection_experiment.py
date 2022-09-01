@@ -176,12 +176,12 @@ def metrics_by_param(gt_arr, pred_arr, num_frames=8, param='sequence'):
     metrics_array = None
     
     # Iterate over each image sequence
-    for i in range(len(param_gts)):
+    for i in range(min(len(param_preds), len(param_gts))):
         ## DEBUG
         # print()
-        # print(i)
-        # print(len(param_gts))
-        # print(len(param_preds))
+        # print("i:", i)
+        # print("len(param_gts):", len(param_gts))
+        # print("len(param_preds):", len(param_preds))
         ##
         gt_boxes, pred_boxes = get_bounding_boxes(param_gts[i], param_preds[i])
         metrics, columns = get_metrics(gt_boxes, pred_boxes)
@@ -248,7 +248,7 @@ if __name__ == '__main__':
         fig = px.line(df, x='Damage', y='mAP', title='Average Precision (AP) vs. Damage Level')
     
     cwd = os.getcwd()
-    name = args.eval_file.split('.')[0].split('/')[-1]
+    name = args.eval_file.split('.')[0].split(os.sep)[-1]
     fig.write_html(f"{cwd}/{name}.html")
     with open(f"{cwd}/{name}.txt", 'w') as f:
         f.write(str(df))
