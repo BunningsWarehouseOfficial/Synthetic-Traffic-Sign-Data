@@ -145,6 +145,7 @@ def main():
 
     # Seed the random number generator
     random.seed(config['seed'])
+    np.random.seed(config['seed'])
     
 
 
@@ -346,9 +347,7 @@ def main():
         if t_online is True and random.random() <= config['transforms']['prob']:
             synth_image = tform_methods[t_method].transform(synth_image, None, 1)[0]
 
-        random.seed()  # Prevent repeated placement over the same background location
         image = generate.new_data(synth_image, (d_online or t_online))
-        random.seed(config['seed'])
         if labels_format == 'retinanet':
             synth_image.write_label_retinanet(labels_file, damage_labelling)
         elif labels_format == 'coco':
