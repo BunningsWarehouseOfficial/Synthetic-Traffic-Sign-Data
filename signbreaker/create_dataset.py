@@ -266,7 +266,7 @@ def main():
         background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True)
         
         m_method = config['man_method']
-        manipulated_data = man_methods[m_method].manipulate(transformed_data, background_paths, manipulated_dir)
+        manipulated_data = man_methods[m_method].manipulate(transformed_data, background_paths, manipulated_dir, config)
         if m_method == 'exposure':
             manipulate.find_useful_signs(manipulated_data, damaged_dir)
 

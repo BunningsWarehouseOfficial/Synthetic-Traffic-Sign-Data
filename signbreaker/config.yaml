@@ -20,9 +20,17 @@ transforms:  # TODO: Rename to rotation_params? Would need to place `online` els
   tilt_SD: 30
   tilt_range: 70  # Recommended: <=70
   Z_SD: 45  # Std. dev. for Z axis rotation
-  Z_range: 180  # Max pos/neg value for Z axis rotation
+  Z_range: 180  # Max pos/neg value for Z axis rotation  # FIXME: Can't be set to 0, but should be 0 for no rotation
   online: True  # On-the-fly or not
   prob: 0.8  # Probability of any rotation for each appliation when online=True
+
+# TODO: Currently only really tested with/suitable for 0 Z_range rotation; y rotation is good, x rotation is... okay...
+poles:
+  # BUG: When [tranforms][online] is True, non-pole sign faces are used for final data generation
+  add_poles: True  # TODO: Replace with 'prob' which can be set to 0.0
+  colour: [201, 182, 167, 255]  # Colour is BGRA, not RGBA; A should be 255
+  # METAL_GREY           = [201, 182, 167, 255]
+  # WA_YELLOW_UNOFFICIAL = [0, 154, 193, 255]  # TODO: Try figure out the exact colour as defined by Main Roads
 
 # Method of image manipulation
 # Either 'gamma_exposure_fast', 'gamma_exposure', 'exposure', 'gamma', or 'histogram' (broken)
@@ -30,6 +38,7 @@ man_method: gamma_exposure_fast
 
 # Number of times each damage is applied (online=False) OR relative likelihood of damage type (online=True)
 num_damages: 
+  # BUG: Damage spread across whole height over pole when [poles][add_poles] is True
   online: True  # On-the-fly or not
   no_damage: 2  # Max 1 when online=False
   quadrant: 1  # Max 4 when online=False
