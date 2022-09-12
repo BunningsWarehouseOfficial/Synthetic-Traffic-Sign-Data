@@ -212,15 +212,16 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
             apply_damage(dmg, att)
     
     # Stickers
+    s_config = config["stickers"]
     if single_image:
         p_thresh += n_dmgs['stickers'] / total_p
         if p < p_thresh:
-            dmg, att = sticker(img)
+            dmg, att = sticker(img, rand.randint(s_config["min_stickers"], s_config["max_stickers"])) #TODO How many stickers? Random between range? own class
             return apply_damage(dmg, att)
     elif n_dmgs['stickers'] > 0:
-        num_stickers = n_dmgs['stickers']
+        num_stickers = rand.randint(s_config["min_stickers"], s_config["max_stickers"])
         for s in range(num_stickers):
-            dmg, att = sticker(img)
+            dmg, att = sticker(img, s)
             apply_damage(dmg, att)
 
     # TINTED YELLOW
@@ -468,7 +469,11 @@ def sticker(img, n=1):
         sticker_name = rand.choice(stickerList)
         sticker_path = os.path.join("stickers",sticker_name)
         sticker = cv.imread(sticker_path, cv.IMREAD_UNCHANGED)
-        scale_heigth = 100  # The height that the image will be scaled to
+        
+        if sticker.shape[-1] == 3:
+            sticker = cv.cvtColor(sticker, cv.COLOR_RGB2RGBA)
+
+        scale_heigth = rand.randint(img.shape[0]/8, img.shape[0]/4)  # The height that the image will be scaled to
         scale_factor = scale_heigth/sticker.shape[1] # percent of original size
         width = int(sticker.shape[1] * scale_factor)
         height = int(sticker.shape[0] * scale_factor)
@@ -477,8 +482,8 @@ def sticker(img, n=1):
         sticker_sml = cv.resize(sticker, dim, cv.INTER_AREA)
         fg_x, fg_y = sticker_sml.shape[0:2]
 
-        X_norm = get_truncated_normal(mean=bg_x/2 - fg_x, sd=15, low=0, upp=bg_x - fg_x)
-        Y_norm = get_truncated_normal(mean=bg_y/2 - fg_y, sd=30, low=0, upp=bg_y - fg_y)
+        X_norm = get_truncated_normal(mean=bg_x/2 - fg_x, sd=bg_x/3, low=0, upp=bg_x - fg_x)
+        Y_norm = get_truncated_normal(mean=bg_y/2 - fg_y, sd=bg_y/3, low=0, upp=bg_y - fg_y)
         x1 = int(X_norm.rvs(1))
         x2 = x1 + fg_x
         y1 = int(Y_norm.rvs(1))

@@ -56,6 +56,10 @@ graffiti:  # Step size between damage levels is determined by num_damages above 
   max: 0.8      # Max graffiti coverage (relevant when online=True); uses trunc. norm. with mu=max/4, sd=max/3
   solid: True   # Whether or not transparency is minimised through only alpha values of 255 and morphological dilation
 
+stickers:
+  max_stickers: 4
+  min_stickers: 1
+
 # Randomization seed (online damage application does not use this seed)
 seed: 7  # Use different seeds for generating train vs. eval datasets
 
