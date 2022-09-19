@@ -216,7 +216,7 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
     if single_image:
         p_thresh += n_dmgs['stickers'] / total_p
         if p < p_thresh:
-            dmg, att = sticker(img, rand.randint(s_config["min_stickers"], s_config["max_stickers"])) #TODO How many stickers? Random between range? own class
+            dmg, att = sticker(img, rand.randint(s_config["min_stickers"], s_config["max_stickers"]))
             return apply_damage(dmg, att)
     elif n_dmgs['stickers'] > 0:
         num_stickers = rand.randint(s_config["min_stickers"], s_config["max_stickers"])
@@ -496,7 +496,7 @@ def sticker(img, n=1):
     # Assign labels
     att = attributes
     att["damage_type"]  = "sticker"
-    att["tag"]          = str(sticker_name)
+    att["tag"]          = str(n)  # TODO: put a list of sticker names?
     att["damage_ratio"] = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
     att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
 

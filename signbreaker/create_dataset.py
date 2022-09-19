@@ -313,7 +313,7 @@ def main():
         classes = [int(Path(p).stem) for p in glob.glob(f'{processed_dir}{os.path.sep}*.png')]
         labels_dict = {'categories': [], 'images': [], 'annotations': []}
         labels_dict["categories"] += [{"id": 0, "name": "signs", "supercategory": "none"}]
-        labels_dict["categories"] += [{'id:': c, 'name': str(c), 'supercategory': 'signs'} for c in sorted(classes)]
+        labels_dict["categories"] += [{'id': c, 'name': str(c), 'supercategory': 'signs'} for c in sorted(classes)]
     about_path = os.path.join(final_dir, "generated_images_about.txt")
 
     # Clean and recreate the parent images directory
