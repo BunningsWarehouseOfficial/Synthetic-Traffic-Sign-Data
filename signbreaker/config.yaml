@@ -68,6 +68,8 @@ bend:  # Bend may randomly be either a single-sided or double-sided bend
   max_axis: 60   # Clockwise rotation of the bending axis (in x-y plane)
   max_bend: 60   # Level of bending performed (from 0 to 90 degrees)
 
+multi_sign: True
+
 # Prunes the dataset by using a maximum of n images for each
 # background+class+damage combination, selected randomly.
 # In other words, how many images of the same sign class with the same damage

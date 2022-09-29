@@ -324,10 +324,10 @@ def main():
     total_gen = len(manipulated_data)
     print(f"Files to be generated: {total_gen}")
 
-    ii = 0
     labels_file = open(labels_path, "w")
     
-    for synth_image in manipulated_data:
+    sign_count = 0
+    for ii, synth_image in enumerate(manipulated_data):
         print(f"Generating files: {float(ii) / float(total_gen):06.2%}", end='\r')
         
         c_num = synth_image.class_num
@@ -347,14 +347,28 @@ def main():
         if t_online is True and random.random() <= config['transforms']['prob']:
             synth_image = tform_methods[t_method].transform(synth_image, None, 1)[0]
 
-        image = generate.new_data(synth_image, (d_online or t_online))
-        if labels_format == 'retinanet':
-            synth_image.write_label_retinanet(labels_file, damage_labelling)
-        elif labels_format == 'coco':
-            synth_image.write_label_coco(labels_dict, ii, 
-                                         os.path.relpath(final_fg_path, final_dir), image.shape, damage_labelling)
+        synth_image_set = None
+        # TODO generate new signs to overlay
+        if config["multi_sign"] is True:
+            synth_image_set = [synth_image] + random.sample(manipulated_data, random.randint(0,5))
+            image, n_placed = generate.new_data_multi(synth_image_set, (d_online or t_online))
+            synth_image_set = synth_image_set[:n_placed]  # In case the function fails to place all the signs
+            for img in synth_image_set:
+                if labels_format == 'retinanet':
+                    #Todo multi sign labels for retinanet
+                    synth_image.write_label_retinanet(labels_file, damage_labelling)
+                elif labels_format == 'coco':
+                    img.write_label_coco(labels_dict, sign_count, ii, 
+                                                os.path.relpath(final_fg_path, final_dir), image.shape, damage_labelling)
+                sign_count += 1
+        else:
+            image = generate.new_data(synth_image, (d_online or t_online))
+            if labels_format == 'retinanet':
+                synth_image.write_label_retinanet(labels_file, damage_labelling)
+            elif labels_format == 'coco':
+                synth_image.write_label_coco(labels_dict, ii, ii, 
+                                             os.path.relpath(final_fg_path, final_dir), image.shape, damage_labelling)
         cv2.imwrite(final_fg_path, image, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
-        ii += 1
     print(f"Generating files: 100.0%\r\n")
     
     if labels_format == "coco":

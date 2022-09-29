@@ -113,6 +113,52 @@ def new_data(synth_image, online=False):
     return image
 
 
+def new_data_multi(synth_images, online=False):
+    """Blends a synthetic sign with its corresponding background."""
+    bg_path = synth_images[0].bg_path
+    bg = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
+    assert bg is not None, "Background image not found"
+
+    bg_h, bg_w, _ = bg.shape
+    
+    bboxes = []
+
+    total = 0   # signs placed so far
+    nb_signs_in_img = len(synth_images)
+    fail = 0    # attempts to place signs
+
+    while total < nb_signs_in_img and fail < 40:
+        synth_image = synth_images[total]
+        fg_path = synth_image.fg_path
+        fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
+        assert fg is not None, "Foreground image not found"
+        
+        if synth_image.fg_coords is not None and synth_image.fg_size is not None:
+            x, y = synth_image.fg_coords
+            new_size = synth_image.fg_size
+        else:
+            x, y, new_size = SynthImage.gen_sign_coords(bg.shape[:2], fg.shape[:2])
+
+        bg, bbox = overlay_new(fg, bg, new_size, bboxes, x, y)
+        if bbox is not None:
+            bboxes.append(bbox)
+            total += 1
+            fg = cv2.resize(fg, (new_size, new_size))
+            axes = __bounding_axes(fg)  # Retrieve bounding axes of the sign image
+            axes[0] += x  # Adjusting bounding axis to make it relative to the whole bg image
+            axes[1] += x
+            axes[2] += y
+            axes[3] += y
+            synth_image.bounding_axes = axes
+        else:
+            fail += 1
+
+    # TODO online support
+
+    image = bg
+    return image, total
+
+
 #TODO: These two functions should be one function always include background using classes?
 # List of paths for all SGTSD relevant files using exposure_manipulation
 def paths_list(imgs_directory, bg_directory):

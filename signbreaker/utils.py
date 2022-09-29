@@ -269,8 +269,16 @@ def overlay(fg, bg, x1=-1, y1=-1):
     return new_img
 
 
+def has_intersection(x0, y0, x1, y1, bboxes):
+    for bbox in bboxes:
+        if x1 > bbox['xmin'] and bbox['xmax'] > x0:
+            if y1 > bbox['ymin'] and bbox['ymax'] > y0:
+                return True
+    return False
+
+
 # TODO: Make modular with other overlay
-def overlay_new(fg, bg, new_size, x1=-1, y1=-1):
+def overlay_new(fg, bg, new_size, bboxes, x1=-1, y1=-1):
     """Erodes and blends foreground into background removing transparency.
 
     Foreground iamge will be centred on background if x1 or y1 are omitted.
@@ -305,6 +313,10 @@ def overlay_new(fg, bg, new_size, x1=-1, y1=-1):
     # End coordinates
     x2 = x1 + width_FG
     y2 = y1 + height_FG
+
+    # Give up if there is an intersection
+    if bboxes is not None and has_intersection(x1, y1, x2, y2, bboxes):
+        return bg, None
 
     ret, masktemp = cv2.threshold(fg[:, :, 3], 0, 255, cv2.THRESH_BINARY)
     mask = np.ones((masktemp.shape + (3,)),dtype=np.uint8)
@@ -343,7 +355,12 @@ def overlay_new(fg, bg, new_size, x1=-1, y1=-1):
     new_img[y1:y2, x1:x2] = blended
     # ### End of code from Lucas Tabelini ###
 
-    return new_img
+    return new_img, {
+        'xmin': x1,
+        'ymin': y1,
+        'xmax': x2,
+        'ymax': y2
+    }
 
 
 def count_pixels(img):
