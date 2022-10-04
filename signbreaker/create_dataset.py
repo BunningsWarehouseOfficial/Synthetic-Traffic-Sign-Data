@@ -342,32 +342,33 @@ def main():
 
         d_online = config['num_damages']['online']
         t_online = config['transforms']['online']
-        if d_online is True:
-            synth_image = damage_image(synth_image, damaged_dir, config, background_images, single_image=True)
-        if t_online is True and random.random() <= config['transforms']['prob']:
-            synth_image = tform_methods[t_method].transform(synth_image, None, 1)[0]
 
-        synth_image_set = None
+        def manipulate_img(img):
+            if d_online is True:
+                img = damage_image(img, damaged_dir, config, background_images, single_image=True)
+            if t_online is True and random.random() <= config['transforms']['prob']:
+                img = tform_methods[t_method].transform(img, None, 1)[0]
+            return img
+
+        synth_image_set = [] # The list of images to overlay on the background. Only contains 1 if "multi_sign" is False
         # TODO generate new signs to overlay
-        if config["multi_sign"] is True:
-            synth_image_set = [synth_image] + random.sample(manipulated_data, random.randint(0,5))
-            image, n_placed = generate.new_data_multi(synth_image_set, (d_online or t_online))
-            synth_image_set = synth_image_set[:n_placed]  # In case the function fails to place all the signs
-            for img in synth_image_set:
-                if labels_format == 'retinanet':
-                    #Todo multi sign labels for retinanet
-                    synth_image.write_label_retinanet(labels_file, damage_labelling)
-                elif labels_format == 'coco':
-                    img.write_label_coco(labels_dict, sign_count, ii, 
-                                                os.path.relpath(final_fg_path, final_dir), image.shape, damage_labelling)
-                sign_count += 1
-        else:
-            image = generate.new_data(synth_image, (d_online or t_online))
+        min_signs = config["multi_sign"]["min_extra_signs"]
+        max_signs = config["multi_sign"]["max_extra_signs"]
+        num_signs = random.randint(min_signs,max_signs) # Number of extra signs to add to the image
+        # Randomly damage and transform parts of the raw manipulated data
+        synth_image_set.append(manipulate_img(synth_image))
+        for img in random.sample(manipulated_data, num_signs):
+            synth_image_set.append(manipulate_img(img))
+        image, n_placed = generate.new_data(synth_image_set, (d_online or t_online))
+        synth_image_set = synth_image_set[:n_placed]  # In case the function fails to place all the signs
+        for img in synth_image_set:
             if labels_format == 'retinanet':
+                #Todo multi sign labels for retinanet
                 synth_image.write_label_retinanet(labels_file, damage_labelling)
             elif labels_format == 'coco':
-                synth_image.write_label_coco(labels_dict, ii, ii, 
-                                             os.path.relpath(final_fg_path, final_dir), image.shape, damage_labelling)
+                img.write_label_coco(labels_dict, sign_count, ii, 
+                                            os.path.relpath(final_fg_path, final_dir), image.shape, damage_labelling)
+            sign_count += 1
         cv2.imwrite(final_fg_path, image, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
     print(f"Generating files: 100.0%\r\n")
     

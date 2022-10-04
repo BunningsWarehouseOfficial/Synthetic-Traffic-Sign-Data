@@ -27,6 +27,7 @@ transforms:  # TODO: Rename to rotation_params? Would need to place `online` els
 # Method of image manipulation
 # Either 'gamma_exposure_fast', 'gamma_exposure', 'exposure', 'gamma', or 'histogram' (broken)
 man_method: gamma_exposure_fast
+# FIXME: Won't match exposure to correct background when 'multi_sign' is True and transforms are online
 
 # Number of times each damage is applied (online=False) OR relative likelihood of damage type (online=True)
 num_damages: 
@@ -68,7 +69,10 @@ bend:  # Bend may randomly be either a single-sided or double-sided bend
   max_axis: 60   # Clockwise rotation of the bending axis (in x-y plane)
   max_bend: 60   # Level of bending performed (from 0 to 90 degrees)
 
-multi_sign: True
+# Set both values to 0 to have just one sign per image
+multi_sign: 
+  min_extra_signs: 0  # Minimum number of additional signs overlaid onto each background
+  max_extra_signs: 5  # Maximum number of additional signs to overlay onto each background
 
 # Prunes the dataset by using a maximum of n images for each
 # background+class+damage combination, selected randomly.
