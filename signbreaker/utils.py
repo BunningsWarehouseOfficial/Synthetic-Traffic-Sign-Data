@@ -351,7 +351,6 @@ def overlay_new(fg, bg, new_size, bboxes, x1=-1, y1=-1):
     fg = cv2.resize(fg, (new_size, new_size))
     blend_mask = cv2.resize(blend_mask, (new_size, new_size))
 
-    print(f"new_img[{y1}:{y2}, {x1}:{x2}]")
     blended = (new_img[y1:y2, x1:x2] * (1 - blend_mask)) + (fg[:, :, [0, 1, 2]] * blend_mask)
     new_img[y1:y2, x1:x2] = blended
     # ### End of code from Lucas Tabelini ###
