@@ -616,7 +616,8 @@ class GammaExposureFastMan(AbstractManipulation):
             
             # Calculated estimated gamma required to match brightness with background
             # Inspired by: Babakhani, P., & Zarei, P. (2015). Automatic gamma correction based on average of brightness.
-            gamma = math.log10(bg_brightness / 255) / math.log10(fg_brightness / 255)
+            # min to stop sign turning completely white on white bg, max to stop math error from completely black bg
+            gamma = math.log10(min(max(bg_brightness,0.1),253) / 255) / math.log10(fg_brightness / 255)
 
             # Adapted from: https://docs.opencv.org/3.4/d3/dc1/tutorial_basic_linear_transform.html
             g_lookup = np.empty((1,256), np.uint8)
