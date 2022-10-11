@@ -269,10 +269,10 @@ def overlay(fg, bg, x1=-1, y1=-1):
     return new_img
 
 
-def has_intersection(x0, y0, x1, y1, bboxes):
+def has_intersection(x1, x2, y1, y2, bboxes):
     for bbox in bboxes:
-        if x1 > bbox['xmin'] and bbox['xmax'] > x0:
-            if y1 > bbox['ymin'] and bbox['ymax'] > y0:
+        if x2 > bbox[0] and bbox[1] > x1:
+            if y2 > bbox[2] and bbox[3] > y1:
                 return True
     return False
 
@@ -315,7 +315,7 @@ def overlay_new(fg, bg, new_size, bboxes, x1=-1, y1=-1):
     y2 = y1 + height_FG
 
     # Give up if there is an intersection
-    if bboxes is not None and has_intersection(x1, y1, x2, y2, bboxes):
+    if bboxes is not None and has_intersection(x1, x2, y1, y2, bboxes):
         return bg, None
 
     ret, masktemp = cv2.threshold(fg[:, :, 3], 0, 255, cv2.THRESH_BINARY)
@@ -351,17 +351,12 @@ def overlay_new(fg, bg, new_size, bboxes, x1=-1, y1=-1):
     fg = cv2.resize(fg, (new_size, new_size))
     blend_mask = cv2.resize(blend_mask, (new_size, new_size))
 
+    print(f"new_img[{y1}:{y2}, {x1}:{x2}]")
     blended = (new_img[y1:y2, x1:x2] * (1 - blend_mask)) + (fg[:, :, [0, 1, 2]] * blend_mask)
     new_img[y1:y2, x1:x2] = blended
     # ### End of code from Lucas Tabelini ###
 
-    return new_img, {
-        'xmin': x1,
-        'ymin': y1,
-        'xmax': x2,
-        'ymax': y2
-    }
-
+    return new_img, [x1, x2, y1, y2]
 
 def count_pixels(img):
     """Return the number of non-transparent pixels in the imported image weighted according

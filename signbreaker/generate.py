@@ -87,12 +87,23 @@ def new_data(synth_image_set, online=False):
 
     while total < nb_signs_in_img and fail < 40:
         synth_image = synth_image_set[total]
+    def get_fg(synth_image, online):
         if online is True:
             fg = synth_image.fg_image
         else:
             fg_path = synth_image.fg_path
             fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
         assert fg is not None, "Foreground image not found"
+        return fg
+
+    bboxes = []
+    total = 0   # signs placed so far
+    nb_signs_in_img = len(synth_image_set)  # Total number of signs attempting place
+    fail = 0    # attempts to place signs
+
+    while total < nb_signs_in_img and fail < 40:
+        synth_image = synth_image_set[total]
+        fg = get_fg(synth_image, online)
         
         if synth_image.fg_coords is not None and synth_image.fg_size is not None:
             x, y = synth_image.fg_coords
@@ -111,8 +122,36 @@ def new_data(synth_image_set, online=False):
             axes[2] += y
             axes[3] += y
             synth_image.bounding_axes = axes
+            do_place_below = True
         else:
             fail += 1
+
+        while do_place_below and total < nb_signs_in_img and fail < 40:
+            do_place_below = np.random.choice([True]*5 + [False]) and total < nb_signs_in_img
+            if not (do_place_below and total < nb_signs_in_img and bbox):
+                break
+            # position = (bbox['xmin'], bbox['ymax'])
+            synth_image = synth_image_set[total]
+            fg = get_fg(synth_image, online)
+
+            if (bbox[0] + new_size >= bg.shape[1]) or (bbox[3] + new_size >= bg.shape[0]):
+                break
+
+            # Uses same new_size as previous sign
+            bg, bbox = overlay_new(fg, bg, new_size, bboxes, bbox[0], bbox[3])
+            if bbox is not None:
+                bboxes.append(bbox)
+                total += 1
+                fg = cv2.resize(fg, (new_size, new_size))
+                axes = __bounding_axes(fg)  # Retrieve bounding axes of the sign image
+                axes[0] += x  # Adjusting bounding axis to make it relative to the whole bg image
+                axes[1] += x
+                axes[2] += y
+                axes[3] += y
+                synth_image.bounding_axes = axes
+            else:
+                fail += 1
+        
 
     image = bg
     return image, total
