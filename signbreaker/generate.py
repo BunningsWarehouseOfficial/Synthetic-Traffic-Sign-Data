@@ -85,8 +85,6 @@ def new_data(synth_image_set, online=False):
     nb_signs_in_img = len(synth_image_set)  # Total number of signs attempting place
     fail = 0    # attempts to place signs
 
-    while total < nb_signs_in_img and fail < 40:
-        synth_image = synth_image_set[total]
     def get_fg(synth_image, online):
         if online is True:
             fg = synth_image.fg_image
