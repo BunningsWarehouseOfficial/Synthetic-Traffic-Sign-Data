@@ -12,8 +12,8 @@ def main():
     import json
     from collections import defaultdict
     from pathlib import Path
-
     import glob
+    
     from PIL import ImageFile
     import numpy as np
     import cv2

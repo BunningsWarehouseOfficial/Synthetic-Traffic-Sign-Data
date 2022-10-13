@@ -9,9 +9,9 @@ final_op: dataset  # Either 'process', 'damage', 'transform', 'manipulate', or '
 tform_method: 3d_rotation
 
 # Number of (offline) transformations applied to each damaged sign template
-# fixed_affine transformations are ordered by intensity (i.e. t12 is more
+# `fixed_affine` transformations are ordered by intensity (i.e. t12 is more
 # visually similar to the original image than t1)
-num_transform: 11  # Range (only for fixed_affine): [1,11], default: 11
+num_transform: 11  # Range (only for `fixed_affine`): [1,11], default: 11
 
 # Parameters for transformation by 3d_rotation
 # tilt: 3D tilt rotation around the X and Y axes
