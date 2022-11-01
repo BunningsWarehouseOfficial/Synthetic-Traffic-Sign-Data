@@ -37,7 +37,7 @@ class SequenceEvaluation:
         self.pred_boxes = pred_boxes
         self.gt_boxes = sorted(gt_boxes, key=lambda x: x.image_id)
 
-    # TODO: These herustics currently aren't used anywhere, add them to new versions of downstream functions
+    # TODO: These heuristics currently aren't used anywhere, add them to new versions of downstream functions
     #       See here, search for 'heuristic': https://github.com/ai-research-students-at-curtin/Traffic-Sign-Damage-Detection-using-Synthesised-Training-Data/commit/ee2afa2687d3f35230539826bde784d101efb22f
     
     # Proposed heuristic 1: use the bounding box with the maximum score for each image sequence.    
@@ -91,7 +91,7 @@ def get_bounding_boxes(gt_detections, pred_detections):
                         for det in gt_detections]
     # pred detections array in format [image_id, xtl, ytl, width, height, score, class_id]
     pred_boxes = [BoundingBox(image_id=det[0], class_id=det[-1], xtl=det[1], ytl=det[2], xbr=det[1] + det[3], ybr=det[2] + det[4], score=det[5])
-                    for det in pred_detections]
+                    for det in pred_detections]  # TODO: score=det[5] may need to be det[-2] for detections with damage
     return gt_boxes, pred_boxes
 
 
@@ -154,6 +154,7 @@ def split_by_sequence(split_arr, num_frames):
 
 
 def metrics_by_param(gt_arr, pred_arr, num_frames=8, param='sequence'):
+    # Sort array by image_id
     gt_arr = gt_arr[np.argsort(gt_arr[:, 0])]
     pred_arr = pred_arr[np.argsort(pred_arr[:, 0])]
     
