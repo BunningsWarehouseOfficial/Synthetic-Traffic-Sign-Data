@@ -307,8 +307,8 @@ def overlay_new(fg, bg, new_size, x1=-1, y1=-1):
     # using the difference in image size, centring foreground on background
     if x1 == -1 or y1 == -1:
         # Start coordinates 
-        x1 = (width_BG - width_FG) // 4    # Floor division to truncate as
-        y1 = (height_BG - height_FG) // 4  # coordinates don't need to be exact
+        x1 = (width_BG - width_FG) // 2    # Floor division to truncate as
+        y1 = (height_BG - height_FG) // 2  # coordinates don't need to be exact
     # End coordinates
     x2 = x1 + width_FG
     y2 = y1 + height_FG
@@ -338,11 +338,11 @@ def overlay_new(fg, bg, new_size, x1=-1, y1=-1):
         blend_mask += mask * (1.0 / steps)
 
     # finds the pixels where the mask is white but the orginal is transparent
-    # This is for intentional holes in the mask that got closed
-    # e.g. bullet holes 
-    temp = (blend_mask[:,:,0] == 255) + (fg[:,:,3] == 0)  
-    temp = temp[..., np.newaxis]
-    blend_mask = np.where(temp, [0,0,0], blend_mask)
+    # This is for intentional holes in the mask that got closed, e.g. bullet holes 
+    temp = np.zeros((fg.shape[0:2]+ (3,)))
+    for i in range(3):
+        temp[:,:,i] = fg[:,:,3].astype(np.float32) / 255.0
+    blend_mask = np.where(blend_mask == (1,1,1), temp, blend_mask)
 
     fg = cv2.resize(fg, (width_FG, height_FG))
     blend_mask = cv2.resize(blend_mask, (width_FG, height_FG))

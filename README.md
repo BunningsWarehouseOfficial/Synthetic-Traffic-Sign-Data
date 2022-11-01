@@ -46,14 +46,15 @@ The generator can be configured by modifying the `config.yaml` file.
 Please allow for sufficient storage space when running the dataset generator. With the default config values and the below example inputs, the size of the dataset will be on the order of 1-100 GB depending on the inputs and config.
 
 **Example traffic sign templates** for data generation can be downloaded below. Place these templates into the `signbreaker/Sign_Templates/1_Input` directory. \
-[[download]](https://drive.google.com/file/d/1kMAPRSOs9RqAtQu6-fUEn1fqkazIC3Kt/view?usp=sharing) | GTSDB | classes matched using [German](https://en.wikipedia.org/wiki/Road_signs_in_Germany) Wikipedia templates sourced using `wikipedia_sign_templates.py`, with extra speed limit templates created manually using SVG editing software. Covers 43/43 classes. \
-[[download]](https://drive.google.com/file/d/1dALYTwtGMGrEXROh8KWBdLzH2_1Jxzmu/view?usp=sharing) | GTSDB | [UK](https://www.gov.uk/guidance/traffic-sign-images) templates used by Stergiou et al. in their paper. \
-[[download]](https://drive.google.com/file/d/19_muDfADDh83zwIndZE3bsfbFh9KrGKD/view?usp=sharing) | GTSDB | classes matched as closely as possible using [UK](https://www.gov.uk/guidance/traffic-sign-images) templates. Covers ~31/43 classes.
+[[download]](https://drive.google.com/file/d/1dALYTwtGMGrEXROh8KWBdLzH2_1Jxzmu/view?usp=sharing) | UK | [UK templates](https://www.gov.uk/guidance/traffic-sign-images)  used by Stergiou et al. in their paper. \
+[[download]](https://drive.google.com/file/d/19_muDfADDh83zwIndZE3bsfbFh9KrGKD/view?usp=sharing) | GTSDB | classes matched as closely as possible using [UK templates](https://www.gov.uk/guidance/traffic-sign-images). Covers ~31/43 classes. \
+[[download]](https://drive.google.com/file/d/1kMAPRSOs9RqAtQu6-fUEn1fqkazIC3Kt/view?usp=sharing) | GTSDB | classes matched using German [Wikipedia](https://en.wikipedia.org/wiki/Road_signs_in_Germany) and [Wikimedia Commons](https://commons.wikimedia.org/wiki/Historic_road_signs_in_Germany#1992%E2%80%932013) images. Covers 43/43 classes.
 
 **Example backgrounds** for data generation can be downloaded below. \
+[[download]](https://drive.google.com/file/d/1LvKXLakMttnXL7w4R3dl-dgmkv59cpQK/view?usp=sharing) | Google Images | UK Google Images backgrounds used by Stergiou et al. in their paper, suitable only for creating image patch datasets for recognition tasks. \
 [[download]](https://drive.google.com/file/d/1WCfWVruL0_WxnMaYJ-qzQD0cnFO478fh/view?usp=sharing) | GTSDB | 4 GTSDB background images for quick testing. \
-[[download]](https://drive.google.com/file/d/1dWkyX9-lGEE59odbthu3zFdZT9ksQ2nS/view?usp=sharing) | GTSDB | all 600 images from the GTSDB training set. \
-[[download]](https://drive.google.com/file/d/1LvKXLakMttnXL7w4R3dl-dgmkv59cpQK/view?usp=sharing) | GTSDB | UK Google Images backgrounds used by Stergiou et al. in their paper, suitable only for creating image patch datasets for recognition tasks.
+[[download]](https://drive.google.com/file/d/1dWkyX9-lGEE59odbthu3zFdZT9ksQ2nS/view?usp=sharing) | GTSDB | all 600 images from the GTSDB training set (warning: if used as is as backgrounds, synthetic data would contain unlabelled signs). \
+[[download]](https://drive.google.com/file/d/1navoOiHRhYhrIGgogp1TMoEg3QczvN85/view?usp=sharing) | Various | 1191 images taken from various sources with no visible traffic sign faces. See [here](https://github.com/dsphamgithub/tsda#synthetic-dataset-generation-code) for details.
 
 ## License
 - [ ] TODO: *Properly* update LICENSE file (sublicense?), then delete this heading
