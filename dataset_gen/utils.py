@@ -91,7 +91,7 @@ def convert_to_single_label(dataset_path, original_annotations, new_annotations,
         # Create a .npy file to store ground truths, for more efficient evaluation  
         if use_damages:
             # Format [image_id, xtl, ytl, width, height, damage_1, damage_2, ..., damage_n, class_id]
-            annotations_array =  []
+            annotations_array = []
             for ann in a_json['annotations']:
                 row = [ann["image_id"], ann["bbox"][0], ann["bbox"][1], ann["bbox"][2], ann["bbox"][3]]
                 row.extend(ann["sector_damage"])
