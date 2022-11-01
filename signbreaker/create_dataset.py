@@ -313,7 +313,7 @@ def main():
         classes = [int(Path(p).stem) for p in glob.glob(f'{processed_dir}{os.path.sep}*.png')]
         labels_dict = {'categories': [], 'images': [], 'annotations': []}
         labels_dict["categories"] += [{"id": 0, "name": "signs", "supercategory": "none"}]
-        labels_dict["categories"] += [{'id:': c, 'name': str(c), 'supercategory': 'signs'} for c in sorted(classes)]
+        labels_dict["categories"] += [{'id': c, 'name': str(c), 'supercategory': 'signs'} for c in sorted(classes)]
     about_path = os.path.join(final_dir, "generated_images_about.txt")
 
     # Clean and recreate the parent images directory
@@ -324,10 +324,10 @@ def main():
     total_gen = len(manipulated_data)
     print(f"Files to be generated: {total_gen}")
 
-    ii = 0
     labels_file = open(labels_path, "w")
     
-    for synth_image in manipulated_data:
+    sign_count = 0
+    for ii, synth_image in enumerate(manipulated_data):
         print(f"Generating files: {float(ii) / float(total_gen):06.2%}", end='\r')
         
         c_num = synth_image.class_num
@@ -342,19 +342,34 @@ def main():
 
         d_online = config['num_damages']['online']
         t_online = config['transforms']['online']
-        if d_online is True:
-            synth_image = damage_image(synth_image, damaged_dir, config, background_images, single_image=True)
-        if t_online is True and random.random() <= config['transforms']['prob']:
-            synth_image = tform_methods[t_method].transform(synth_image, None, 1)[0]
 
-        image = generate.new_data(synth_image, (d_online or t_online))
-        if labels_format == 'retinanet':
-            synth_image.write_label_retinanet(labels_file, damage_labelling)
-        elif labels_format == 'coco':
-            synth_image.write_label_coco(labels_dict, ii, 
-                                         os.path.relpath(final_fg_path, final_dir), image.shape, damage_labelling)
+        def manipulate_img(img):
+            if d_online is True:
+                img = damage_image(img, damaged_dir, config, background_images, single_image=True)
+            if t_online is True and random.random() <= config['transforms']['prob']:
+                img = tform_methods[t_method].transform(img, None, 1)[0]
+            return img
+
+        synth_image_set = [] # The list of images to overlay on the background. Only contains 1 if "multi_sign" is False
+        # TODO generate new signs to overlay
+        min_signs = config["multi_sign"]["min_extra_signs"]
+        max_signs = config["multi_sign"]["max_extra_signs"]
+        num_signs = random.randint(min_signs,max_signs) # Number of extra signs to add to the image
+        # Randomly damage and transform parts of the raw manipulated data
+        synth_image_set.append(manipulate_img(synth_image))
+        for img in random.sample(manipulated_data, num_signs):
+            synth_image_set.append(manipulate_img(img))
+        image, n_placed = generate.new_data(synth_image_set, (d_online or t_online))
+        synth_image_set = synth_image_set[:n_placed]  # In case the function fails to place all the signs
+        for img in synth_image_set:
+            if labels_format == 'retinanet':
+                #Todo multi sign labels for retinanet
+                synth_image.write_label_retinanet(labels_file, damage_labelling)
+            elif labels_format == 'coco':
+                img.write_label_coco(labels_dict, sign_count, ii, 
+                                            os.path.relpath(final_fg_path, final_dir), image.shape, damage_labelling)
+            sign_count += 1
         cv2.imwrite(final_fg_path, image, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
-        ii += 1
     print(f"Generating files: 100.0%\r\n")
     
     if labels_format == "coco":

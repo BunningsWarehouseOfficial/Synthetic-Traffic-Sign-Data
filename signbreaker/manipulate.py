@@ -614,19 +614,6 @@ class GammaExposureFastMan(AbstractManipulation):
         # print(f"original: {margin}")
         ##
         
-        import time  ##
-
-        # Pre-define gamma lookup tables to save processing time when > 1 brightness metrics are used
-        start = time.time()
-        gammas = [0.1, 0.2, 0.4, 0.67, 1.0, 1.5, 3.0, 5.0, 10.0]  # Using 3.0 and not 2.5 because the latter was not noticeable
-        g_lookups = []
-        for g in gammas:
-            # Adapted from: https://docs.opencv.org/3.4/d3/dc1/tutorial_basic_linear_transform.html
-            g_lookup = np.empty((1,256), np.uint8)
-            for i in range(256):  # Create look-up table for gamma correction
-                g_lookup[0,i] = np.clip(pow(i / 255.0, g) * 255.0, 0, 255)
-            g_lookups.append(g_lookup)
-        pretime = time.time() - start
 
         def find_gamma(bg_brightness: float, fg_brightness: float):
             """Iterate through pre-selected gamma values to minimise marginal brightness difference to background."""
@@ -634,7 +621,8 @@ class GammaExposureFastMan(AbstractManipulation):
             
             # Calculated estimated gamma required to match brightness with background
             # Inspired by: Babakhani, P., & Zarei, P. (2015). Automatic gamma correction based on average of brightness.
-            gamma = math.log10(bg_brightness / 255) / math.log10(fg_brightness / 255)
+            # min to stop sign turning completely white on white bg, max to stop math error from completely black bg
+            gamma = math.log10(min(max(bg_brightness,0.1),253) / 255) / math.log10(fg_brightness / 255)
 
             # Adapted from: https://docs.opencv.org/3.4/d3/dc1/tutorial_basic_linear_transform.html
             g_lookup = np.empty((1,256), np.uint8)

@@ -82,20 +82,21 @@ class SynthImage:
                               f"transform_type={self.transform_type} man_type={self.man_type} "
                               f"bg={self.bg_path}\n")
             
-    def write_label_coco(self, labels_dict, id, img_path, img_dims, damage_labelling=True):
+    def write_label_coco(self, labels_dict, sign_id, bg_id, img_path, img_dims, damage_labelling=True):
         axes = self.bounding_axes
-        labels_dict['images'].append({
-            "id": id,
-            "background_name": Path(self.bg_path).stem,
-            "license": 1,
-            "file_name": img_path,
-            "height": img_dims[0],
-            "width": img_dims[1],
-            "date_captured": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        })
+        if not any(dict['id'] == bg_id for dict in labels_dict['images']):
+            labels_dict['images'].append({
+                "id": bg_id,
+                "background_name": Path(self.bg_path).stem,
+                "license": 1,
+                "file_name": img_path,
+                "height": img_dims[0],
+                "width": img_dims[1],
+                "date_captured": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
         labels_dict['annotations'].append({
-            "id": id,
-            "image_id": id,
+            "id": sign_id,
+            "image_id": bg_id,
             "category_id": self.class_num,
             "bbox": [axes[0], axes[2], axes[1] - axes[0], axes[3] - axes[2]],
             "area": (axes[1] - axes[0]) * (axes[3] - axes[2]),
@@ -140,10 +141,10 @@ class SynthImage:
         new_size = int(fg_width * scale_factor)
         
         # Randomise sign placement within middle third of background
-        fg_x = random.randint(0, bg_width - new_size)
+        fg_x = random.randint(0, max(bg_width - new_size,1))
         third = bg_height // 3
         if(new_size>third):
-            fg_y = random.randint(0, bg_height-new_size)
+            fg_y = random.randint(0, max(bg_height-new_size,1))
         else:
             fg_y = random.randint(third, bg_height - third)
                 

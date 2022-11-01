@@ -276,8 +276,16 @@ def overlay(fg, bg, x1=-1, y1=-1):
     return new_img
 
 
+def has_intersection(x1, x2, y1, y2, bboxes):
+    for bbox in bboxes:
+        if x2 > bbox[0] and bbox[1] > x1:
+            if y2 > bbox[2] and bbox[3] > y1:
+                return True
+    return False
+
+
 # TODO: Make modular with other overlay
-def overlay_new(fg, bg, new_size, x1=-1, y1=-1):
+def overlay_new(fg, bg, new_size, bboxes, x1=-1, y1=-1):
     """Erodes and blends foreground into background removing transparency.
 
     Foreground iamge will be centred on background if x1 or y1 are omitted.
@@ -313,8 +321,12 @@ def overlay_new(fg, bg, new_size, x1=-1, y1=-1):
     x2 = x1 + width_FG
     y2 = y1 + height_FG
 
+    # Give up if there is an intersection
+    if bboxes is not None and has_intersection(x1, x2, y1, y2, bboxes):
+        return bg, None
+
     _, masktemp = cv2.threshold(fg[:, :, 3], 0, 255, cv2.THRESH_BINARY)
-    mask = np.ones((masktemp.shape + (3,)), dtype=np.uint8)
+    mask = np.ones((masktemp.shape + (3,)),dtype=np.uint8)
     mask = cv2.bitwise_and(mask, mask, mask=masktemp)
 
     ellipse = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(9,9))  # Large disk kernel for closing gaps
@@ -357,8 +369,7 @@ def overlay_new(fg, bg, new_size, x1=-1, y1=-1):
     new_img[y1:y2, x1:x2] = blended
     # ### End of code from Lucas Tabelini ###
 
-    return new_img
-
+    return new_img, [x1, x2, y1, y2]
 
 def count_pixels(img):
     """Return the number of non-transparent pixels in the imported image weighted according
