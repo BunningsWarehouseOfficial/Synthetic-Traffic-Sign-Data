@@ -202,19 +202,26 @@ def add_pole(filename, color):
 
     # Calculate coordinates
     midpt = width // 2
-    offset = width // 40
+    offset = width // 30
     x1, x2 = midpt - offset, midpt + offset
     y1, y2 = height, new_height
     # Draw the pole
     cv2.rectangle(new_img, (x1, y1), (x2, y2), color, cv2.FILLED)
 
+    # TODO: Use OpenCV to find sign centre of "mass" instead of using midpoint?
+
     # Colour any transparent pixels between the sign and the rectangle
     lim = 50  # Max alpha value for the pixel to be considered "transparent"
-    margin = int(round( height * 0.9 ))  # Loop over bottom 10% of the sign
-    for y in range(margin, height):
+    for y in range(height - 1, 0, -1):
+        w = x2+1 - x1
+        count = 0
         for x in range(x1, x2+1):  # Loop to x2 inclusive
             if new_img[y,x,3] < lim:
                 new_img[y,x] = color
+            else:
+                count += 1
+        if count == w:
+            break
 
     return new_img
 
@@ -294,14 +301,14 @@ def overlay_new(fg, bg, new_size, bboxes, x1=-1, y1=-1):
     # If the foreground doesn't have an alpha channel, add one
     if len(cv2.split(fg)) == 3:
         fg = cv2.cvtColor(fg, cv2.COLOR_RGB2RGBA)
-        fg[:, :, 3] = 255 # Keep it opaque
+        fg[:, :, 3] = 255  # Keep it opaque
     
     # Make a copy of the background for making changes
     new_img = bg.copy()
 
     # Retrieve image dimentions
-    height_FG = new_size 
     width_FG = new_size
+    height_FG = int(fg.shape[0] * (width_FG / fg.shape[1]))
     height_BG, width_BG, _ = bg.shape
 
     # If either of the coordinates were omitted, calculate start/end positions
@@ -318,20 +325,21 @@ def overlay_new(fg, bg, new_size, bboxes, x1=-1, y1=-1):
     if bboxes is not None and has_intersection(x1, x2, y1, y2, bboxes):
         return bg, None
 
-    ret, masktemp = cv2.threshold(fg[:, :, 3], 0, 255, cv2.THRESH_BINARY)
+    _, masktemp = cv2.threshold(fg[:, :, 3], 0, 255, cv2.THRESH_BINARY)
     mask = np.ones((masktemp.shape + (3,)),dtype=np.uint8)
     mask = cv2.bitwise_and(mask, mask, mask=masktemp)
 
-    ellipse = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(9,9)) # Large disk kernel for closing gaps
-    cross = cv2.getStructuringElement(cv2.MORPH_CROSS,(3,3))     # Small cross kernel for eroding edges 
+    ellipse = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(9,9))  # Large disk kernel for closing gaps
+    cross = cv2.getStructuringElement(cv2.MORPH_CROSS,(3,3))      # Small cross kernel for eroding edges 
     pad = 20
-    mask = cv2.copyMakeBorder(mask, pad, pad, pad, pad, cv2.BORDER_CONSTANT)  # padding to stop close morph_close from attaching to border 
+    # Padding to stop close morph_close from attaching to border 
+    mask = cv2.copyMakeBorder(mask, pad, pad, pad, pad, cv2.BORDER_CONSTANT)
 
-    mask = cv2.erode(mask, cross, iterations=2)  # erodes black border
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel=ellipse, iterations=5)  # smooths out mask
+    mask = cv2.erode(mask, cross, iterations=2)  # Erodes black border
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel=ellipse, iterations=5)  # Smooths out mask
     mask = mask[pad:-pad, pad:-pad]
 
-    steps = 3 # Controls how much of the image is eroded
+    steps = 3  # Controls how much of the image is eroded  # ? could be increased
 
     # ### Start of code referenced from Lucas Tabelini ###
     #   # https://github.com/LCAD-UFES/publications-tabelini-ijcnn-2019/blob/master/generate_dataset.py
@@ -342,16 +350,22 @@ def overlay_new(fg, bg, new_size, bboxes, x1=-1, y1=-1):
         blend_mask += mask * (1.0 / steps)
 
     # finds the pixels where the mask is white but the orginal is transparent
-    # This is for intentional holes in the mask that got closed. eg bullet holes 
+    # This is for intentional holes in the mask that got closed, e.g. bullet holes 
     temp = np.zeros((fg.shape[0:2]+ (3,)))
     for i in range(3):
         temp[:,:,i] = fg[:,:,3].astype(np.float32) / 255.0
     blend_mask = np.where(blend_mask == (1,1,1), temp, blend_mask)
 
-    fg = cv2.resize(fg, (new_size, new_size))
-    blend_mask = cv2.resize(blend_mask, (new_size, new_size))
+    fg = cv2.resize(fg, (width_FG, height_FG))
+    blend_mask = cv2.resize(blend_mask, (width_FG, height_FG))
 
-    blended = (new_img[y1:y2, x1:x2] * (1 - blend_mask)) + (fg[:, :, [0, 1, 2]] * blend_mask)
+    if y2 >= new_img.shape[0]:
+        # Allow extra length at bottom to go out of image (should only be sign poles that are cut off)
+        cutoff = new_img[y1:new_img.shape[0], x1:x2].shape[0]
+        blended = (new_img[y1:new_img.shape[0], x1:x2] * (1 - blend_mask[:cutoff, :]))
+        blended += (fg[:cutoff, :, [0, 1, 2]] * blend_mask[:cutoff, :])
+    else:
+        blended = (new_img[y1:y2, x1:x2] * (1 - blend_mask)) + (fg[:, :, [0, 1, 2]] * blend_mask)
     new_img[y1:y2, x1:x2] = blended
     # ### End of code from Lucas Tabelini ###
 

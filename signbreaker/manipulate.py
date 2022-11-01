@@ -8,7 +8,7 @@ import numpy as np
 import ntpath
 import os
 import math
-from utils import load_paths, dir_split, get_truncated_normal
+from utils import load_paths, dir_split, get_truncated_normal, add_pole
 from PIL import Image, ImageStat, ImageEnhance
 import random
 from synth_image import SynthImage
@@ -380,7 +380,7 @@ def image_exposure(img_grey, img_rgba):
 
 class AbstractManipulation(ABC):
     """Image brightness manipulation template pattern abstract class."""
-    def manipulate(self, transformed_data, background_paths, out_dir):
+    def manipulate(self, transformed_data, background_paths, out_dir, config):
         self.out_dir = out_dir
         sign_paths = [transformed.fg_path for transformed in transformed_data]
 
@@ -391,7 +391,10 @@ class AbstractManipulation(ABC):
             self.original_synth = transformed_data[ii]
             sign_path = sign_paths[ii]
 
-            fg = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
+            if config['poles']['add_poles'] is True:
+                fg = add_pole(sign_path, config['poles']['colour'])
+            else:
+                fg = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
 
             for jj in range(0, len(background_paths)):
                 print(f"Manipulating brightness of signs: {float(pr) / float(pr_total):06.2%}", end='\r')
@@ -422,11 +425,13 @@ class AbstractManipulation(ABC):
         save_dir = os.path.join(self.out_dir, sub, "BG_" + title, "SIGN_" + sign_dir, dmg_dir)
         os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
         save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
+        man_image = self.original_synth.clone()
         if 'numpy' in type(man_img).__module__:
             cv2.imwrite(save_path, man_img)
+            man_image.fg_size = man_img.shape[0]  # Account for any added poles
         elif 'PIL' in type(man_img).__module__:
             man_img.save(save_path)
-        man_image = self.original_synth.clone()
+            man_image.fg_size = man_img.size[1]  # Account for any added poles
         man_image.set_fg_path(save_path)
         man_image.set_manipulation(man_type)
         man_image.bg_path = self.bg_path

@@ -15,6 +15,9 @@ signbreaker/Signs
 *.png
 *.html
 *.txt
+!requirements.txt
 *.json
+*.npy
 signbreaker/*/*.yaml
 Wiki_*
+!Figures/*
