@@ -27,7 +27,7 @@ transforms:  # TODO: Rename to rotation_params? Would need to place `online` els
 # TODO: Currently only really tested with/suitable for 0 Z_range rotation; y rotation is good, x rotation is... okay...
 poles:
   # BUG: When [tranforms][online] is True, non-pole sign faces are used for final data generation
-  add_poles: True  # TODO: Replace with 'prob' which can be set to 0.0
+  add_poles: False  # TODO: Replace with 'prob' which can be set to 0.0
   colour: [201, 182, 167, 255]  # Colour is BGRA, not RGBA; A should be 255
   # METAL_GREY           = [201, 182, 167, 255]
   # WA_YELLOW_UNOFFICIAL = [0, 154, 193, 255]  # TODO: Try figure out the exact colour as defined by Main Roads
@@ -44,9 +44,10 @@ num_damages:
   no_damage: 2  # Max 1 when online=False
   quadrant: 1  # Max 4 when online=False
   big_hole: 1
-  graffiti: 2
-  stickers: 1    # Number of sticker to be overlayed
-  bullet_holes: 0
+  graffiti: 3
+  stickers: 3
+  bullet_holes: 2  # BUG: bullet_holes only creates 1 image when online=False
+  # Below damage types are not currently being used in experiments
   # FIXME: Extreme distortions generated when bend and 3D tilt rotations are mixed
   bend: 0  # Will make n different bends for *each* background if detect_light_source=True
   tint_yellow: 0
@@ -67,8 +68,8 @@ graffiti:  # Step size between damage levels is determined by num_damages above 
   solid: True   # Whether or not transparency is minimised through only alpha values of 255 and morphological dilation
 
 stickers:
-  max_stickers: 4
   min_stickers: 1
+  max_stickers: 15
 
 # Randomization seed (online damage application does not use this seed)
 seed: 7  # Use different seeds for generating train vs. eval datasets
@@ -79,6 +80,7 @@ bend:  # Bend may randomly be either a single-sided or double-sided bend
   max_bend: 60   # Level of bending performed (from 0 to 90 degrees)
 
 # Set both values to 0 to have just one sign per image
+# BUG: Activating multi_sign causes crash with 1 template and 1 background
 multi_sign: 
   min_extra_signs: 0  # Minimum number of additional signs overlaid onto each background
   max_extra_signs: 5  # Maximum number of additional signs to overlay onto each background

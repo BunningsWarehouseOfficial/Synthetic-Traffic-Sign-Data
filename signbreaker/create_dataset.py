@@ -106,6 +106,12 @@ def main():
     if g_params['initial'] > g_params['final']:
         raise ConfigError("Config error: 'graffiti:initial' must be <= 'graffiti:final'.\n")
 
+    s_params = config['stickers']
+    if (s_params['min_stickers'] <= 0 or s_params['max_stickers'] <= 0 or 
+            s_params['max_stickers'] < s_params['min_stickers']):
+        raise ConfigError(f"Config error: 'stickers' parameters must be > 0 and "
+                          f"'stickers:max_stickers' must be >= 'stickers:min_stickers'.\n")
+
     # TODO: Bounds checking for bend damage type
     
     if not config['reuse_data']['damage'] and config['reuse_data']['manipulate']:
@@ -350,11 +356,11 @@ def main():
                 img = tform_methods[t_method].transform(img, None, 1)[0]
             return img
 
-        synth_image_set = [] # The list of images to overlay on the background. Only contains 1 if "multi_sign" is False
-        # TODO generate new signs to overlay
+        synth_image_set = []  # List of images to overlay on the background; only contains 1 if "multi_sign" is False
+        # TODO: Generate new signs to overlay
         min_signs = config["multi_sign"]["min_extra_signs"]
         max_signs = config["multi_sign"]["max_extra_signs"]
-        num_signs = random.randint(min_signs,max_signs) # Number of extra signs to add to the image
+        num_signs = random.randint(min_signs,max_signs)  # Number of extra signs to add to the image
         # Randomly damage and transform parts of the raw manipulated data
         synth_image_set.append(manipulate_img(synth_image))
         for img in random.sample(manipulated_data, num_signs):
@@ -363,7 +369,7 @@ def main():
         synth_image_set = synth_image_set[:n_placed]  # In case the function fails to place all the signs
         for img in synth_image_set:
             if labels_format == 'retinanet':
-                #Todo multi sign labels for retinanet
+                # TODO: multi-sign labels for retinanet
                 synth_image.write_label_retinanet(labels_file, damage_labelling)
             elif labels_format == 'coco':
                 img.write_label_coco(labels_dict, sign_count, ii, 

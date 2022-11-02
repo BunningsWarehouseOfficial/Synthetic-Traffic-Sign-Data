@@ -21,3 +21,4 @@ signbreaker/Signs
 signbreaker/*/*.yaml
 Wiki_*
 !Figures/*
+*.ipynb

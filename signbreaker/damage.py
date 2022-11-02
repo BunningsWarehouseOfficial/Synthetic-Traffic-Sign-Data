@@ -128,7 +128,8 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
             return apply_damage(dmg, att)
     elif n_dmgs['bullet_holes'] > 0:
         hole_counts = rand.sample(
-            range(b_conf['min_holes'], b_conf['max_holes'], 5), n_dmgs['quadrant'])
+            range(b_conf['min_holes'], b_conf['max_holes']), n_dmgs['bullet_holes'])
+        print(hole_counts, '\n')
         for num_holes in hole_counts:
             dmg, att = bullet_holes(img, int(num_holes), b_conf['target'])
             apply_damage(dmg, att)
@@ -211,17 +212,18 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
             dmg, att = graffiti(img, target=t, color=(0,0,0), solid=g_conf['solid'])
             apply_damage(dmg, att)
     
-    # Stickers
-    s_config = config["stickers"]
+    # STICKERS
+    s_config = config['stickers']
     if single_image:
         p_thresh += n_dmgs['stickers'] / total_p
         if p < p_thresh:
-            dmg, att = sticker(img, rand.randint(s_config["min_stickers"], s_config["max_stickers"]))
+            dmg, att = sticker(img, rand.randint(s_config['min_stickers'], s_config['max_stickers']))
             return apply_damage(dmg, att)
     elif n_dmgs['stickers'] > 0:
-        num_stickers = rand.randint(s_config["min_stickers"], s_config["max_stickers"])
-        for s in range(num_stickers):
-            dmg, att = sticker(img, s)
+        sticker_counts = rand.choices(
+            range(s_config['min_stickers'], s_config['max_stickers'] + 1), k=n_dmgs['stickers'])
+        for ii, num_stickers in enumerate(sticker_counts):
+            dmg, att = sticker(img, num_stickers, ii)
             apply_damage(dmg, att)
 
     # TINTED YELLOW
@@ -455,26 +457,29 @@ def bullet_holes(img, num_holes=40, target=-1):
 
     return dmg, att
 
-def sticker(img, n=1):
+def sticker(img, num_stickers=1, iteration=0):
     """overlay arbitrary images over sign"""
-    dmg = validate_sign(img)
+    dmg = validate_sign(img).copy()
     bg_x, bg_y = img.shape[0:2]
 
     stickerList = []
-    for file in os.listdir("stickers"):
+    for file in os.listdir("Stickers"):
         if file.endswith(".png"):
             stickerList.append(file)
+    if len(stickerList) == 0:
+        raise ValueError(f"Error: Stickers directory must be populated to proceed. "
+                         f"A link to example data can be found in the README.\n")
 
-    for i in range(n):
+    for ii in range(num_stickers):
         sticker_name = rand.choice(stickerList)
-        sticker_path = os.path.join("stickers",sticker_name)
+        sticker_path = os.path.join("stickers", sticker_name)
         sticker = cv.imread(sticker_path, cv.IMREAD_UNCHANGED)
         
         if sticker.shape[-1] == 3:
             sticker = cv.cvtColor(sticker, cv.COLOR_RGB2RGBA)
 
-        scale_heigth = rand.randint(img.shape[0]/8, img.shape[0]/4)  # The height that the image will be scaled to
-        scale_factor = scale_heigth/sticker.shape[1] # percent of original size
+        scale_height = rand.randint(img.shape[0]/8, img.shape[0]/4)  # The height that the image will be scaled to
+        scale_factor = scale_height / sticker.shape[1]  # Percent of original size
         width = int(sticker.shape[1] * scale_factor)
         height = int(sticker.shape[0] * scale_factor)
         dim = (width, height)
@@ -495,8 +500,8 @@ def sticker(img, n=1):
 
     # Assign labels
     att = attributes
-    att["damage_type"]  = "sticker"
-    att["tag"]          = str(n)  # TODO: put a list of sticker names?
+    att["damage_type"]  = "stickers"
+    att["tag"]          = f"{str(num_stickers)}_{iteration}"  # TODO: put a list of sticker names?
     att["damage_ratio"] = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
     att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
 
