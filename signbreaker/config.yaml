@@ -66,6 +66,7 @@ graffiti:  # Step size between damage levels is determined by num_damages above 
   final: 0.6    # Level of damage to stop at (relevant when online=False)
   max: 0.8      # Max graffiti coverage (relevant when online=True); uses trunc. norm. with mu=max/4, sd=max/3
   solid: True   # Whether or not transparency is minimised through only alpha values of 255 and morphological dilation
+  colour_p: 0.6  # Probability of using a random colour for graffiti, otherwise use black
 
 stickers:
   min_stickers: 1
@@ -81,7 +82,8 @@ bend:  # Bend may randomly be either a single-sided or double-sided bend
 
 # Set both values to 0 to have just one sign per image
 # BUG: Activating multi_sign causes crash with 1 template and 1 background
-multi_sign: 
+multi_sign:
+  # TODO: Include probability variable for having image with 0 signs
   min_extra_signs: 0  # Minimum number of additional signs overlaid onto each background
   max_extra_signs: 5  # Maximum number of additional signs to overlay onto each background
 
@@ -91,7 +93,7 @@ multi_sign:
 # but varied shading and angle do you want over the same background image?
 prune_dataset:
   prune: True
-  max_images: 1
+  max_images: 1  # FIXME: Buggy when using online modes; e.g. try value other than 1
 
 # Parameters defining the annotation type, and whether damage labelling is used
 annotations:

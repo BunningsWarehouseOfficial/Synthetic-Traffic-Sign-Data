@@ -129,7 +129,6 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
     elif n_dmgs['bullet_holes'] > 0:
         hole_counts = rand.sample(
             range(b_conf['min_holes'], b_conf['max_holes']), n_dmgs['bullet_holes'])
-        print(hole_counts, '\n')
         for num_holes in hole_counts:
             dmg, att = bullet_holes(img, int(num_holes), b_conf['target'])
             apply_damage(dmg, att)
@@ -197,6 +196,13 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
 
     # GRAFFITI
     g_conf = config['graffiti']
+    def pick_colour():
+        colour_p = rand.random()
+        if colour_p < g_conf['colour_p']:
+            g_colour = (rand.randint(0, 255), rand.randint(0, 255), rand.randint(0, 255))
+        else:
+            g_colour = (0,0,0)
+        return g_colour
     if single_image:
         p_thresh += n_dmgs['graffiti'] / total_p
         if p < p_thresh:
@@ -204,12 +210,12 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
             mu, sigma = g_conf['max']/4, g_conf['max']/3
             X = stats.truncnorm(
                 (l - mu) / sigma, (u - mu) / sigma, loc=mu, scale=sigma)
-            dmg, att = graffiti(img, target=X.rvs(1)[0], color=(0,0,0), solid=g_conf['solid'])
+            dmg, att = graffiti(img, target=X.rvs(1)[0], color=pick_colour(), solid=g_conf['solid'])
             return apply_damage(dmg, att)
     elif n_dmgs['graffiti'] > 0:
         targets = np.linspace(g_conf['initial'], g_conf['final'], n_dmgs['graffiti'])
         for t in targets:
-            dmg, att = graffiti(img, target=t, color=(0,0,0), solid=g_conf['solid'])
+            dmg, att = graffiti(img, target=t, color=pick_colour(), solid=g_conf['solid'])
             apply_damage(dmg, att)
     
     # STICKERS
