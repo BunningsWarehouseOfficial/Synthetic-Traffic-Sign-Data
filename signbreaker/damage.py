@@ -384,7 +384,7 @@ def remove_hole(img, angle=-1):
 
     if angle == -1:
         angle = rand.randint(0, 359)
-    radius = int(2 * height / 5)
+    radius = int(0.4 * height)
     rad = -(angle * math.pi / 180)  # Radians
     x = centre_x + int(radius * math.cos(rad))  # x-coordinate of centre
     y = centre_y + int(radius * math.sin(rad))  # y-coordinate of centre

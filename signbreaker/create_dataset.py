@@ -258,34 +258,37 @@ def main():
     ####################################
     ###  MANIPULATING EXPOSURE/FADE  ###
     ####################################
-    reusable = config['reuse_data']['manipulate']
-    data_file_path = os.path.join(manipulated_dir, "manipulated_data.npy")
-    if not reusable:
-        if os.path.exists(manipulated_dir):
-            shutil.rmtree(manipulated_dir)
-        os.mkdir(manipulated_dir)
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
+    for bg_folders in load_paths(bg_dir):
+        to_png(bg_folders)
+    print('\n', end='')
+    background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True)
 
-        ImageFile.LOAD_TRUNCATED_IMAGES = True
-        for bg_folders in load_paths(bg_dir):
-            to_png(bg_folders)
-        print('\n', end='')
+    m_method = config['man_method']
+    if config['man_online'] is False:
+        reusable = config['reuse_data']['manipulate']
+        data_file_path = os.path.join(manipulated_dir, "manipulated_data.npy")
+        if not reusable:  # NOTE: Encapsulating reusable check within online check is different to damaging step
+            if os.path.exists(manipulated_dir):
+                shutil.rmtree(manipulated_dir)
+            os.mkdir(manipulated_dir)
             
-        background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True)
-        
-        m_method = config['man_method']
-        manipulated_data = man_methods[m_method].manipulate(transformed_data, background_paths, manipulated_dir, config)
-        if m_method == 'exposure':
-            manipulate.find_useful_signs(manipulated_data, damaged_dir)
+            manipulated_data = man_methods[m_method].manipulate(transformed_data, background_paths, manipulated_dir)
+            if m_method == 'exposure':
+                manipulate.find_useful_signs(manipulated_data, damaged_dir)
 
-        # Delete SynthImage objects for any signs that were removed
-        manipulated_data[:] = [x for x in manipulated_data if os.path.exists(x.fg_path)]
-        np.save(data_file_path, manipulated_data, allow_pickle=True)
+            # Delete SynthImage objects for any signs that were removed
+            manipulated_data[:] = [x for x in manipulated_data if os.path.exists(x.fg_path)]
+            np.save(data_file_path, manipulated_data, allow_pickle=True)
+        else:
+            manipulated_data = np.load(data_file_path, allow_pickle=True)
+            print("Reusing pre-existing manipulated signs.\n")
     else:
-        manipulated_data = np.load(data_file_path, allow_pickle=True)
-        print("Reusing pre-existing manipulated signs.\n")
+        manipulated_data = man_methods[m_method].link_backgrounds(transformed_data, background_paths)
+        print("Manipulating signs on-the-fly in file generation step.\n")
     
     # Prune dataset by randomly sampling from manipulated images
-    if config['prune_dataset']['prune']:
+    if config['prune_dataset']['prune'] and not config['man_online']:
         max_images = config['prune_dataset']['max_images']
         images_dict = defaultdict(list)
         for img in manipulated_data:
@@ -348,28 +351,34 @@ def main():
 
         d_online = config['num_damages']['online']
         t_online = config['transforms']['online']
+        m_online = config['man_online']
 
         def manipulate_img(img):
             if d_online is True:
                 img = damage_image(img, damaged_dir, config, background_images, single_image=True)
             if t_online is True and random.random() <= config['transforms']['prob']:
-                img = tform_methods[t_method].transform(img, None, 1)[1]  # TODO: [1] is always same for fixed_affine
+                img = tform_methods[t_method].transform(img, None, 1)[1]
+            if m_online is True:
+                img = man_methods[m_method].manipulate_single(img)
             return img
 
         synth_image_set = []  # List of images to overlay on the background; only contains 1 if "multi_sign" is False
-        # TODO: Generate new signs to overlay
         min_signs = config["multi_sign"]["min_extra_signs"]
         max_signs = config["multi_sign"]["max_extra_signs"]
-        num_signs = random.randint(min_signs,max_signs)  # Number of extra signs to add to the image
+        num_signs = random.randint(min_signs, max_signs)  # Number of extra signs to add to the image
         # Randomly damage and transform parts of the raw manipulated data
         synth_image_set.append(manipulate_img(synth_image))
-        for img in random.sample(manipulated_data, num_signs):
-            synth_image_set.append(manipulate_img(img))
-        image, n_placed = generate.new_data(synth_image_set, (d_online or t_online))
+        if m_online is True:
+            for img in random.choices(manipulated_data, k=num_signs):  # Choose with replacement (likely only 1)
+                synth_image_set.append(manipulate_img(img))
+        else:
+            for img in random.sample(manipulated_data, num_signs):  # Choose without replacement
+                synth_image_set.append(manipulate_img(img))
+        image, n_placed = generate.new_data(synth_image_set, (d_online or t_online or m_online))
         synth_image_set = synth_image_set[:n_placed]  # In case the function fails to place all the signs
         for img in synth_image_set:
             if labels_format == 'retinanet':
-                # TODO: multi-sign labels for retinanet
+                # TODO: Multi-sign labels for retinanet
                 synth_image.write_label_retinanet(labels_file, damage_labelling)
             elif labels_format == 'coco':
                 img.write_label_coco(labels_dict, sign_count, ii, 

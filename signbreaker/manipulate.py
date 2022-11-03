@@ -395,7 +395,7 @@ def image_exposure(img_grey, img_rgba):
 
 class AbstractManipulation(ABC):
     """Image brightness manipulation template pattern abstract class."""
-    def manipulate(self, transformed_data, background_paths, out_dir, config):
+    def manipulate(self, transformed_data, background_paths, out_dir):
         self.out_dir = out_dir
         sign_paths = [transformed.fg_path for transformed in transformed_data]
 
@@ -411,10 +411,9 @@ class AbstractManipulation(ABC):
             else:
                 fg = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
 
-            for jj in range(0, len(background_paths)):
+            for jj in range(len(background_paths)):
                 print(f"Manipulating brightness of signs: {float(pr) / float(pr_total):06.2%}", end='\r')
-                bg_path = background_paths[jj]
-                self.bg_path   = bg_path
+                self.bg_path   = background_paths[jj]
                 self.sign_path = sign_path
 
                 self.manipulation(fg)
@@ -422,6 +421,33 @@ class AbstractManipulation(ABC):
 
         print("Manipulating brightness of signs: 100.0%\r\n")
         return self.man_images
+
+    def link_backgrounds(self, transformed_data, background_paths):
+        """Links backgrounds to the transformed data."""
+        man_images = []
+        for synth in transformed_data:
+            for bg_path in background_paths:
+                new_synth = synth.clone()
+                new_synth.bg_path = bg_path
+                man_images.append(new_synth)
+        return man_images
+
+    def manipulate_single(self, transformed_synth):  # TODO: Replicate approach with transformations
+        """Manipulate a single sign across all provided backgrounds."""
+        self.original_synth = transformed_synth
+        sign_path = transformed_synth.fg_path
+
+        if config['poles']['add_poles'] is True:
+            fg = add_pole(sign_path, config['poles']['colour'])
+        else:
+            fg = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
+
+        self.bg_path = transformed_synth.bg_path
+        self.sign_path = sign_path
+
+        self.man_images = []
+        self.manipulation(fg)
+        return random.choice(self.man_images)
 
     def save_synth(self, man_img, man_type):
         _, sub, el = dir_split(self.bg_path)
@@ -437,19 +463,27 @@ class AbstractManipulation(ABC):
         else:
             raise ValueError(f"Not enough values to unpack (expected 5 or 4, got {len(splits)})")
 
-        save_dir = os.path.join(self.out_dir, sub, "BG_" + title, "SIGN_" + sign_dir, dmg_dir)
-        os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
-        save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
         man_image = self.original_synth.clone()
         if 'numpy' in type(man_img).__module__:
-            cv2.imwrite(save_path, man_img)
             man_image.fg_size = man_img.shape[0]  # Account for any added poles
         elif 'PIL' in type(man_img).__module__:
-            man_img.save(save_path)
             man_image.fg_size = man_img.size[1]  # Account for any added poles
-        man_image.set_fg_path(save_path)
         man_image.set_manipulation(man_type)
-        man_image.bg_path = self.bg_path
+        if not config['man_online']:
+            save_dir = os.path.join(self.out_dir, sub, "BG_" + title, "SIGN_" + sign_dir, dmg_dir)
+            os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
+            save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
+            man_image.set_fg_path(save_path)
+            if 'numpy' in type(man_img).__module__:
+                cv2.imwrite(save_path, man_img)
+            elif 'PIL' in type(man_img).__module__:
+                man_img.save(save_path)
+            man_image.bg_path = self.bg_path
+        else:
+            if 'numpy' in type(man_img).__module__:
+                man_image.set_fg_image(man_img)
+            elif 'PIL' in type(man_img).__module__:
+                man_image.set_fg_image(cv2.cvtColor(np.array(man_img), cv2.COLOR_RGBA2BGRA) )
         return man_image
     
     @abstractmethod
