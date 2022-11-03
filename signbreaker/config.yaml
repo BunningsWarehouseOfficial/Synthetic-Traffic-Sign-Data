@@ -55,9 +55,10 @@ num_damages:
   no_damage: 2  # Max 1 when online=False
   quadrant: 1  # Max 4 when online=False
   big_hole: 1
+  bullet_holes: 2
   graffiti: 3
   stickers: 3
-  bullet_holes: 2
+  overlays: 3
   # Below damage types are not currently being used in experiments
   # FIXME: Extreme distortions generated when bend and 3D tilt rotations are mixed
   bend: 0  # Will make n different bends for *each* background if detect_light_source=True

@@ -407,6 +407,7 @@ class AbstractManipulation(ABC):
             sign_path = sign_paths[ii]
 
             if config['poles']['add_poles'] is True:
+                # FIXME: add_pole no longer works with fg_path, set to use fg_image for online
                 fg = add_pole(sign_path, config['poles']['colour'])
             else:
                 fg = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
@@ -435,18 +436,17 @@ class AbstractManipulation(ABC):
     def manipulate_single(self, transformed_synth):  # TODO: Replicate approach with transformations
         """Manipulate a single sign across all provided backgrounds."""
         self.original_synth = transformed_synth
-        sign_path = transformed_synth.fg_path
+        sign = transformed_synth.fg_image
 
         if config['poles']['add_poles'] is True:
-            fg = add_pole(sign_path, config['poles']['colour'])
-        else:
-            fg = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
+            fg = add_pole(sign, config['poles']['colour'])
 
         self.bg_path = transformed_synth.bg_path
-        self.sign_path = sign_path
+        # NOTE: Results in the same undamaged sign's exposure being used for all bgs assuming all steps are online
+        self.sign_path = transformed_synth.fg_path
 
         self.man_images = []
-        self.manipulation(fg)
+        self.manipulation(sign)
         return random.choice(self.man_images)
 
     def save_synth(self, man_img, man_type):

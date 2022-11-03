@@ -195,10 +195,9 @@ def resize(img1, img2):
     return img1, img2
 
 
-def add_pole(filename, color):
+def add_pole(img, color):
     """Adds a pole to the imported sign."""
-    img = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
-    # Retrieve image dimentions and calculate the new height
+    # Retrieve image dimensions and calculate the new height
     height, width, _ = img.shape  # Discard channel
     new_height = height * 3
 
