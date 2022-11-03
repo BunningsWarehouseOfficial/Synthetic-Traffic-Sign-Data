@@ -130,22 +130,34 @@ class SynthImage:
             raise TypeError(f"man_type={man_type} is invalid: must be valid string")
         
     @staticmethod
-    def gen_sign_coords(bg_dims, fg_dims):
-        """Randomly generate sign coordinates and sign size."""
+    def gen_sign_coords(bg_dims, fg_dims, min_ratio=0.033, max_ratio=0.099, middle_third=True):
+        """Randomly generate sign coordinates and sign size. The latter is
+        determined using the ratio of the foreground's width to that of the
+        background.
+
+        Keyword Arguments:
+            min_ratio {float} -- Min. ratio of image width (default: {0.033})
+            max_ratio {float} -- Max. ratio of image width (default: {0.099})
+            middle_third {bool} -- Whether to restrict sign placement to the
+                vertical middle third of background (default: {True})
+        """
         bg_height, bg_width = bg_dims
         _, fg_width = fg_dims
         
         current_ratio = fg_width / bg_width  
-        target_ratio = random.uniform(0.033, 0.099)
+        target_ratio = random.uniform(min_ratio, max_ratio)
         scale_factor = target_ratio / current_ratio
         new_size = int(fg_width * scale_factor)
         
         # Randomise sign placement within middle third of background
-        fg_x = random.randint(0, max(bg_width - new_size,1))
+        fg_x = random.randint(0, max(bg_width - new_size, 1))
         third = bg_height // 3
-        if(new_size>third):
-            fg_y = random.randint(0, max(bg_height-new_size,1))
+        if new_size > third:
+            fg_y = random.randint(0, max(bg_height - new_size, 1))
         else:
-            fg_y = random.randint(third, bg_height - third)
+            if middle_third:
+                fg_y = random.randint(third, bg_height - third)
+            else:
+                fg_y = random.randint(0, max(bg_height - new_size, 1))
                 
         return fg_x, fg_y, new_size

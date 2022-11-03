@@ -1,5 +1,10 @@
-# The width of the square to which sign images will be scaled
+# The width of the square to which sign images will be scaled during processing
 sign_width: 480  # Recommended: 240 or 480 for GTSDB Wikipedia templates
+
+sign_placement:
+  min_ratio: 0.02  # Minimum ratio of sign width to background width
+  max_ratio: 0.12
+  middle_third: False  # Whether to restrict placement to vertical middle third of image
 
 # BUG: preprocessing breaks with AUS diamond warning signs
 # When to stop the program, in the case that not all the sequential steps are required

@@ -109,7 +109,13 @@ def new_data(synth_image_set, online=False):
             x, y = synth_image.fg_coords
             new_size = synth_image.fg_size
         else:
-            x, y, new_size = SynthImage.gen_sign_coords(bg.shape[:2], fg.shape[:2])
+            x, y, new_size = SynthImage.gen_sign_coords(
+                bg.shape[:2],
+                fg.shape[:2],
+                config['sign_placement']['min_ratio'],
+                config['sign_placement']['max_ratio'],
+                config['sign_placement']['middle_third'],
+            )
 
         bg, bbox = overlay_new(fg, bg, new_size, bboxes, x, y)
         if bbox is not None:

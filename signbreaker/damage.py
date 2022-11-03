@@ -160,7 +160,13 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
                     light_x, light_y = bg.light_coords
                     intensity = bg.light_intensity
                     fg_height, fg_width = img.shape[:2]
-                    fg_x, fg_y, fg_size = SynthImage.gen_sign_coords(bg.shape[:2], (fg_height, fg_width))
+                    fg_x, fg_y, fg_size = SynthImage.gen_sign_coords(
+                        bg.shape[:2],
+                        (fg_height, fg_width),
+                        config['sign_placement']['min_ratio'],
+                        config['sign_placement']['max_ratio'],
+                        config['sign_placement']['middle_third'],
+                    )
                     
                     # Calculate beta difference
                     vec1 = np.array([math.cos(math.radians(90-axis)), math.sin(math.radians(90-axis))])

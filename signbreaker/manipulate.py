@@ -131,7 +131,7 @@ class RotationTransform(AbstractTransform):
         :param f: focal distance (distance between camera and image)
         referenced from
         http://jepsonsblog.blogspot.com/2012/11/rotation-in-3d-using-opencvs.html
-        """
+        """  # TODO: Convert docstring to pep8 typed style (docblockr)
         # Convert to radians and start on x axis?
         alpha = math.radians(alpha)
         beta  = math.radians(beta)
