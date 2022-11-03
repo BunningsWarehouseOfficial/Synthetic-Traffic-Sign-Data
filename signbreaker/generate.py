@@ -1,13 +1,21 @@
 """Module of functions for generating a synthetic manipulated sign dataset."""
 
 import os
-from utils import load_paths, dir_split, overlay, overlay_new
 from datetime import datetime
+import random
+import yaml
+
 import imutils
 import cv2
-import random
 import numpy as np
+
+from utils import load_paths, dir_split, overlay, overlay_new
 from synth_image import SynthImage
+
+# Open config file
+with open("config.yaml", "r") as ymlfile:
+    config = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
 
 def __has_opaque_pixel(line):
     """Checks if a line of pixels contains a pixel above a transparency threshold."""
@@ -19,7 +27,7 @@ def __has_opaque_pixel(line):
             break  # Stop searching if one is found
     return opaque
 
-def __bounding_axes(img):
+def bounding_axes(img):  # TODO: Attempt speedup by making this function a regionprops wrapper
     """Returns the bounding axes of an image with a transparent background."""
     # Top axis
     y_top = 0
@@ -79,11 +87,6 @@ def new_data(synth_image_set, online=False):
     bg_path = synth_image_set[0].bg_path
     bg = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
     assert bg is not None, "Background image not found"
-    
-    bboxes = []
-    total = 0   # signs placed so far
-    nb_signs_in_img = len(synth_image_set)  # Total number of signs attempting place
-    fail = 0    # attempts to place signs
 
     def get_fg(synth_image, online):
         if online is True:
@@ -95,10 +98,9 @@ def new_data(synth_image_set, online=False):
         return fg
 
     bboxes = []
-    total = 0   # signs placed so far
-    nb_signs_in_img = len(synth_image_set)  # Total number of signs attempting place
-    fail = 0    # attempts to place signs
-
+    total = 0   # Signs placed so far
+    nb_signs_in_img = len(synth_image_set)  # Total number of signs attempting to place
+    fail = 0    # Attempts to place signs
     while total < nb_signs_in_img and fail < 40:
         synth_image = synth_image_set[total]
         fg = get_fg(synth_image, online)
@@ -114,16 +116,18 @@ def new_data(synth_image_set, online=False):
             bboxes.append(bbox)
             total += 1
             fg = cv2.resize(fg, (new_size, new_size))
-            axes = __bounding_axes(fg)  # Retrieve bounding axes of the sign image
+            axes = bounding_axes(fg)  # Retrieve bounding axes of the sign image
             axes[0] += x  # Adjusting bounding axis to make it relative to the whole bg image
             axes[1] += x
             axes[2] += y
             axes[3] += y
             synth_image.bounding_axes = axes
-            do_place_below = True
+            do_place_below = config['vertical_grid_placement']
         else:
             fail += 1
 
+        # Place signs side-by-side in grid pattern
+        # TODO: Add horizontal placement, currently only does vertical placement
         while do_place_below and total < nb_signs_in_img and fail < 40:
             do_place_below = np.random.choice([True]*5 + [False]) and total < nb_signs_in_img
             if not (do_place_below and total < nb_signs_in_img and bbox):
@@ -141,7 +145,7 @@ def new_data(synth_image_set, online=False):
                 bboxes.append(bbox)
                 total += 1
                 fg = cv2.resize(fg, (new_size, new_size))
-                axes = __bounding_axes(fg)  # Retrieve bounding axes of the sign image
+                axes = bounding_axes(fg)  # Retrieve bounding axes of the sign image
                 axes[0] += x  # Adjusting bounding axis to make it relative to the whole bg image
                 axes[1] += x
                 axes[2] += y
@@ -149,13 +153,12 @@ def new_data(synth_image_set, online=False):
                 synth_image.bounding_axes = axes
             else:
                 fail += 1
-        
 
     image = bg
     return image, total
 
 
-#TODO: These two functions should be one function always include background using classes?
+# TODO: These two functions should be one function always include background using classes?
 # List of paths for all SGTSD relevant files using exposure_manipulation
 def paths_list(imgs_directory, bg_directory):
     directories = []
@@ -170,7 +173,7 @@ def paths_list(imgs_directory, bg_directory):
     return directories  # Directory for every single FILE and it's relevant bg FILE
 
 # List of paths for all SGTSD relevant files using fade_manipulation; backgrounds are assigned to 
-def assigned_paths_list(imgs_directory, bg_directory):  #TODO: is this the same as above?
+def assigned_paths_list(imgs_directory, bg_directory):  # TODO: Is this the same as above?
     directories = []
     for places in load_paths(bg_directory):  # Folder for each place: eg. GTSDB
         for imgs in load_paths(places):  # Iterate through each b.g. image: eg. IMG_0

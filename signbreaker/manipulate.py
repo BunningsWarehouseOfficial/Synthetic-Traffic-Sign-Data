@@ -3,20 +3,24 @@
 # (https://github.com/alexandrosstergiou/Traffic-Sign-Recognition-basd-on-Synthesised-Training-Data)
 
 from abc import ABC, abstractmethod
-import cv2
-import numpy as np
 import ntpath
 import os
 import math
-from utils import load_paths, dir_split, get_truncated_normal, add_pole
-from PIL import Image, ImageStat, ImageEnhance
 import random
-from synth_image import SynthImage
-
-# Open and validate config file
 import yaml
+
+import cv2
+import numpy as np
+from PIL import Image, ImageStat, ImageEnhance
+
+from utils import load_paths, dir_split, get_truncated_normal, add_pole, scale_img
+from synth_image import SynthImage
+from generate import bounding_axes
+
+# Open config file
 with open("config.yaml", "r") as ymlfile:
     config = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
 
 ##################################
 ###  TRANSFORMATION FUNCTIONS  ###
@@ -33,6 +37,7 @@ class AbstractTransform(ABC):
 
         self.num_transformed = 0
         tform_imgs = []  # Collection of transformed images
+        tform_imgs.append(self.blank_transformation(img))
         for ii in range(num_transform):
             tform_img, descriptor = self.transformation(img)
             tform_imgs.append((tform_img, descriptor))
@@ -72,6 +77,11 @@ class AbstractTransform(ABC):
                 transformed_images.append(transformed_image)
         return transformed_images
 
+    def blank_transformation(self, img):
+        """Return the original image."""
+        # self.num_transformed += 1
+        return img, "original"
+
     @abstractmethod
     def transformation(self, img):
         pass
@@ -101,6 +111,11 @@ class RotationTransform(AbstractTransform):
         dz *= 2
 
         dest = self.rotate_image(img, angle[0], angle[1], angle[2], 0, 0, dz, f)
+        # Resize the image to the original size
+        # x_left, x_right, y_top, y_bottom = bounding_axes(dest)
+        # dest = dest[y_top:y_bottom+1, x_left:x_right+1]  # Crop blank edges
+        # dest_pil = scale_img(Image.fromarray(cv2.cvtColor(dest, cv2.COLOR_BGRA2RGBA)), config['sign_width'])
+        # dest = cv2.cvtColor(np.array(dest_pil), cv2.COLOR_RGBA2BGRA)
         self.num_transformed += 1
         return dest, f"{angle[0]:.2f}_{angle[1]:.2f}_{angle[2]:.2f}"
         
@@ -187,8 +202,8 @@ class FixedAffineTransform(AbstractTransform):
 
         # Transform function names are numbered in order of (my subjective) significance in visual difference
         #[0] 0 FORWARD FACING
-        def t0():
-            return img
+        # def t0():
+        #     return img
 
         #[3] 1 EAST FACING
         def t3():
@@ -320,7 +335,7 @@ class FixedAffineTransform(AbstractTransform):
             return cv2.warpAffine(img,M,(width,height))
 
         # Apply the number of transformations desired
-        transforms = [t0,t1,t2,t3,t4,t5,t6,t8,t9,t12,t13,t15]
+        transforms = [t1,t2,t3,t4,t5,t6,t8,t9,t12,t13,t15]
         if self.num_transformed == len(transforms):
             raise NotImplementedError(f"Only {len(transforms)} fixed affine transformations are currently implemented, but more were requested")
 

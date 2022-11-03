@@ -47,11 +47,19 @@ def dir_split(path):
 
 
 def scale_image(image_path, width):
-    """Rescales and pads the source image with whitespace to be a perfect square of fixed width.
-    Works with RGBA, RGB, LA, and L images."""
+    """Wrapper for scale_img() using the path to an image."""
+    return scale_img(Image.open(image_path), width)
+
+def scale_img(img, width):
+    """Rescales and pads the source image with whitespace to be a perfect
+    square of fixed width. Works with RGBA, RGB, LA, and L images.
+
+    Arguments:
+        img {Image} -- PIL image.
+        width {int} -- Width of returned padded square image.
+    """
     # https://jdhao.github.io/2017/11/06/resize-image-to-square-with-padding/
     # Resize the image
-    img = Image.open(image_path)
     old_size = img.size  # old_size is in (width, height) format
     ratio = float(width) / max(old_size)
     new_size = tuple([int(x * ratio) for x in old_size])

@@ -1,17 +1,18 @@
 # The width of the square to which sign images will be scaled
 sign_width: 480  # Recommended: 240 or 480 for GTSDB Wikipedia templates
 
+# BUG: preprocessing breaks with AUS diamond warning signs
 # When to stop the program, in the case that not all the sequential steps are required
 final_op: dataset  # Either 'process', 'damage', 'transform', 'manipulate', or 'dataset'
 
 # Method of image transformation
-# Either '3d_rotation' or 'fixed_affine'
+# Either '3d_rotation' or 'fixed_affine'; '3d_rotation' is recommended
 tform_method: 3d_rotation
 
 # Number of (offline) transformations applied to each damaged sign template
 # `fixed_affine` transformations are ordered by intensity (i.e. t12 is more
 # visually similar to the original image than t1)
-num_transform: 11  # Range (only for `fixed_affine`): [1,11], default: 11
+num_transform: 11  # Range (only for `fixed_affine`): [0,11], default: 11
 
 # Parameters for transformation by 3d_rotation
 # tilt: 3D tilt rotation around the X and Y axes
@@ -23,6 +24,9 @@ transforms:  # TODO: Rename to rotation_params? Would need to place `online` els
   Z_range: 180  # Max pos/neg value for Z axis rotation  # FIXME: Can't be set to 0, but should be 0 for no rotation
   online: True  # On-the-fly or not
   prob: 0.8  # Probability of any rotation for each appliation when online=True
+  # TODO: Rotation function should be changed so that dz can always be 0, with image auto-resized; do this, but 3D:
+  #       https://www.geeksforgeeks.org/rotate-image-without-cutting-off-sides-using-python-opencv/
+  # FIXME: ^ THIS MUST BE ADDRESSED BEFORE PUBLICATION, 2 orders of magnitude slower with bounding axis resizing method
 
 # TODO: Currently only really tested with/suitable for 0 Z_range rotation; y rotation is good, x rotation is... okay...
 poles:
@@ -40,13 +44,14 @@ man_method: gamma_exposure_fast
 # Number of times each damage is applied (online=False) OR relative likelihood of damage type (online=True)
 num_damages: 
   # BUG: Damage spread across whole height over pole when [poles][add_poles] is True
-  online: True  # On-the-fly or not
+  # FIXME: Too many levels of directories when online=True (e.g. "13/13_no_damage", "13_no_damage" should be removed)
+  online: True  # On-the-fly or not  # BUG: Empty 3_Damage directories from SynthImage's self.class_num in damage.py
   no_damage: 2  # Max 1 when online=False
   quadrant: 1  # Max 4 when online=False
   big_hole: 1
   graffiti: 3
   stickers: 3
-  bullet_holes: 2  # BUG: bullet_holes only creates 1 image when online=False
+  bullet_holes: 2
   # Below damage types are not currently being used in experiments
   # FIXME: Extreme distortions generated when bend and 3D tilt rotations are mixed
   bend: 0  # Will make n different bends for *each* background if detect_light_source=True
@@ -68,6 +73,7 @@ graffiti:  # Step size between damage levels is determined by num_damages above 
   solid: True   # Whether or not transparency is minimised through only alpha values of 255 and morphological dilation
   colour_p: 0.6  # Probability of using a random colour for graffiti, otherwise use black
 
+# TODO: Block libpng warnings from showing (assuming they are never actually an issue)
 stickers:
   min_stickers: 1
   max_stickers: 15
@@ -81,7 +87,7 @@ bend:  # Bend may randomly be either a single-sided or double-sided bend
   max_bend: 60   # Level of bending performed (from 0 to 90 degrees)
 
 # Set both values to 0 to have just one sign per image
-# BUG: Activating multi_sign causes crash with 1 template and 1 background
+# BUG: Activating multi_sign causes crash when num templates == 1 (fine for > 1)
 multi_sign:
   # TODO: Include probability variable for having image with 0 signs
   min_extra_signs: 0  # Minimum number of additional signs overlaid onto each background
@@ -111,6 +117,9 @@ damage_measure_method: 'pixel_wise'
 # in each background image, and adjusts relative exposure between bent and unbent portions of
 # a sign to mimic a shadow. Does not work with saturating manipulation methods (i.e. 'exposure').
 detect_light_src: False
+
+# TODO: Fix and add description
+vertical_grid_placement: False
 
 # Whether to reuse .npy file in the 'damage' or 'manipulate' intermediate folders.
 # TODO: Clarify functionality when using online damage

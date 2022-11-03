@@ -353,7 +353,7 @@ def main():
             if d_online is True:
                 img = damage_image(img, damaged_dir, config, background_images, single_image=True)
             if t_online is True and random.random() <= config['transforms']['prob']:
-                img = tform_methods[t_method].transform(img, None, 1)[0]
+                img = tform_methods[t_method].transform(img, None, 1)[1]  # TODO: [1] is always same for fixed_affine
             return img
 
         synth_image_set = []  # List of images to overlay on the background; only contains 1 if "multi_sign" is False
