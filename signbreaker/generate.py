@@ -17,7 +17,7 @@ with open("config.yaml", "r") as ymlfile:
     config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
 
-def __has_opaque_pixel(line):
+def _has_opaque_pixel(line):
     """Checks if a line of pixels contains a pixel above a transparency threshold."""
     opaque = False
     for pixel in line:
@@ -32,7 +32,7 @@ def bounding_axes(img):  # TODO: Attempt speedup by making this function a regio
     # Top axis
     y_top = 0
     for row in img:  # Iterate through each row of pixels, starting at top-left
-        if __has_opaque_pixel(row) is False:  # Check if the row has an opaque pixel
+        if _has_opaque_pixel(row) is False:  # Check if the row has an opaque pixel
             y_top += 1  # If not, move to the next row
         else:
             break  # If so, break, leaving y_top as the bounding axis
@@ -41,7 +41,7 @@ def bounding_axes(img):  # TODO: Attempt speedup by making this function a regio
     height = img.shape[0]
     y_bottom = height - 1
     for row in reversed(img):  # Iterate from the bottom row up
-        if __has_opaque_pixel(row) is False:
+        if _has_opaque_pixel(row) is False:
             y_bottom -= 1
         else:
             break
@@ -51,7 +51,7 @@ def bounding_axes(img):  # TODO: Attempt speedup by making this function a regio
     r_img = imutils.rotate_bound(img, 90)
     x_left = 0
     for column in r_img:
-        if __has_opaque_pixel(column) is False:
+        if _has_opaque_pixel(column) is False:
             x_left += 1
         else:
             break
@@ -60,7 +60,7 @@ def bounding_axes(img):  # TODO: Attempt speedup by making this function a regio
     r_height = r_img.shape[0]
     x_right = r_height - 1
     for column in reversed(r_img):
-        if __has_opaque_pixel(column) is False:
+        if _has_opaque_pixel(column) is False:
             x_right -= 1
         else:
             break
@@ -82,7 +82,7 @@ def bounding_axes(img):  # TODO: Attempt speedup by making this function a regio
     return [x_left, x_right, y_top, y_bottom]
 
 
-def augment_image(img):
+def _augment_image(img):
     """Augment an image in the following ways:
     - Brightness/contrast variation
     """
@@ -92,6 +92,19 @@ def augment_image(img):
     alpha = random.uniform(a_config['min_alpha'], a_config['max_alpha'])
     beta = random.randint(a_config['min_beta'], a_config['max_beta'])
     img = adjust_contrast_brightness(img, alpha, beta)
+    return img
+
+def _augment_final_image(img):
+    """Apply augmentations specific to the final image with all signs."""
+    a_config = config['augments']
+
+    # Apply non-specific augmentations
+    img = _augment_image(img)
+
+    # Apply normalizing augmentations
+    if a_config['non_local_means_denoising'] is True:
+        img = cv2.fastNlMeansDenoisingColored(img, None, 10, 48, 7, 5)
+    img = cv2.GaussianBlur(img, (a_config['guassian_kernel'], a_config['guassian_kernel']), 0)
     return img
 
 def new_data(synth_image_set, online=False):
@@ -107,7 +120,7 @@ def new_data(synth_image_set, online=False):
             fg_path = synth_image.fg_path
             fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
         assert fg is not None, "Foreground image not found"
-        return augment_image(fg)
+        return _augment_image(fg)
 
     bboxes = []
     total = 0   # Signs placed so far
@@ -172,7 +185,7 @@ def new_data(synth_image_set, online=False):
             else:
                 fail += 1
 
-    image = augment_image(bg)
+    image = _augment_final_image(bg)
     return image, total
 
 

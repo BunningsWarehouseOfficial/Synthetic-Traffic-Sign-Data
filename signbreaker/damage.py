@@ -673,7 +673,7 @@ def graffiti(img, target=0.2, color=(0,0,0), solid=True):
        :param initial: the first target level of obscurity (0-1)
        :param final: the level of obscurity to stop at (0-1)
        :returns: a list containing the damaged images, and a list with the corresponding attributes
-    """
+    """  # TODO: Change to docblockr format
     from skimage import morphology
 
     validate_sign(img)
@@ -713,7 +713,7 @@ def graffiti(img, target=0.2, color=(0,0,0), solid=True):
         grft[alpha == 255] = color + (255,)
 
     # Apply a Gaussian blur to each image, to smooth the edges
-    k = (int(round( width/30 )) // 2) * 2 + 1  # Kernel size must be odd
+    k = (int(round(width / 30)) // 2) * 2 + 1  # Kernel size must be odd
     grft = cv.GaussianBlur(grft, (k,k), 0)
     dmg = overlay(grft, img)
     

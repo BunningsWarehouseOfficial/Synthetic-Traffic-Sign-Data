@@ -55,6 +55,10 @@ augments:
   # Brightness alteration parameters
   min_beta: -120
   max_beta: 120
+  # Final image normalizing parameters to minimize synthetic-specific features
+  non_local_means_denoising: True
+  guassian_kernel: 3  # Kernel size for Gaussian blur; must be odd; 1 for no blur
+  # TODO: Config input validation for all in augments
 
 # Number of times each damage is applied (online=False) OR relative likelihood of damage type (online=True)
 num_damages: 
