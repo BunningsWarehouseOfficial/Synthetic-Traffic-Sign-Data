@@ -47,6 +47,15 @@ man_method: gamma_exposure_fast
 man_online: True  # On-the-fly brightness manipulations or not
 # TODO: Region-based, rather than image-wide, when online=True
 
+# Applied both to each final signs independently and the entire final image with overlaid signs
+augments:
+  # Contrast alteration parameters
+  min_alpha: 0.75
+  max_alpha: 1.25
+  # Brightness alteration parameters
+  min_beta: -120
+  max_beta: 120
+
 # Number of times each damage is applied (online=False) OR relative likelihood of damage type (online=True)
 num_damages: 
   # BUG: Damage spread across whole height over pole when [poles][add_poles] is True

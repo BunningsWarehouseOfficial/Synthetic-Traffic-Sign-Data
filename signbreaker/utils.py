@@ -135,6 +135,7 @@ def delete_background(image_path, save_path):
     cv2.imwrite(save_path, image_RGBA)
     img.close()
 
+
 def to_png(directory):
     """Convert all files in 'directory' to PNG images."""
     paths = load_paths(directory)
@@ -232,6 +233,7 @@ def add_pole(img, color):
 
     return new_img
 
+
 def overlay(fg, bg, x1=-1, y1=-1):
     """Overlay foreground image on background image, keeping transparency.
 
@@ -290,7 +292,6 @@ def has_intersection(x1, x2, y1, y2, bboxes):
                 return True
     return False
 
-
 # TODO: Make modular with other overlay
 def overlay_new(fg, bg, new_size, bboxes, x1=-1, y1=-1):
     """Erodes and blends foreground into background removing transparency.
@@ -298,7 +299,7 @@ def overlay_new(fg, bg, new_size, bboxes, x1=-1, y1=-1):
     Foreground iamge will be centred on background if x1 or y1 are omitted.
     Images may be RGB or RGBA.
 
-    Arguments:
+    Keyword Arguments:
     x1, y1 -- top-left coordinates for where to place foreground image
     """
     # TODO: Does final image need alpha?
@@ -378,6 +379,7 @@ def overlay_new(fg, bg, new_size, bboxes, x1=-1, y1=-1):
 
     return new_img, [x1, x2, y1, y2]
 
+
 def count_pixels(img):
     """Return the number of non-transparent pixels in the imported image weighted according
     to the transparency of each pixel."""
@@ -412,7 +414,6 @@ def calc_ratio(fg, bg):
         ratio = 1 / ratio
 
     return ratio
-
 
 def count_diff_pixels(new, original):
     """Count how many opaque pixels have changed in any way between the two imported images. Based on count_pixels()."""
@@ -449,7 +450,6 @@ def calc_quadrant_diff(new, original):
     ratio_IV  = count_diff_pixels(new_IV, original_IV) / count_pixels(original_IV)
 
     return [ratio_I, ratio_II, ratio_III, ratio_IV]
-
 
 def count_damaged_pixels(new, original):
     """Count how many pixels are different between the two imported images weighted by the transparency difference of
@@ -500,7 +500,6 @@ def count_damaged_pixels(new, original):
 
     return sum
 
-
 def count_damaged_pixels_vectorized(new, original):
     """~125x faster than count_damaged_pixels()."""
     if new.shape[2] != 4 or original.shape[2] != 4:
@@ -528,7 +527,6 @@ def count_damaged_pixels_vectorized(new, original):
     
     return np.sum(diffs)
 
-
 def calc_damage(new, original, method):
     """Calculate the ratio of damaged pixels between two versions of the same image."""
     ## For debug visualisations
@@ -545,7 +543,6 @@ def calc_damage(new, original, method):
     else:
         raise ValueError(f"Method {method} not recognised. Choose between <ssim> and <pixel_wise>")
 
-
 def calc_damage_ssim(new, original):
     """Use structural similarity as an option to determine damage ratio, since it is a commonly utilised benchmark for
     image similarity. Also, it is less impacted by image distortion (e.g. bending) since n x n blocks are compared
@@ -557,7 +554,6 @@ def calc_damage_ssim(new, original):
     grayB = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
     score = compare_ssim(grayA, grayB, win_size=3)
     return 1 - score
-
 
 def calc_damage_sectors(new, original, num_sectors=4, method='pixel_wise'):
     """Calculates a list of damage ratios for an arbitrary number of sectors.
@@ -599,6 +595,7 @@ def pad(img, h, w):
     left_pad = np.floor((w - img.shape[1]) / 2).astype(np.uint16)
     return np.copy(np.pad(img, ((top_pad, bottom_pad), (left_pad, right_pad), (0, 0)), mode='constant', constant_values=0))
 
+
 def remove_padding(img):
     opaque_pixels = img[:, :, -1] > 0
     opaque_pixels = opaque_pixels.astype(np.uint8) * 255
@@ -612,3 +609,25 @@ def get_truncated_normal(mean, sd=1, low=-10, upp=10):
     """Returns normal distribution truncated to be within specified range."""
     return truncnorm(
         (low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd)
+
+
+def adjust_contrast_brightness(img, contrast:float=1.0, brightness:int=0):
+    """Adjusts contrast and brightness of an uint8 image. Corrects for
+    unwanted added brightness brought by the basic conrast method of
+    multiplication by alpha. Ignores alpha channel.
+    Source: https://stackoverflow.com/a/69884067/12350950
+
+    Keyword Arguments:
+        contrast {float} -- (0.0,  inf) (default: {1.0})
+        brightness {int} -- [-255, 255] (default: {0})
+    """
+    new = img.copy()
+    brightness += int(round(255*(1-contrast)/2))
+    new[...,:3] = cv2.addWeighted(img[...,:3], contrast, img[...,:3], 0, brightness)
+    ## DEBUG
+    # cv2.imshow("img", img)
+    # cv2.imshow(f"c: {contrast}, b: {brightness}", new)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    ##
+    return new

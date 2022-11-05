@@ -9,7 +9,7 @@ import imutils
 import cv2
 import numpy as np
 
-from utils import load_paths, dir_split, overlay, overlay_new
+from utils import load_paths, dir_split, overlay, overlay_new, adjust_contrast_brightness
 from synth_image import SynthImage
 
 # Open config file
@@ -82,6 +82,18 @@ def bounding_axes(img):  # TODO: Attempt speedup by making this function a regio
     return [x_left, x_right, y_top, y_bottom]
 
 
+def augment_image(img):
+    """Augment an image in the following ways:
+    - Brightness/contrast variation
+    """
+    a_config = config['augments']
+
+    # Brightness/contrast variation
+    alpha = random.uniform(a_config['min_alpha'], a_config['max_alpha'])
+    beta = random.randint(a_config['min_beta'], a_config['max_beta'])
+    img = adjust_contrast_brightness(img, alpha, beta)
+    return img
+
 def new_data(synth_image_set, online=False):
     """Blends a set of synthetic signs with the corresponding background."""
     bg_path = synth_image_set[0].bg_path
@@ -95,7 +107,7 @@ def new_data(synth_image_set, online=False):
             fg_path = synth_image.fg_path
             fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
         assert fg is not None, "Foreground image not found"
-        return fg
+        return augment_image(fg)
 
     bboxes = []
     total = 0   # Signs placed so far
@@ -160,7 +172,7 @@ def new_data(synth_image_set, online=False):
             else:
                 fail += 1
 
-    image = bg
+    image = augment_image(bg)
     return image, total
 
 

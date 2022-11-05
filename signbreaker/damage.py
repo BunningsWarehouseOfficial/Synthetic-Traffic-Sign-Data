@@ -488,6 +488,8 @@ def sticker(img, num_stickers=1, iteration=0):
         raise ValueError(f"Error: {sticker_dir} directory must be populated to proceed. "
                          f"A link to example data can be found in the README.\n")
 
+    # FIXME: Stickers which miss the visible parts of the sign are counted; try
+    #        prevent this without recalculating damage for each sticker
     for ii in range(num_stickers):
         sticker_name = rand.choice(sticker_list)
         sticker_path = os.path.join(sticker_dir, sticker_name)
