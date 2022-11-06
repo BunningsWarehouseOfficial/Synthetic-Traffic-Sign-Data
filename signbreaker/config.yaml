@@ -10,6 +10,8 @@ sign_placement:
 # When to stop the program, in the case that not all the sequential steps are required
 final_op: dataset  # Either 'process', 'damage', 'transform', 'manipulate', or 'dataset'
 
+# TODO: Create a debug: mode where the program stops after each step and displays the image
+
 # Method of image transformation
 # Either '3d_rotation' or 'fixed_affine'; '3d_rotation' is recommended
 tform_method: 3d_rotation
@@ -47,17 +49,30 @@ man_method: gamma_exposure_fast
 man_online: True  # On-the-fly brightness manipulations or not
 # TODO: Region-based, rather than image-wide, when online=True
 
-# Applied both to each final signs independently and the entire final image with overlaid signs
 augments:
+  # Applied both to each final signs independently and the entire final image with overlaid signs
   # Contrast alteration parameters
   min_alpha: 0.75
   max_alpha: 1.25
   # Brightness alteration parameters
   min_beta: -120
   max_beta: 120
+
+  # Applied to only the final signs before placement
+  # Random noise parameters
+  noise_types:  # Enable/disable random noise types
+    none: True
+    gaussian: True
+    salt_pepper: False  # Possibly too close to appearing like uncounted damage
+    poisson: True
+    speckle: True
+  noise_vars: [0.01, 0.005, 0.0025]  # Randomly chosen variances for gaussian and speckle
+
+  # Applied only to the entire final image with overlaid signs
   # Final image normalizing parameters to minimize synthetic-specific features
   non_local_means_denoising: True
-  guassian_kernel: 3  # Kernel size for Gaussian blur; must be odd; 1 for no blur
+  gaussian_kernel: 3  # Kernel size for Gaussian blur; must be odd; 1 for no blur
+  gaussian_sigma: 0.7  # 0 for default as calculated by OpenCV, which should equal 0.8 only when gaussian_kernel=3
   # TODO: Config input validation for all in augments
 
 # Number of times each damage is applied (online=False) OR relative likelihood of damage type (online=True)

@@ -22,9 +22,9 @@ def main():
     from synth_image import SynthImage
     from damage import damage_image
     from utils import load_paths, load_files, scale_image, delete_background, to_png
-    import manipulate
     from manipulate import RotationTransform, FixedAffineTransform
     from manipulate import ExposureMan, GammaMan, GammaExposureAccurateMan, HistogramMan, GammaExposureFastMan
+    from manipulate import find_useful_signs
     import generate
     
     current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -280,7 +280,7 @@ def main():
             
             manipulated_data = man_methods[m_method].manipulate(transformed_data, background_paths, manipulated_dir)
             if m_method == 'exposure':
-                manipulate.find_useful_signs(manipulated_data, damaged_dir)
+                find_useful_signs(manipulated_data, damaged_dir)
 
             # Delete SynthImage objects for any signs that were removed
             manipulated_data[:] = [x for x in manipulated_data if os.path.exists(x.fg_path)]

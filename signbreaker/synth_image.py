@@ -2,6 +2,7 @@ from datetime import datetime
 from pathlib import Path
 import random
 
+
 class SynthImage:
     def __init__(self, fg_path, class_num, fg_image=None, damage_type=None, damage_tag=None, damage_ratio=0.0,
             sector_damage=[], transform_type=None, man_type=None, bg_path=None, bounding_axes=None, fg_coords=None,

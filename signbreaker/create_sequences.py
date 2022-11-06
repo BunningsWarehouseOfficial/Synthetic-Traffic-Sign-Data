@@ -12,17 +12,19 @@ the user specified sequence length.
 #       drawn. Alternatively, have option to switch to mode where you select where to place bottom of sign pole and go
 #       backwards to draw sign AP box based on value in size slider
 
+import argparse
+from datetime import datetime
+import ntpath
+import os
+
+import cv2
+
+from utils import load_paths, overlay
+
 OUT_DIR         = "SGTS_Sequences"
 LABELS_FILE     = "labels.txt"
 MIN_ANCHOR_SIZE = 10
 MAX_ANCHOR_SIZE = 200
-import argparse
-import cv2
-from datetime import datetime
-import numpy as np
-import ntpath
-import os
-from utils import load_paths, load_files, resize, overlay
 
 
 def parse_arguments():

@@ -1,12 +1,16 @@
 """Utility functions for manipulating images."""
 # Extended from original functions by Jack Downes: https://github.com/ai-research-students-at-curtin/sign_augmentation
 
-import cv2
-import numpy as np
 import os
 import math
+import random
+
+import cv2
+import numpy as np
 from PIL import Image, ImageOps
 from scipy.stats import truncnorm
+from skimage.util import random_noise
+
 
 def load_paths(directory, ignored=['.npy']):
     """Returns a list with the paths of all files in the directory."""
@@ -631,3 +635,25 @@ def adjust_contrast_brightness(img, contrast:float=1.0, brightness:int=0):
     # cv2.destroyAllWindows()
     ##
     return new
+
+def random_noise_method(image, noise_types, noise_vars):
+    """Adds noise to an image. Currently only supports RGB images."""
+    noise_type = random.choice(noise_types)
+    noise_type = "speckle"
+    if noise_type == "none":
+        noisy = image
+    else:
+        if noise_type == "gaussian":
+            var = random.choice(noise_vars)
+            noisy = random_noise(image, mode=noise_type, var=var)
+        elif noise_type == "salt_pepper":
+            noisy = random_noise(image, mode="s&p")
+        elif noise_type == "poisson":
+            noisy = random_noise(image, mode=noise_type)
+        elif noise_type == "speckle":
+            var = random.choice(noise_vars)
+            noisy = random_noise(image, mode=noise_type, var=var)
+        noisy = (255 * noisy).astype(np.uint8)
+        if image.shape[2] == 4:
+            noisy[...,3] = image[...,3]
+    return noisy

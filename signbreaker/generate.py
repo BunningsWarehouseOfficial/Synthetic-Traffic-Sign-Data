@@ -9,7 +9,7 @@ import imutils
 import cv2
 import numpy as np
 
-from utils import load_paths, dir_split, overlay, overlay_new, adjust_contrast_brightness
+from utils import load_paths, dir_split, overlay, overlay_new, adjust_contrast_brightness, random_noise_method
 from synth_image import SynthImage
 
 # Open config file
@@ -83,15 +83,25 @@ def bounding_axes(img):  # TODO: Attempt speedup by making this function a regio
 
 
 def _augment_image(img):
-    """Augment an image in the following ways:
-    - Brightness/contrast variation
-    """
+    """Augment an image."""
     a_config = config['augments']
 
     # Brightness/contrast variation
     alpha = random.uniform(a_config['min_alpha'], a_config['max_alpha'])
     beta = random.randint(a_config['min_beta'], a_config['max_beta'])
     img = adjust_contrast_brightness(img, alpha, beta)
+    return img
+
+def _augment_fg_image(img):
+    """Apply augmentations specific to the foreground images."""
+    a_config = config['augments']
+
+    # Apply non-specific augmentations
+    img = _augment_image(img)
+
+    # Speckle/Guassian/Poisson noise
+    noise_types = [n_type for n_type in a_config['noise_types'] if a_config['noise_types'][n_type] is True]
+    img = random_noise_method(img, noise_types, a_config['noise_vars'])
     return img
 
 def _augment_final_image(img):
@@ -104,7 +114,14 @@ def _augment_final_image(img):
     # Apply normalizing augmentations
     if a_config['non_local_means_denoising'] is True:
         img = cv2.fastNlMeansDenoisingColored(img, None, 10, 48, 7, 5)
-    img = cv2.GaussianBlur(img, (a_config['guassian_kernel'], a_config['guassian_kernel']), 0)
+    # Default (sigmaX=0) calculated sigma for kernel size 3 is 0.8
+    img = cv2.GaussianBlur(img, (a_config['gaussian_kernel'], a_config['gaussian_kernel']), a_config['gaussian_sigma'])
+
+    ## DEBUG
+    # cv2.imshow("final", img)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    ##
     return img
 
 def new_data(synth_image_set, online=False):
@@ -120,7 +137,7 @@ def new_data(synth_image_set, online=False):
             fg_path = synth_image.fg_path
             fg = cv2.imread(fg_path, cv2.IMREAD_UNCHANGED)
         assert fg is not None, "Foreground image not found"
-        return _augment_image(fg)
+        return _augment_fg_image(fg)
 
     bboxes = []
     total = 0   # Signs placed so far
