@@ -9,7 +9,8 @@ import imutils
 import cv2
 import numpy as np
 
-from utils import load_paths, dir_split, overlay, overlay_new, adjust_contrast_brightness, random_noise_method
+from utils import load_paths, dir_split, overlay, overlay_new
+from utils import adjust_contrast_brightness, random_noise_method, apply_linear_motion_blur, apply_radial_motion_blur
 from synth_image import SynthImage
 
 # Open config file
@@ -111,16 +112,25 @@ def _augment_final_image(img):
     # Apply non-specific augmentations
     img = _augment_image(img)
 
-    # Apply normalizing augmentations
+    # Apply normalizing denoising filter
     if a_config['non_local_means_denoising'] is True:
         img = cv2.fastNlMeansDenoisingColored(img, None, 10, 48, 7, 5)
-    # Default (sigmaX=0) calculated sigma for kernel size 3 is 0.8
-    img = cv2.GaussianBlur(img, (a_config['gaussian_kernel'], a_config['gaussian_kernel']), a_config['gaussian_sigma'])
+    
+    p = random.random()
+    if p > a_config['linear_motion_blur_p'] + a_config['radial_motion_blur_p']:
+        # Apply normalizing slight blur
+        # Default (sigmaX=0) calculated sigma for kernel size 3 is 0.8
+        img = cv2.GaussianBlur(img, (a_config['gaussian_kernel'], a_config['gaussian_kernel']), a_config['gaussian_sigma'])
+    elif p > a_config['radial_motion_blur_p']:
+        # Apply linear motion blur
+        img = apply_linear_motion_blur(img, a_config['motion_blur_intensity'], a_config['motion_blur_angle'])
+    else:
+        # Apply radial motion blur
+        img = apply_radial_motion_blur(img)
 
     ## DEBUG
     # cv2.imshow("final", img)
     # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
     ##
     return img
 

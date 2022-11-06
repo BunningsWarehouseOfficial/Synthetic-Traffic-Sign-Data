@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image, ImageOps
 from scipy.stats import truncnorm
 from skimage.util import random_noise
+import diplib as dip
 
 
 def load_paths(directory, ignored=['.npy']):
@@ -636,24 +637,40 @@ def adjust_contrast_brightness(img, contrast:float=1.0, brightness:int=0):
     ##
     return new
 
-def random_noise_method(image, noise_types, noise_vars):
+def random_noise_method(img, noise_types, noise_vars):
     """Adds noise to an image. Currently only supports RGB images."""
     noise_type = random.choice(noise_types)
     noise_type = "speckle"
     if noise_type == "none":
-        noisy = image
+        noisy = img
     else:
         if noise_type == "gaussian":
             var = random.choice(noise_vars)
-            noisy = random_noise(image, mode=noise_type, var=var)
+            noisy = random_noise(img, mode=noise_type, var=var)
         elif noise_type == "salt_pepper":
-            noisy = random_noise(image, mode="s&p")
+            noisy = random_noise(img, mode="s&p")
         elif noise_type == "poisson":
-            noisy = random_noise(image, mode=noise_type)
+            noisy = random_noise(img, mode=noise_type)
         elif noise_type == "speckle":
             var = random.choice(noise_vars)
-            noisy = random_noise(image, mode=noise_type, var=var)
+            noisy = random_noise(img, mode=noise_type, var=var)
         noisy = (255 * noisy).astype(np.uint8)
-        if image.shape[2] == 4:
-            noisy[...,3] = image[...,3]
+        if img.shape[2] == 4:
+            noisy[...,3] = img[...,3]
     return noisy
+
+def apply_linear_motion_blur(img, size, angle):
+    """Source: https://stackoverflow.com/a/57629531/12350950"""
+    k = np.zeros((size, size), dtype=np.float32)
+    k[(size-1)//2, :] = np.ones(size, dtype=np.float32)
+    k = cv2.warpAffine(k, cv2.getRotationMatrix2D((size / 2 -0.5 , size / 2 -0.5) , angle, 1.0), (size, size))  
+    k = k * (1.0 / np.sum(k))
+    return cv2.filter2D(img, -1, k)
+
+def apply_radial_motion_blur(img):
+    """Source: https://stackoverflow.com/a/73294629/12350950"""
+    dip_img = dip.Image(cv2.cvtColor(img, cv2.COLOR_BGRA2RGB))
+    scale = dip.CreateRadiusCoordinate(dip_img.Sizes()) / 100
+    angle = dip.CreatePhiCoordinate(dip_img.Sizes())
+    out = dip.AdaptiveGauss(dip_img, [angle, scale], [0, 0.75])
+    return cv2.cvtColor(np.asarray(out), cv2.COLOR_RGB2BGR).astype(np.uint8)

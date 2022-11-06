@@ -11,3 +11,4 @@ pandas
 numpy
 scipy
 bs4
+diplib

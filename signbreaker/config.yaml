@@ -49,7 +49,7 @@ man_method: gamma_exposure_fast
 man_online: True  # On-the-fly brightness manipulations or not
 # TODO: Region-based, rather than image-wide, when online=True
 
-augments:
+augments:  # TODO: Config input validation for all in augments
   # Applied both to each final signs independently and the entire final image with overlaid signs
   # Contrast alteration parameters
   min_alpha: 0.75
@@ -73,7 +73,12 @@ augments:
   non_local_means_denoising: True
   gaussian_kernel: 3  # Kernel size for Gaussian blur; must be odd; 1 for no blur
   gaussian_sigma: 0.7  # 0 for default as calculated by OpenCV, which should equal 0.8 only when gaussian_kernel=3
-  # TODO: Config input validation for all in augments
+  # Motion blur parameters
+  motion_blur_intensity: 13  # Length of line in kernel
+  motion_blur_angle: 90  # In degrees; 90 for vertical, 0 for horizontal
+  linear_motion_blur_p: 0.1  # Probability of applying linear motion blur instead of standard normalizing blur
+  # TODO: Figure out what the two changeable values for radial actually mean, then put them here
+  radial_motion_blur_p: 0.1
 
 # Number of times each damage is applied (online=False) OR relative likelihood of damage type (online=True)
 num_damages: 
