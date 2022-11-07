@@ -425,11 +425,24 @@ class AbstractManipulation(ABC):
     def link_backgrounds(self, transformed_data, background_paths):
         """Links backgrounds to the transformed data."""
         man_images = []
-        for synth in transformed_data:
-            for bg_path in background_paths:
-                new_synth = synth.clone()
-                new_synth.bg_path = bg_path
-                man_images.append(new_synth)
+        
+        # Iterate through transformed signs and backgrounds concurrently in looping fashion, prioritizing backgrounds
+        sign_bg_map = {}
+        t_offset = 0
+        for ii in range(len(transformed_data) * len(background_paths)):
+            fg = transformed_data[(t_offset + ii) % len(transformed_data)].clone()
+            bg_p = background_paths[ii % len(background_paths)]
+            if bg_p in sign_bg_map and fg.fg_path in sign_bg_map[bg_p]:
+                t_offset += 1  # Account for when #backgrounds == #transformed_data
+                fg = transformed_data[(t_offset + ii) % len(transformed_data)].clone()
+            new_synth = fg
+            new_synth.bg_path = bg_p
+            man_images.append(new_synth)
+            if bg_p not in sign_bg_map:
+                sign_bg_map[bg_p] = {}
+            sign_bg_map[bg_p][fg.fg_path] = True
+
+        del sign_bg_map
         return man_images
 
     def manipulate_single(self, transformed_synth, bg_path=None):  # TODO: Replicate approach with transformations

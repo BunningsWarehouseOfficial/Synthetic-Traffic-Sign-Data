@@ -295,6 +295,7 @@ def main():
             manipulated_data = np.load(data_file_path, allow_pickle=True)
             print("Reusing pre-existing manipulated signs.\n")
     else:
+        random.shuffle(background_paths)
         manipulated_data = man_methods[m_method].link_backgrounds(transformed_data, background_paths)
         print("Manipulating signs on-the-fly in file generation step.\n")
     
@@ -418,7 +419,7 @@ def main():
         cv2.imwrite(final_fg_path, image, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
         if consuming_bgs:
             bg_consumption[synth_image.bg_path] = bg_consumption.get(synth_image.bg_path, 0) + 1
-    print(f"Generating files: 100.0%\r\n")
+    print(f"Generating files: 100.0%  \r\n")
     
     if labels_format == "coco":
         labels_dict['images'] = sorted(labels_dict['images'], key=lambda x: x['id'])
