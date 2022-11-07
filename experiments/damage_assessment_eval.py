@@ -175,6 +175,11 @@ def get_all_metrics(gold_standard: List[BoundingBox],
                     max_iou = iou
                     mas_idx = j
                   
+            if type(counter[preds[i].image_id]) is int and counter[preds[i].image_id] == 0:
+                # Value is an int instead of an ndarray, this means no ground truth bboxes exist for this image_id
+                # We ignore this detection as far as damage assessment goes; false positives like this are accounted
+                # for in the standard non-damage mAP calculation (not in this repo)
+                continue
             if counter[preds[i].image_id][mas_idx] == 0:
                 # Append to output list
                 gt_pred_map.append((gt[mas_idx].damages, preds[i].damages))
@@ -185,11 +190,11 @@ def get_all_metrics(gold_standard: List[BoundingBox],
         ret[c] = r
         
         # Calculate metrics
-        if 'ap' in metrics:
+        if 'ap' in metrics:  # FIXME: Either this doesn't work properly, or the threshold/concept is bad
             print('Calculating AP metrics')
             ap, mpre, mrec, precisions, recalls = get_ap_metrics(gt_pred_map, num_sectors, dmg_threshold)
             r.update_ap_metrics(precisions, recalls, ap, mpre, mrec)
-        if 'roc' in metrics:
+        if 'roc' in metrics:  # FIXME: Either this doesn't work properly, or the threshold/concept is bad
             print('Generating ROC values')
             fp_rates, tp_rates, auc = get_roc_metrics(gt_pred_map)
             r.update_roc_metrics(tp_rates, fp_rates, auc)
