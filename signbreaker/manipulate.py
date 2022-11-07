@@ -432,7 +432,7 @@ class AbstractManipulation(ABC):
                 man_images.append(new_synth)
         return man_images
 
-    def manipulate_single(self, transformed_synth):  # TODO: Replicate approach with transformations
+    def manipulate_single(self, transformed_synth, bg_path=None):  # TODO: Replicate approach with transformations
         """Manipulate a single sign across all provided backgrounds."""
         self.original_synth = transformed_synth
         sign = transformed_synth.fg_image
@@ -440,7 +440,10 @@ class AbstractManipulation(ABC):
         if config['poles']['add_poles'] is True:
             fg = add_pole(sign, config['poles']['colour'])
 
-        self.bg_path = transformed_synth.bg_path
+        if bg_path is None:
+            self.bg_path = transformed_synth.bg_path
+        else:
+            self.bg_path = bg_path
         # NOTE: Results in the same undamaged sign's exposure being used for all bgs assuming all steps are online
         self.sign_path = transformed_synth.fg_path
 
@@ -521,7 +524,8 @@ class ExposureMan(AbstractManipulation):
     def manipulation(self, fg):
         bg_exposure = find_image_exposure(self.bg_path)
 
-        if self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path:
+        if (self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path
+                and not config['man_online']):
             return
 
         ###   ORIGINAL EXPOSURE IMPLEMENTATION   ###
@@ -652,7 +656,8 @@ class GammaExposureFastMan(AbstractManipulation):
         bg_exposure = find_image_exposure(self.bg_path)
         fg_exposure = find_image_exposure(self.sign_path)
 
-        if self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path:
+        if (self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path
+                and not config['man_online']):
             return
 
         ## For debug visualisations
@@ -720,7 +725,8 @@ class GammaExposureAccurateMan(AbstractManipulation):
     def manipulation(self, fg):
         bg_exposure = find_image_exposure(self.bg_path)
 
-        if self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path:
+        if (self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path
+                and not config['man_online']):
             return
 
         ## For debug visualisations

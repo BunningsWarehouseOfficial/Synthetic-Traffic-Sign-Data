@@ -134,7 +134,7 @@ def _augment_final_image(img):
     ##
     return img
 
-def new_data(synth_image_set, online=False):
+def new_data(synth_image_set, online=False, no_fg=False):
     """Blends a set of synthetic signs with the corresponding background."""
     bg_path = synth_image_set[0].bg_path
     bg = cv2.imread(bg_path, cv2.IMREAD_UNCHANGED)
@@ -149,56 +149,28 @@ def new_data(synth_image_set, online=False):
         assert fg is not None, "Foreground image not found"
         return _augment_fg_image(fg)
 
-    bboxes = []
     total = 0   # Signs placed so far
-    nb_signs_in_img = len(synth_image_set)  # Total number of signs attempting to place
-    fail = 0    # Attempts to place signs
-    while total < nb_signs_in_img and fail < 40:
-        synth_image = synth_image_set[total]
-        fg = get_fg(synth_image, online)
-        
-        if synth_image.fg_coords is not None and synth_image.fg_size is not None:
-            x, y = synth_image.fg_coords
-            new_size = synth_image.fg_size
-        else:
-            x, y, new_size = SynthImage.gen_sign_coords(
-                bg.shape[:2],
-                fg.shape[:2],
-                config['sign_placement']['min_ratio'],
-                config['sign_placement']['max_ratio'],
-                config['sign_placement']['middle_third'],
-            )
-
-        bg, bbox = overlay_new(fg, bg, new_size, bboxes, x, y)
-        if bbox is not None:
-            bboxes.append(bbox)
-            total += 1
-            fg = cv2.resize(fg, (new_size, new_size))
-            axes = bounding_axes(fg)  # Retrieve bounding axes of the sign image
-            axes[0] += x  # Adjusting bounding axis to make it relative to the whole bg image
-            axes[1] += x
-            axes[2] += y
-            axes[3] += y
-            synth_image.bounding_axes = axes
-            do_place_below = config['vertical_grid_placement']
-        else:
-            fail += 1
-
-        # Place signs side-by-side in grid pattern
-        # TODO: Add horizontal placement, currently only does vertical placement
-        while do_place_below and total < nb_signs_in_img and fail < 40:
-            do_place_below = np.random.choice([True]*5 + [False]) and total < nb_signs_in_img
-            if not (do_place_below and total < nb_signs_in_img and bbox):
-                break
-            # position = (bbox['xmin'], bbox['ymax'])
+    if not no_fg:
+        bboxes = []
+        nb_signs_in_img = len(synth_image_set)  # Total number of signs attempting to place
+        fail = 0    # Attempts to place signs
+        while total < nb_signs_in_img and fail < 40:
             synth_image = synth_image_set[total]
             fg = get_fg(synth_image, online)
+            
+            if synth_image.fg_coords is not None and synth_image.fg_size is not None:
+                x, y = synth_image.fg_coords
+                new_size = synth_image.fg_size
+            else:
+                x, y, new_size = SynthImage.gen_sign_coords(
+                    bg.shape[:2],
+                    fg.shape[:2],
+                    config['sign_placement']['min_ratio'],
+                    config['sign_placement']['max_ratio'],
+                    config['sign_placement']['middle_third'],
+                )
 
-            if (bbox[0] + new_size >= bg.shape[1]) or (bbox[3] + new_size >= bg.shape[0]):
-                break
-
-            # Uses same new_size as previous sign
-            bg, bbox = overlay_new(fg, bg, new_size, bboxes, bbox[0], bbox[3])
+            bg, bbox = overlay_new(fg, bg, new_size, bboxes, x, y)
             if bbox is not None:
                 bboxes.append(bbox)
                 total += 1
@@ -209,8 +181,37 @@ def new_data(synth_image_set, online=False):
                 axes[2] += y
                 axes[3] += y
                 synth_image.bounding_axes = axes
+                do_place_below = config['vertical_grid_placement']
             else:
                 fail += 1
+
+            # Place signs side-by-side in grid pattern
+            # TODO: Add horizontal placement, currently only does vertical placement
+            while do_place_below and total < nb_signs_in_img and fail < 40:
+                do_place_below = np.random.choice([True]*5 + [False]) and total < nb_signs_in_img
+                if not (do_place_below and total < nb_signs_in_img and bbox):
+                    break
+                # position = (bbox['xmin'], bbox['ymax'])
+                synth_image = synth_image_set[total]
+                fg = get_fg(synth_image, online)
+
+                if (bbox[0] + new_size >= bg.shape[1]) or (bbox[3] + new_size >= bg.shape[0]):
+                    break
+
+                # Uses same new_size as previous sign
+                bg, bbox = overlay_new(fg, bg, new_size, bboxes, bbox[0], bbox[3])
+                if bbox is not None:
+                    bboxes.append(bbox)
+                    total += 1
+                    fg = cv2.resize(fg, (new_size, new_size))
+                    axes = bounding_axes(fg)  # Retrieve bounding axes of the sign image
+                    axes[0] += x  # Adjusting bounding axis to make it relative to the whole bg image
+                    axes[1] += x
+                    axes[2] += y
+                    axes[3] += y
+                    synth_image.bounding_axes = axes
+                else:
+                    fail += 1
 
     image = _augment_final_image(bg)
     return image, total

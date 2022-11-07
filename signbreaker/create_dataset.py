@@ -264,10 +264,16 @@ def main():
     ###  MANIPULATING EXPOSURE/FADE  ###
     ####################################
     ImageFile.LOAD_TRUNCATED_IMAGES = True
-    for bg_folders in load_paths(bg_dir):
-        to_png(bg_folders)
+    bg_paths = glob.glob(f"{bg_dir}/**/*.jpg", recursive=True)
+    bg_paths = bg_paths + glob.glob(f"{bg_dir}/**/*.png", recursive=True)
+    print(f"Found {len(bg_paths)} background images.")
+    try:
+        for bg_folders in load_paths(bg_dir):
+            to_png(bg_folders)
+    except PermissionError:
+        raise ValueError("Currently only 1 level of subdirectories in Backgrounds is supported.\n")
     print('\n', end='')
-    background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True)
+    background_paths = glob.glob(f"{bg_dir}/**/*.png", recursive=True)
 
     m_method = config['man_method']
     if config['man_online'] is False:
@@ -334,15 +340,28 @@ def main():
     if os.path.exists(final_dir):
         shutil.rmtree(final_dir)
     os.makedirs(images_dir)
-    
-    total_gen = len(manipulated_data)
+
+    cf = config 
+    consuming_bgs = cf['transforms']['online'] and cf['num_damages']['online'] and cf['man_online']
+    if consuming_bgs:
+        total_gen = len(background_paths) * cf['prune_dataset']['max_images']
+    else:
+        total_gen = len(manipulated_data)
     print(f"Files to be generated: {total_gen}")
 
     labels_file = open(labels_path, "w")
     
     sign_count = 0
+    bg_consumption = {}
     for ii, synth_image in enumerate(manipulated_data):
         print(f"Generating files: {float(ii) / float(total_gen):06.2%}", end='\r')
+
+        # TODO: Test that bg_consumption thing works offline (here, at bottom of block, and above for total_gen)
+        # Restrict the number of times a background can be used
+        if consuming_bgs:
+            bg_p = synth_image.bg_path
+            if bg_p in bg_consumption.keys() and bg_consumption[bg_p] == cf['prune_dataset']['max_images']:
+                continue
         
         c_num = synth_image.class_num
         d_type = synth_image.damage_type
@@ -354,42 +373,51 @@ def main():
         fg_path = os.path.join(class_dir, f"{c_num}_{d_type}_{ii}")
         final_fg_path = fg_path + ".jpg"
 
-        d_online = config['num_damages']['online']
-        t_online = config['transforms']['online']
-        m_online = config['man_online']
+        d_online = cf['num_damages']['online']
+        t_online = cf['transforms']['online']
+        m_online = cf['man_online']
 
-        def manipulate_img(img):
+        def manipulate_img(img, bg_path=None):
             if d_online is True:
-                img = damage_image(img, damaged_dir, config, background_images, single_image=True)
-            if t_online is True and random.random() <= config['transforms']['prob']:
+                img = damage_image(img, damaged_dir, cf, background_images, single_image=True)
+            if t_online is True and random.random() <= cf['transforms']['prob']:
                 img = tform_methods[t_method].transform(img, None, 1)[1]
             if m_online is True:
-                img = man_methods[m_method].manipulate_single(img)
+                img = man_methods[m_method].manipulate_single(img, bg_path=bg_path)
             return img
 
         synth_image_set = []  # List of images to overlay on the background; only contains 1 if "multi_sign" is False
-        min_signs = config["multi_sign"]["min_extra_signs"]
-        max_signs = config["multi_sign"]["max_extra_signs"]
+        min_signs = cf["multi_sign"]["min_extra_signs"]
+        max_signs = cf["multi_sign"]["max_extra_signs"]
         num_signs = random.randint(min_signs, max_signs)  # Number of extra signs to add to the image
-        # Randomly damage and transform parts of the raw manipulated data
-        synth_image_set.append(manipulate_img(synth_image))
-        if m_online is True:
-            for img in random.choices(manipulated_data, k=num_signs):  # Choose with replacement (likely only 1)
-                synth_image_set.append(manipulate_img(img))
+        zero_signs = random.random() < cf['multi_sign']['zero_p']
+        if zero_signs:
+            synth_image_set.append(synth_image)
+            image, _ = generate.new_data(synth_image_set, (d_online or t_online or m_online), no_fg=True)
         else:
-            for img in random.sample(manipulated_data, num_signs):  # Choose without replacement
-                synth_image_set.append(manipulate_img(img))
-        image, n_placed = generate.new_data(synth_image_set, (d_online or t_online or m_online))
-        synth_image_set = synth_image_set[:n_placed]  # In case the function fails to place all the signs
+            # Randomly damage and transform parts of the raw manipulated data
+            synth_image_set.append(manipulate_img(synth_image))
+            if m_online is True:
+                for img in random.choices(manipulated_data, k=num_signs):  # Choose with replacement (likely only 1)
+                    # Use bg_path of first image to make sure they all adapt exposure to the same background image
+                    synth_image_set.append(manipulate_img(img, bg_path=synth_image.bg_path))
+            else:
+                for img in random.sample(manipulated_data, num_signs):  # Choose without replacement
+                    synth_image_set.append(manipulate_img(img))
+            image, n_placed = generate.new_data(synth_image_set, (d_online or t_online or m_online))
+            synth_image_set = synth_image_set[:n_placed]  # In case the function fails to place all the signs
         for img in synth_image_set:
             if labels_format == 'retinanet':
                 # TODO: Multi-sign labels for retinanet
-                synth_image.write_label_retinanet(labels_file, damage_labelling)
+                synth_image.write_label_retinanet(labels_file, damage_labelling, img_only=zero_signs)
             elif labels_format == 'coco':
-                img.write_label_coco(labels_dict, sign_count, ii, 
-                                            os.path.relpath(final_fg_path, final_dir), image.shape, damage_labelling)
+                img.write_label_coco(labels_dict, sign_count, ii, os.path.relpath(final_fg_path, final_dir),
+                                     image.shape, damage_labelling, img_only=zero_signs)
             sign_count += 1
+
         cv2.imwrite(final_fg_path, image, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
+        if consuming_bgs:
+            bg_consumption[synth_image.bg_path] = bg_consumption.get(synth_image.bg_path, 0) + 1
     print(f"Generating files: 100.0%\r\n")
     
     if labels_format == "coco":
