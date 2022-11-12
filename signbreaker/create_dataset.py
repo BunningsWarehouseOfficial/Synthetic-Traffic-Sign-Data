@@ -187,7 +187,7 @@ def main():
         save_path = os.path.join(processed_dir, name) + ".png"
         img.save(save_path)
 
-        if not img.mode[-1] == 'A':
+        if not img.mode[-1] == 'A' and not config['disable_bg_removal']:
             delete_background(save_path, save_path)  # Overwrite the newly rescaled image
 
     if config['final_op'] == 'process':

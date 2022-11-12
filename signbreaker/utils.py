@@ -53,7 +53,7 @@ def dir_split(path):
 
 def scale_image(image_path, width):
     """Wrapper for scale_img() using the path to an image."""
-    return scale_img(Image.open(image_path), width)
+    return scale_img(Image.open(image_path).convert("RGBA"), width)
 
 def scale_img(img, width):
     """Rescales and pads the source image with whitespace to be a perfect
