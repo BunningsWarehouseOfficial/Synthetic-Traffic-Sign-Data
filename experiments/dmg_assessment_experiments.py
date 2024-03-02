@@ -13,8 +13,8 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 os.chdir(current_dir)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--gt_file', default='/home/allenator/Pawsey-Internship/datasets/SGTS_Dataset/_single_annotations_array.npy')
-parser.add_argument('--eval_file', default='/home/allenator/Pawsey-Internship/eval_dir/SGTS_Dataset_dmg_assess/dmg_net_d2.npy')
+parser.add_argument('--gt_file', help='Numpy file for ground truth detections.')
+parser.add_argument('--eval_file', help='Numpy file of predictions to evaluate.')
 parser.add_argument('--out_dir', default='.')
 
 
@@ -68,7 +68,15 @@ if __name__ == '__main__':
     plt.title('Precision-Recall Curve')
     plt.savefig('Precision-Recall Curve', dpi=300)
     
-    mean_pred_damage = np.mean(pred_damages)
-    mean_gt_damage = np.mean(gt_damages)
+    min_pred_dmg = np.min(pred_damages)
+    mean_pred_dmg = np.mean(pred_damages)
+    max_pred_dmg = np.max(pred_damages)
+    min_gt_dmg = np.min(gt_damages)
+    mean_gt_dmg = np.mean(gt_damages)
+    max_gt_dmg = np.max(gt_damages)
     
-    print(f'MAE: {metrics.mae}\nRMSE: {metrics.rmse}\nMBE: {metrics.mbe}\nMean Predicted Damage: {mean_pred_damage}\nMean Ground Truth Damage: {mean_gt_damage}')
+    print(f'\nMAE: {metrics.mae}\nRMSE: {metrics.rmse}\nMBE: {metrics.mbe}\n\n'
+          f'Min Ground Truth Damage: {min_gt_dmg}\n'
+          f'Mean Ground Truth Damage: {mean_gt_dmg}\nMax Ground Truth Damage: {max_gt_dmg}\n\n'
+          f'Min Predicted Damage: {min_pred_dmg}\nMean Predicted Damage: {mean_pred_dmg}\n'
+          f'Max Predicted Damage: {max_pred_dmg}')

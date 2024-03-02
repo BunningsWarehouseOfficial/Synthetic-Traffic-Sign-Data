@@ -2,6 +2,7 @@ from datetime import datetime
 from pathlib import Path
 import random
 
+
 class SynthImage:
     def __init__(self, fg_path, class_num, fg_image=None, damage_type=None, damage_tag=None, damage_ratio=0.0,
             sector_damage=[], transform_type=None, man_type=None, bg_path=None, bounding_axes=None, fg_coords=None,
@@ -68,21 +69,22 @@ class SynthImage:
             fg_size=self.fg_size
         )
         
-    def write_label_retinanet(self, labels_file, damage_labelling=True):
-        axes = self.bounding_axes
-        bounds = f"{axes[0]} {axes[1]} {axes[2]} {axes[3]}"
-        if damage_labelling:
-            labels_file.write(f"{self.fg_path} {bounds} class={self.class_num} "
-                              f"{self.damage_type}={self.damage_tag} damage={self.damage_ratio} "
-                              f"sector_damage={self.sector_damage} "
-                              f"transform_type={self.transform_type} man_type={self.man_type} "
-                              f"bg={self.bg_path}\n")
-        else:
-            labels_file.write(f"{self.fg_path} {bounds} class={self.class_num} "
-                              f"transform_type={self.transform_type} man_type={self.man_type} "
-                              f"bg={self.bg_path}\n")
+    def write_label_retinanet(self, labels_file, damage_labelling=True, img_only=False):
+        if not img_only:
+            axes = self.bounding_axes
+            bounds = f"{axes[0]} {axes[1]} {axes[2]} {axes[3]}"
+            if damage_labelling:
+                labels_file.write(f"{self.fg_path} {bounds} class={self.class_num} "
+                                f"{self.damage_type}={self.damage_tag} damage={self.damage_ratio} "
+                                f"sector_damage={self.sector_damage} "
+                                f"transform_type={self.transform_type} man_type={self.man_type} "
+                                f"bg={self.bg_path}\n")
+            else:
+                labels_file.write(f"{self.fg_path} {bounds} class={self.class_num} "
+                                f"transform_type={self.transform_type} man_type={self.man_type} "
+                                f"bg={self.bg_path}\n")
             
-    def write_label_coco(self, labels_dict, sign_id, bg_id, img_path, img_dims, damage_labelling=True):
+    def write_label_coco(self, labels_dict, sign_id, bg_id, img_path, img_dims, damage_labelling=True, img_only=False):
         axes = self.bounding_axes
         if not any(dict['id'] == bg_id for dict in labels_dict['images']):
             labels_dict['images'].append({
@@ -94,19 +96,20 @@ class SynthImage:
                 "width": img_dims[1],
                 "date_captured": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             })
-        labels_dict['annotations'].append({
-            "id": sign_id,
-            "image_id": bg_id,
-            "category_id": self.class_num,
-            "bbox": [axes[0], axes[2], axes[1] - axes[0], axes[3] - axes[2]],
-            "area": (axes[1] - axes[0]) * (axes[3] - axes[2]),
-            "segmentation": [],
-            "iscrowd": 0,
-        })
-        if damage_labelling:
-            labels_dict['annotations'][-1]['damage'] = self.damage_ratio
-            labels_dict['annotations'][-1]['damage_type'] = self.damage_type
-            labels_dict['annotations'][-1]['sector_damage'] = self.sector_damage
+        if not img_only:
+            labels_dict['annotations'].append({
+                "id": sign_id,
+                "image_id": bg_id,
+                "category_id": self.class_num,
+                "bbox": [axes[0], axes[2], axes[1] - axes[0], axes[3] - axes[2]],
+                "area": (axes[1] - axes[0]) * (axes[3] - axes[2]),
+                "segmentation": [],
+                "iscrowd": 0,
+            })
+            if damage_labelling:
+                labels_dict['annotations'][-1]['damage'] = self.damage_ratio
+                labels_dict['annotations'][-1]['damage_type'] = self.damage_type
+                labels_dict['annotations'][-1]['sector_damage'] = self.sector_damage
 
     def __check_class(self, class_num):
         if class_num < 0:
@@ -130,22 +133,34 @@ class SynthImage:
             raise TypeError(f"man_type={man_type} is invalid: must be valid string")
         
     @staticmethod
-    def gen_sign_coords(bg_dims, fg_dims):
-        """Randomly generate sign coordinates and sign size."""
+    def gen_sign_coords(bg_dims, fg_dims, min_ratio=0.033, max_ratio=0.099, middle_third=True):
+        """Randomly generate sign coordinates and sign size. The latter is
+        determined using the ratio of the foreground's width to that of the
+        background.
+
+        Keyword Arguments:
+            min_ratio {float} -- Min. ratio of image width (default: {0.033})
+            max_ratio {float} -- Max. ratio of image width (default: {0.099})
+            middle_third {bool} -- Whether to restrict sign placement to the
+                vertical middle third of background (default: {True})
+        """
         bg_height, bg_width = bg_dims
         _, fg_width = fg_dims
         
         current_ratio = fg_width / bg_width  
-        target_ratio = random.uniform(0.033, 0.099)
+        target_ratio = random.uniform(min_ratio, max_ratio)
         scale_factor = target_ratio / current_ratio
         new_size = int(fg_width * scale_factor)
         
         # Randomise sign placement within middle third of background
-        fg_x = random.randint(0, max(bg_width - new_size,1))
+        fg_x = random.randint(0, max(bg_width - new_size, 1))
         third = bg_height // 3
-        if(new_size>third):
-            fg_y = random.randint(0, max(bg_height-new_size,1))
+        if new_size > third:
+            fg_y = random.randint(0, max(bg_height - new_size, 1))
         else:
-            fg_y = random.randint(third, bg_height - third)
+            if middle_third:
+                fg_y = random.randint(third, bg_height - third)
+            else:
+                fg_y = random.randint(0, max(bg_height - new_size, 1))
                 
         return fg_x, fg_y, new_size

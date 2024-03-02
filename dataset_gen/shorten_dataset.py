@@ -23,6 +23,7 @@ def extend_annotations(final_annotations, image_paths, annotations):
     image_id = len(final_annotations['images'])
     annotation_id = len(final_annotations['annotations'])
     
+    # TODO: Progress bar
     for img_json in annotations['images']:
         path = os.path.basename(img_json['file_name'])
         
@@ -55,7 +56,7 @@ if __name__ == "__main__":
     classes = [cat['name'] for cat in orig_anns['categories'][1:]]
     final_anns = initialise_coco_anns(classes)
 
-    outdir = os.path.join(os.getcwd(), "shortened")
+    outdir = os.path.join(os.getcwd(), "SGTS_Shortened")
     if os.path.exists(outdir):
         raise ValueError('Output directory already exists')
     else:

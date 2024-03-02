@@ -22,9 +22,9 @@ def main():
     from synth_image import SynthImage
     from damage import damage_image
     from utils import load_paths, load_files, scale_image, delete_background, to_png
-    import manipulate
     from manipulate import RotationTransform, FixedAffineTransform
     from manipulate import ExposureMan, GammaMan, GammaExposureAccurateMan, HistogramMan, GammaExposureFastMan
+    from manipulate import find_useful_signs
     import generate
     
     current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -57,7 +57,12 @@ def main():
         'gamma_exposure_fast': GammaExposureFastMan(),
         'histogram': HistogramMan()
     }
-    valid_dmg = ['no_damage', 'quadrant', 'big_hole', 'bullet_holes', 'graffiti', 'stickers', 'bend', 'tint_yellow', 'grey']
+    valid_dmg = [
+        'no_damage',
+        'quadrant', 'big_hole', 'bullet_holes',
+        'graffiti', 'stickers', 'overlays',
+        'bend', 'tint_yellow', 'grey'
+    ]
     valid_ann = ['retinanet', 'coco']
     valid_dmg_methods = ['ssim', 'pixel_wise']
     if config['sign_width'] <= 0:
@@ -105,6 +110,12 @@ def main():
             raise ConfigError(f"Config error: must have 0.0 < 'graffiti:{g_param}' <= 1.0.\n")
     if g_params['initial'] > g_params['final']:
         raise ConfigError("Config error: 'graffiti:initial' must be <= 'graffiti:final'.\n")
+
+    s_params = config['stickers']
+    if (s_params['min_stickers'] <= 0 or s_params['max_stickers'] <= 0 or 
+            s_params['max_stickers'] < s_params['min_stickers']):
+        raise ConfigError(f"Config error: 'stickers' parameters must be > 0 and "
+                          f"'stickers:max_stickers' must be >= 'stickers:min_stickers'.\n")
 
     # TODO: Bounds checking for bend damage type
     
@@ -176,7 +187,7 @@ def main():
         save_path = os.path.join(processed_dir, name) + ".png"
         img.save(save_path)
 
-        if not img.mode[-1] == 'A':
+        if not img.mode[-1] == 'A' and not config['disable_bg_removal']:
             delete_background(save_path, save_path)  # Overwrite the newly rescaled image
 
     if config['final_op'] == 'process':
@@ -252,34 +263,44 @@ def main():
     ####################################
     ###  MANIPULATING EXPOSURE/FADE  ###
     ####################################
-    reusable = config['reuse_data']['manipulate']
-    data_file_path = os.path.join(manipulated_dir, "manipulated_data.npy")
-    if not reusable:
-        if os.path.exists(manipulated_dir):
-            shutil.rmtree(manipulated_dir)
-        os.mkdir(manipulated_dir)
-
-        ImageFile.LOAD_TRUNCATED_IMAGES = True
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
+    bg_paths = glob.glob(f"{bg_dir}/**/*.jpg", recursive=True)
+    bg_paths = bg_paths + glob.glob(f"{bg_dir}/**/*.png", recursive=True)
+    print(f"Found {len(bg_paths)} background images.")
+    try:
         for bg_folders in load_paths(bg_dir):
             to_png(bg_folders)
-        print('\n', end='')
-            
-        background_paths = glob.glob(f"{bg_dir}{os.sep}**{os.sep}*.png", recursive=True)
-        
-        m_method = config['man_method']
-        manipulated_data = man_methods[m_method].manipulate(transformed_data, background_paths, manipulated_dir, config)
-        if m_method == 'exposure':
-            manipulate.find_useful_signs(manipulated_data, damaged_dir)
+    except PermissionError:
+        raise ValueError("Currently only 1 level of subdirectories in Backgrounds is supported.\n")
+    print('\n', end='')
+    background_paths = glob.glob(f"{bg_dir}/**/*.png", recursive=True)
 
-        # Delete SynthImage objects for any signs that were removed
-        manipulated_data[:] = [x for x in manipulated_data if os.path.exists(x.fg_path)]
-        np.save(data_file_path, manipulated_data, allow_pickle=True)
+    m_method = config['man_method']
+    if config['man_online'] is False:
+        reusable = config['reuse_data']['manipulate']
+        data_file_path = os.path.join(manipulated_dir, "manipulated_data.npy")
+        if not reusable:  # NOTE: Encapsulating reusable check within online check is different to damaging step
+            if os.path.exists(manipulated_dir):
+                shutil.rmtree(manipulated_dir)
+            os.mkdir(manipulated_dir)
+            
+            manipulated_data = man_methods[m_method].manipulate(transformed_data, background_paths, manipulated_dir)
+            if m_method == 'exposure':
+                find_useful_signs(manipulated_data, damaged_dir)
+
+            # Delete SynthImage objects for any signs that were removed
+            manipulated_data[:] = [x for x in manipulated_data if os.path.exists(x.fg_path)]
+            np.save(data_file_path, manipulated_data, allow_pickle=True)
+        else:
+            manipulated_data = np.load(data_file_path, allow_pickle=True)
+            print("Reusing pre-existing manipulated signs.\n")
     else:
-        manipulated_data = np.load(data_file_path, allow_pickle=True)
-        print("Reusing pre-existing manipulated signs.\n")
+        random.shuffle(background_paths)
+        manipulated_data = man_methods[m_method].link_backgrounds(transformed_data, background_paths)
+        print("Manipulating signs on-the-fly in file generation step.\n")
     
     # Prune dataset by randomly sampling from manipulated images
-    if config['prune_dataset']['prune']:
+    if config['prune_dataset']['prune'] and not config['man_online']:
         max_images = config['prune_dataset']['max_images']
         images_dict = defaultdict(list)
         for img in manipulated_data:
@@ -320,15 +341,28 @@ def main():
     if os.path.exists(final_dir):
         shutil.rmtree(final_dir)
     os.makedirs(images_dir)
-    
-    total_gen = len(manipulated_data)
+
+    cf = config 
+    consuming_bgs = cf['transforms']['online'] and cf['num_damages']['online'] and cf['man_online']
+    if consuming_bgs:
+        total_gen = len(background_paths) * cf['prune_dataset']['max_images']
+    else:
+        total_gen = len(manipulated_data)
     print(f"Files to be generated: {total_gen}")
 
     labels_file = open(labels_path, "w")
     
     sign_count = 0
+    bg_consumption = {}
     for ii, synth_image in enumerate(manipulated_data):
         print(f"Generating files: {float(ii) / float(total_gen):06.2%}", end='\r')
+
+        # TODO: Test that bg_consumption thing works offline (here, at bottom of block, and above for total_gen)
+        # Restrict the number of times a background can be used
+        if consuming_bgs:
+            bg_p = synth_image.bg_path
+            if bg_p in bg_consumption.keys() and bg_consumption[bg_p] == cf['prune_dataset']['max_images']:
+                continue
         
         c_num = synth_image.class_num
         d_type = synth_image.damage_type
@@ -340,37 +374,52 @@ def main():
         fg_path = os.path.join(class_dir, f"{c_num}_{d_type}_{ii}")
         final_fg_path = fg_path + ".jpg"
 
-        d_online = config['num_damages']['online']
-        t_online = config['transforms']['online']
+        d_online = cf['num_damages']['online']
+        t_online = cf['transforms']['online']
+        m_online = cf['man_online']
 
-        def manipulate_img(img):
+        def manipulate_img(img, bg_path=None):
             if d_online is True:
-                img = damage_image(img, damaged_dir, config, background_images, single_image=True)
-            if t_online is True and random.random() <= config['transforms']['prob']:
-                img = tform_methods[t_method].transform(img, None, 1)[0]
+                img = damage_image(img, damaged_dir, cf, background_images, single_image=True)
+            if t_online is True and random.random() <= cf['transforms']['prob']:
+                img = tform_methods[t_method].transform(img, None, 1)[1]
+            if m_online is True:
+                img = man_methods[m_method].manipulate_single(img, bg_path=bg_path)
             return img
 
-        synth_image_set = [] # The list of images to overlay on the background. Only contains 1 if "multi_sign" is False
-        # TODO generate new signs to overlay
-        min_signs = config["multi_sign"]["min_extra_signs"]
-        max_signs = config["multi_sign"]["max_extra_signs"]
-        num_signs = random.randint(min_signs,max_signs) # Number of extra signs to add to the image
-        # Randomly damage and transform parts of the raw manipulated data
-        synth_image_set.append(manipulate_img(synth_image))
-        for img in random.sample(manipulated_data, num_signs):
-            synth_image_set.append(manipulate_img(img))
-        image, n_placed = generate.new_data(synth_image_set, (d_online or t_online))
-        synth_image_set = synth_image_set[:n_placed]  # In case the function fails to place all the signs
+        synth_image_set = []  # List of images to overlay on the background; only contains 1 if "multi_sign" is False
+        min_signs = cf["multi_sign"]["min_extra_signs"]
+        max_signs = cf["multi_sign"]["max_extra_signs"]
+        num_signs = random.randint(min_signs, max_signs)  # Number of extra signs to add to the image
+        zero_signs = random.random() < cf['multi_sign']['zero_p']
+        if zero_signs:
+            synth_image_set.append(synth_image)
+            image, _ = generate.new_data(synth_image_set, (d_online or t_online or m_online), no_fg=True)
+        else:
+            # Randomly damage and transform parts of the raw manipulated data
+            synth_image_set.append(manipulate_img(synth_image))
+            if m_online is True:
+                for img in random.choices(manipulated_data, k=num_signs):  # Choose with replacement (likely only 1)
+                    # Use bg_path of first image to make sure they all adapt exposure to the same background image
+                    synth_image_set.append(manipulate_img(img, bg_path=synth_image.bg_path))
+            else:
+                for img in random.sample(manipulated_data, num_signs):  # Choose without replacement
+                    synth_image_set.append(manipulate_img(img))
+            image, n_placed = generate.new_data(synth_image_set, (d_online or t_online or m_online))
+            synth_image_set = synth_image_set[:n_placed]  # In case the function fails to place all the signs
         for img in synth_image_set:
             if labels_format == 'retinanet':
-                #Todo multi sign labels for retinanet
-                synth_image.write_label_retinanet(labels_file, damage_labelling)
+                # TODO: Multi-sign labels for retinanet
+                synth_image.write_label_retinanet(labels_file, damage_labelling, img_only=zero_signs)
             elif labels_format == 'coco':
-                img.write_label_coco(labels_dict, sign_count, ii, 
-                                            os.path.relpath(final_fg_path, final_dir), image.shape, damage_labelling)
+                img.write_label_coco(labels_dict, sign_count, ii, os.path.relpath(final_fg_path, final_dir),
+                                     image.shape, damage_labelling, img_only=zero_signs)
             sign_count += 1
+
         cv2.imwrite(final_fg_path, image, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
-    print(f"Generating files: 100.0%\r\n")
+        if consuming_bgs:
+            bg_consumption[synth_image.bg_path] = bg_consumption.get(synth_image.bg_path, 0) + 1
+    print(f"Generating files: 100.0%  \r\n")
     
     if labels_format == "coco":
         labels_dict['images'] = sorted(labels_dict['images'], key=lambda x: x['id'])

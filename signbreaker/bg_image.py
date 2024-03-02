@@ -1,9 +1,10 @@
 """A wrapper object to find the location coordinates and intensity of the most predominant light source in an image via
 Monte Carlo sampling, storing them as instance variables."""
 
+from collections import Counter
+
 import cv2
 import numpy as np
-from collections import Counter
 
 SAMPLING_CONSTANT = 0.1  # Percentage of image pixels that are sampled
 NUM_SEGMENTS = 10        # Number of segments horizontally

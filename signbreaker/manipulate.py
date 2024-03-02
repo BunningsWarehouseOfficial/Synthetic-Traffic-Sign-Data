@@ -3,20 +3,23 @@
 # (https://github.com/alexandrosstergiou/Traffic-Sign-Recognition-basd-on-Synthesised-Training-Data)
 
 from abc import ABC, abstractmethod
-import cv2
-import numpy as np
 import ntpath
 import os
 import math
-from utils import load_paths, dir_split, get_truncated_normal, add_pole
-from PIL import Image, ImageStat, ImageEnhance
 import random
-from synth_image import SynthImage
-
-# Open and validate config file
 import yaml
+
+import cv2
+import numpy as np
+from PIL import Image, ImageStat, ImageEnhance
+
+from utils import load_paths, dir_split, get_truncated_normal, add_pole, scale_img
+from generate import bounding_axes
+
+# Open config file
 with open("config.yaml", "r") as ymlfile:
     config = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
 
 ##################################
 ###  TRANSFORMATION FUNCTIONS  ###
@@ -33,6 +36,7 @@ class AbstractTransform(ABC):
 
         self.num_transformed = 0
         tform_imgs = []  # Collection of transformed images
+        tform_imgs.append(self.blank_transformation(img))
         for ii in range(num_transform):
             tform_img, descriptor = self.transformation(img)
             tform_imgs.append((tform_img, descriptor))
@@ -72,6 +76,11 @@ class AbstractTransform(ABC):
                 transformed_images.append(transformed_image)
         return transformed_images
 
+    def blank_transformation(self, img):
+        """Return the original image."""
+        # self.num_transformed += 1
+        return img, "original"
+
     @abstractmethod
     def transformation(self, img):
         pass
@@ -101,6 +110,11 @@ class RotationTransform(AbstractTransform):
         dz *= 2
 
         dest = self.rotate_image(img, angle[0], angle[1], angle[2], 0, 0, dz, f)
+        # Resize the image to the original size
+        # x_left, x_right, y_top, y_bottom = bounding_axes(dest)
+        # dest = dest[y_top:y_bottom+1, x_left:x_right+1]  # Crop blank edges
+        # dest_pil = scale_img(Image.fromarray(cv2.cvtColor(dest, cv2.COLOR_BGRA2RGBA)), config['sign_width'])
+        # dest = cv2.cvtColor(np.array(dest_pil), cv2.COLOR_RGBA2BGRA)
         self.num_transformed += 1
         return dest, f"{angle[0]:.2f}_{angle[1]:.2f}_{angle[2]:.2f}"
         
@@ -116,7 +130,7 @@ class RotationTransform(AbstractTransform):
         :param f: focal distance (distance between camera and image)
         referenced from
         http://jepsonsblog.blogspot.com/2012/11/rotation-in-3d-using-opencvs.html
-        """
+        """  # TODO: Convert docstring to pep8 typed style (docblockr)
         # Convert to radians and start on x axis?
         alpha = math.radians(alpha)
         beta  = math.radians(beta)
@@ -187,8 +201,8 @@ class FixedAffineTransform(AbstractTransform):
 
         # Transform function names are numbered in order of (my subjective) significance in visual difference
         #[0] 0 FORWARD FACING
-        def t0():
-            return img
+        # def t0():
+        #     return img
 
         #[3] 1 EAST FACING
         def t3():
@@ -320,7 +334,7 @@ class FixedAffineTransform(AbstractTransform):
             return cv2.warpAffine(img,M,(width,height))
 
         # Apply the number of transformations desired
-        transforms = [t0,t1,t2,t3,t4,t5,t6,t8,t9,t12,t13,t15]
+        transforms = [t1,t2,t3,t4,t5,t6,t8,t9,t12,t13,t15]
         if self.num_transformed == len(transforms):
             raise NotImplementedError(f"Only {len(transforms)} fixed affine transformations are currently implemented, but more were requested")
 
@@ -380,7 +394,7 @@ def image_exposure(img_grey, img_rgba):
 
 class AbstractManipulation(ABC):
     """Image brightness manipulation template pattern abstract class."""
-    def manipulate(self, transformed_data, background_paths, out_dir, config):
+    def manipulate(self, transformed_data, background_paths, out_dir):
         self.out_dir = out_dir
         sign_paths = [transformed.fg_path for transformed in transformed_data]
 
@@ -392,14 +406,14 @@ class AbstractManipulation(ABC):
             sign_path = sign_paths[ii]
 
             if config['poles']['add_poles'] is True:
+                # FIXME: add_pole no longer works with fg_path, set to use fg_image for online
                 fg = add_pole(sign_path, config['poles']['colour'])
             else:
                 fg = cv2.imread(sign_path, cv2.IMREAD_UNCHANGED)
 
-            for jj in range(0, len(background_paths)):
+            for jj in range(len(background_paths)):
                 print(f"Manipulating brightness of signs: {float(pr) / float(pr_total):06.2%}", end='\r')
-                bg_path = background_paths[jj]
-                self.bg_path   = bg_path
+                self.bg_path   = background_paths[jj]
                 self.sign_path = sign_path
 
                 self.manipulation(fg)
@@ -407,6 +421,48 @@ class AbstractManipulation(ABC):
 
         print("Manipulating brightness of signs: 100.0%\r\n")
         return self.man_images
+
+    def link_backgrounds(self, transformed_data, background_paths):
+        """Links backgrounds to the transformed data."""
+        man_images = []
+        
+        # Iterate through transformed signs and backgrounds concurrently in looping fashion, prioritizing backgrounds
+        sign_bg_map = {}
+        t_offset = 0
+        for ii in range(len(transformed_data) * len(background_paths)):
+            fg = transformed_data[(t_offset + ii) % len(transformed_data)].clone()
+            bg_p = background_paths[ii % len(background_paths)]
+            if bg_p in sign_bg_map and fg.fg_path in sign_bg_map[bg_p]:
+                t_offset += 1  # Account for when #backgrounds == #transformed_data
+                fg = transformed_data[(t_offset + ii) % len(transformed_data)].clone()
+            new_synth = fg
+            new_synth.bg_path = bg_p
+            man_images.append(new_synth)
+            if bg_p not in sign_bg_map:
+                sign_bg_map[bg_p] = {}
+            sign_bg_map[bg_p][fg.fg_path] = True
+
+        del sign_bg_map
+        return man_images
+
+    def manipulate_single(self, transformed_synth, bg_path=None):  # TODO: Replicate approach with transformations
+        """Manipulate a single sign across all provided backgrounds."""
+        self.original_synth = transformed_synth
+        sign = transformed_synth.fg_image
+
+        if config['poles']['add_poles'] is True:
+            fg = add_pole(sign, config['poles']['colour'])
+
+        if bg_path is None:
+            self.bg_path = transformed_synth.bg_path
+        else:
+            self.bg_path = bg_path
+        # NOTE: Results in the same undamaged sign's exposure being used for all bgs assuming all steps are online
+        self.sign_path = transformed_synth.fg_path
+
+        self.man_images = []
+        self.manipulation(sign)
+        return random.choice(self.man_images)
 
     def save_synth(self, man_img, man_type):
         _, sub, el = dir_split(self.bg_path)
@@ -422,19 +478,27 @@ class AbstractManipulation(ABC):
         else:
             raise ValueError(f"Not enough values to unpack (expected 5 or 4, got {len(splits)})")
 
-        save_dir = os.path.join(self.out_dir, sub, "BG_" + title, "SIGN_" + sign_dir, dmg_dir)
-        os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
-        save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
         man_image = self.original_synth.clone()
         if 'numpy' in type(man_img).__module__:
-            cv2.imwrite(save_path, man_img)
             man_image.fg_size = man_img.shape[0]  # Account for any added poles
         elif 'PIL' in type(man_img).__module__:
-            man_img.save(save_path)
             man_image.fg_size = man_img.size[1]  # Account for any added poles
-        man_image.set_fg_path(save_path)
         man_image.set_manipulation(man_type)
-        man_image.bg_path = self.bg_path
+        if not config['man_online']:
+            save_dir = os.path.join(self.out_dir, sub, "BG_" + title, "SIGN_" + sign_dir, dmg_dir)
+            os.makedirs(save_dir, exist_ok=True)  # Create relevant directories dynamically
+            save_path = os.path.join(save_dir, head + "_" + man_type + "." + tail)
+            man_image.set_fg_path(save_path)
+            if 'numpy' in type(man_img).__module__:
+                cv2.imwrite(save_path, man_img)
+            elif 'PIL' in type(man_img).__module__:
+                man_img.save(save_path)
+            man_image.bg_path = self.bg_path
+        else:
+            if 'numpy' in type(man_img).__module__:
+                man_image.set_fg_image(man_img)
+            elif 'PIL' in type(man_img).__module__:
+                man_image.set_fg_image(cv2.cvtColor(np.array(man_img), cv2.COLOR_RGBA2BGRA) )
         return man_image
     
     @abstractmethod
@@ -473,7 +537,8 @@ class ExposureMan(AbstractManipulation):
     def manipulation(self, fg):
         bg_exposure = find_image_exposure(self.bg_path)
 
-        if self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path:
+        if (self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path
+                and not config['man_online']):
             return
 
         ###   ORIGINAL EXPOSURE IMPLEMENTATION   ###
@@ -604,7 +669,8 @@ class GammaExposureFastMan(AbstractManipulation):
         bg_exposure = find_image_exposure(self.bg_path)
         fg_exposure = find_image_exposure(self.sign_path)
 
-        if self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path:
+        if (self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path
+                and not config['man_online']):
             return
 
         ## For debug visualisations
@@ -672,7 +738,8 @@ class GammaExposureAccurateMan(AbstractManipulation):
     def manipulation(self, fg):
         bg_exposure = find_image_exposure(self.bg_path)
 
-        if self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path:
+        if (self.original_synth.bg_path is not None and self.original_synth.bg_path != self.bg_path
+                and not config['man_online']):
             return
 
         ## For debug visualisations
@@ -824,145 +891,3 @@ def find_useful_signs(manipulated_images, damaged_dir):
                     #del manipulated
         pr += 1
     print(f"Removing useless signs: 100.0%\r\n")
-
-
-
-################################
-###  UNUSED NOISE FUNCTIONS  ###
-################################
-def insert_poisson_noise (image):
-    vals = len(np.unique(image))
-    vals = 2.05 ** np.ceil(np.log2(vals))
-    noisy = np.random.poisson(image * vals) / float(vals)
-    return noisy
-
-def insert_Gaussian_noise(image):
-    row,col,ch= image.shape
-    mean = 0
-    var = 0.5
-    sigma = var**0.5
-    gauss = np.random.normal(mean,sigma,(row,col,ch))
-    gauss = gauss.reshape(row,col,ch)
-    noisy = image + gauss
-    return noisy
-
-def insert_speckle_noise(image):
-    row,col,ch = image.shape
-    gauss = np.random.randn(row,col,ch)
-    gauss = gauss.reshape(row,col,ch)        
-    noisy = image + image * gauss
-    return noisy
-
-def random_noise_method(image):
-    """
-    i = random.randint(1, 3)
-    if (i == 1):
-        return insert_poisson_noise(image)
-    elif (i==2):
-        return insert_Gaussian_noise(image)
-    else:
-        return insert_speckle_noise(image)
-    """
-    image.setflags(write=1)
-    # Add noise in every pixel with random probability 0.4
-    for im in image:
-        px = 0
-        for pixel in im:
-            apply_noise = random.randint(0,100)
-            if apply_noise > 40:
-                # RGB values
-                r = pixel[0]
-                g = pixel[1]
-                b = pixel[2]
-                a = pixel[3]
-                # Find current relative lumination for brighness
-                # Based on: https://en.wikipedia.org/wiki/Relative_luminance
-                relative_lumination = 0.2126*r + 0.7152*g + 0.0722*b
-                # Find differences between RGB values     
-                rg = False
-                r_to_g = float(r) / float(g)
-                if (r_to_g >= 1):
-                    rg = True
-                
-                rb = False
-                r_to_b = float(r) / float(b)
-                if (r_to_b >= 1):
-                    rb = True
-                
-                gb = False
-                g_to_b = float(g) / float(b)
-                if (g_to_b >= 1):
-                    gb = True
-                
-                equal = False
-                if (r == g == b):
-                    equal = True
-
-                # In order to determine the margin in which the new brighness
-                # should be within, the upper and lower limits need to be found
-                # The Relative luminance in colorimetric spaces has normalised
-                # values between 0 and 255
-                upper_limit = 255
-                lower_limit = 0
-                if (relative_lumination + 40 < 255):
-                    upper_limit = relative_lumination + 40
-                if (relative_lumination - 40 > 0):
-                    lower_limit = relative_lumination - 40
-
-                # Compute new brightness value
-                new_lumination = random.randint(int(lower_limit), int(upper_limit))
-
-                # Find the three possible solutions that satisfy
-                # -> The new lumination chosen based on the Relative luminance equation
-                # -> The precentages computed between every rgb value
-
-                solutions = []
-
-                for r in range(1,255):
-                    for g in range(1,255):
-                        for b in range(1,255):
-                            rg = False
-                            r_to_g = float(r) / float(g)
-                            if (r_to_g >= 1):
-                                rg = True
-                            
-                            rb = False
-                            r_to_b = float(r) / float(b)
-                            if (r_to_b >= 1):
-                                rb = True
-                            
-                            gb = False
-                            g_to_b = float(g) / float(b)
-                            if (g_to_b >= 1):
-                                gb = True
-                            
-                            e = False
-                            if(r == g == b):
-                                e = True
-                            
-                            if (0.2126*r + 0.7152*g + 0.0722*b == 100) and rg==rg and rb==rb and gb==GB and e==equal:
-                                solutions.append([r,g,b])
-
-                # Find the solution that precentage wise is closer to the original
-                # difference between the values
-                percentages = []
-
-                for solution in solutions:
-                    r = solution[0]
-                    g = solution[1]
-                    b = solution[2]
-                    percentages.append((float(r) / float(g)) + (float(r) / float(b)) + (float(g) / float(b)))
-
-                ii = 0
-                pos = 0
-                best = percentages[0]
-                for p in percentages[1:]:
-                    if p < best:
-                        pos = ii
-                    ii += 1
-
-                # Assign new pixel values
-                im[px] = [solutions[pos][0], solutions[pos][1], solutions[pos][2], A]
-            px += 1
-            
-    return image

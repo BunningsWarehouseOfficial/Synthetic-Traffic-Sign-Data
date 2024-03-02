@@ -143,6 +143,10 @@ class BoundingBox(Box):
         self.class_id = class_id
         self.damages = damages
         
+    def __str__(self):
+        return 'BoundingBox[image_id={},class_id={},xtl={},ytl={},xbr={},ybr={},score={}]'.format(
+            self.image_id, self.class_id, self.xtl, self.ytl, self.xbr, self.ybr, self.score
+        )
         
 def calculate_all_points_average_precision(recall, precision):
     """

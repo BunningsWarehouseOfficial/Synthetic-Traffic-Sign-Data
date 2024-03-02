@@ -112,8 +112,8 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
             dmg, att = remove_hole(img, -1)
             return apply_damage(dmg, att)
     elif n_dmgs['big_hole'] > 0:
-        angles = rand.sample(
-            range(0, 360, 20), n_dmgs['big_hole'])
+        # TODO: Why a step of 20? Seems like a completely unnecessary restriction
+        angles = rand.sample(range(0, 360, 20), n_dmgs['big_hole'])
         for a in angles:
             dmg, att = remove_hole(img, a)
             apply_damage(dmg, att)
@@ -128,7 +128,7 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
             return apply_damage(dmg, att)
     elif n_dmgs['bullet_holes'] > 0:
         hole_counts = rand.sample(
-            range(b_conf['min_holes'], b_conf['max_holes'], 5), n_dmgs['quadrant'])
+            range(b_conf['min_holes'], b_conf['max_holes']), n_dmgs['bullet_holes'])
         for num_holes in hole_counts:
             dmg, att = bullet_holes(img, int(num_holes), b_conf['target'])
             apply_damage(dmg, att)
@@ -160,11 +160,17 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
                     light_x, light_y = bg.light_coords
                     intensity = bg.light_intensity
                     fg_height, fg_width = img.shape[:2]
-                    fg_x, fg_y, fg_size = SynthImage.gen_sign_coords(bg.shape[:2], (fg_height, fg_width))
+                    fg_w, fg_h, fg_size = SynthImage.gen_sign_coords(
+                        bg.shape[:2],
+                        (fg_height, fg_width),
+                        config['sign_placement']['min_ratio'],
+                        config['sign_placement']['max_ratio'],
+                        config['sign_placement']['middle_third'],
+                    )
                     
                     # Calculate beta difference
                     vec1 = np.array([math.cos(math.radians(90-axis)), math.sin(math.radians(90-axis))])
-                    vec2 = np.array([fg_x - light_x, fg_y - light_y])
+                    vec2 = np.array([fg_w - light_x, fg_h - light_y])
                     angle = math.acos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
                     beta_diff = math.copysign(1, vec2[0]) * math.sin(angle) * intensity * (bend / 90) * 4
                     
@@ -186,7 +192,7 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
                     )
                     synth_dmg.set_fg_path(dmg_path)
                     synth_dmg.bg_path = bg.path
-                    synth_dmg.fg_coords = (fg_x, fg_y)
+                    synth_dmg.fg_coords = (fg_w, fg_h)
                     synth_dmg.fg_size = fg_size
                     if single_image:
                         return synth_dmg
@@ -196,6 +202,13 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
 
     # GRAFFITI
     g_conf = config['graffiti']
+    def pick_colour():
+        colour_p = rand.random()
+        if colour_p < g_conf['colour_p']:
+            g_colour = (rand.randint(0, 255), rand.randint(0, 255), rand.randint(0, 255))
+        else:
+            g_colour = (0,0,0)
+        return g_colour
     if single_image:
         p_thresh += n_dmgs['graffiti'] / total_p
         if p < p_thresh:
@@ -203,25 +216,37 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
             mu, sigma = g_conf['max']/4, g_conf['max']/3
             X = stats.truncnorm(
                 (l - mu) / sigma, (u - mu) / sigma, loc=mu, scale=sigma)
-            dmg, att = graffiti(img, target=X.rvs(1)[0], color=(0,0,0), solid=g_conf['solid'])
+            dmg, att = graffiti(img, target=X.rvs(1)[0], color=pick_colour(), solid=g_conf['solid'])
             return apply_damage(dmg, att)
     elif n_dmgs['graffiti'] > 0:
         targets = np.linspace(g_conf['initial'], g_conf['final'], n_dmgs['graffiti'])
         for t in targets:
-            dmg, att = graffiti(img, target=t, color=(0,0,0), solid=g_conf['solid'])
+            dmg, att = graffiti(img, target=t, color=pick_colour(), solid=g_conf['solid'])
             apply_damage(dmg, att)
     
-    # Stickers
-    s_config = config["stickers"]
+    # STICKERS
+    s_config = config['stickers']
     if single_image:
         p_thresh += n_dmgs['stickers'] / total_p
         if p < p_thresh:
-            dmg, att = sticker(img, rand.randint(s_config["min_stickers"], s_config["max_stickers"]))
+            dmg, att = sticker(img, rand.randint(s_config['min_stickers'], s_config['max_stickers']))
             return apply_damage(dmg, att)
     elif n_dmgs['stickers'] > 0:
-        num_stickers = rand.randint(s_config["min_stickers"], s_config["max_stickers"])
-        for s in range(num_stickers):
-            dmg, att = sticker(img, s)
+        sticker_counts = rand.choices(
+            range(s_config['min_stickers'], s_config['max_stickers'] + 1), k=n_dmgs['stickers'])
+        for ii, num_stickers in enumerate(sticker_counts):
+            dmg, att = sticker(img, num_stickers, ii)
+            apply_damage(dmg, att)
+
+    # OVERLAYS
+    if single_image:
+        p_thresh += n_dmgs['overlays'] / total_p
+        if p < p_thresh:
+            dmg, att = overlay_damage(img)
+            return apply_damage(dmg, att)
+    elif n_dmgs['overlays'] > 0:
+        for ii in range(n_dmgs['overlays']):
+            dmg, att = overlay_damage(img)
             apply_damage(dmg, att)
 
     # TINTED YELLOW
@@ -280,7 +305,6 @@ def no_damage(img):
     att["tag"]           = ""
     att["damage_ratio"]  = "0.0"  # This should be 0.0
     att["sector_damage"] = sectors_no_damage(num_sectors)
-
     return dmg, att
 
 def tint_yellow(img, tint=180):
@@ -301,7 +325,6 @@ def tint_yellow(img, tint=180):
     att["tag"]           = str(int(tint))
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
     att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
-
     return dmg, att
 
 def grey(img, beta=200):  # TODO: Imitates complete fading of colour in sign: perhaps rename?
@@ -323,7 +346,6 @@ def grey(img, beta=200):  # TODO: Imitates complete fading of colour in sign: pe
     att["tag"]           = str(int(beta))
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
     att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
-
     return dmg, att
 
 def remove_quadrant(img, quad_num=-1):
@@ -355,7 +377,6 @@ def remove_quadrant(img, quad_num=-1):
     att["tag"]           = str(quad_num)
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))  # This should be around 0.25
     att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
-
     return dmg, att
 
 def remove_hole(img, angle=-1):
@@ -370,7 +391,7 @@ def remove_hole(img, angle=-1):
 
     if angle == -1:
         angle = rand.randint(0, 359)
-    radius = int(2 * height / 5)
+    radius = int(0.4 * height)
     rad = -(angle * math.pi / 180)  # Radians
     x = centre_x + int(radius * math.cos(rad))  # x-coordinate of centre
     y = centre_y + int(radius * math.sin(rad))  # y-coordinate of centre
@@ -384,7 +405,6 @@ def remove_hole(img, angle=-1):
     att["tag"]           = str(int(angle))
     att["damage_ratio"]  = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
     att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
-
     return dmg, att
 
 def bullet_holes(img, num_holes=40, target=-1):
@@ -452,54 +472,144 @@ def bullet_holes(img, num_holes=40, target=-1):
     att["tag"]           = str(num_holes)
     att["damage_ratio"]  = "{:.3f}".format(ratio)
     att["sector_damage"] = calc_damage_sectors(painted, img, method=dmg_measure, num_sectors=num_sectors)
-
     return dmg, att
 
-def sticker(img, n=1):
-    """overlay arbitrary images over sign"""
-    dmg = validate_sign(img)
-    bg_x, bg_y = img.shape[0:2]
+def sticker(img, num_stickers=1, iteration=0):
+    """Overlay arbitrary images over a sign in small sticker-like patterns."""
+    dmg = validate_sign(img).copy()
+    bg_h, bg_w = img.shape[0:2]
 
-    stickerList = []
-    for file in os.listdir("stickers"):
+    sticker_list = []
+    sticker_dir = "Stickers"
+    for file in os.listdir(sticker_dir):
         if file.endswith(".png"):
-            stickerList.append(file)
+            sticker_list.append(file)
+    if len(sticker_list) == 0:
+        raise ValueError(f"Error: {sticker_dir} directory must be populated to proceed. "
+                         f"A link to example data can be found in the README.\n")
 
-    for i in range(n):
-        sticker_name = rand.choice(stickerList)
-        sticker_path = os.path.join("stickers",sticker_name)
+    # FIXME: Stickers which miss the visible parts of the sign are counted; try
+    #        prevent this without recalculating damage for each sticker
+    for ii in range(num_stickers):
+        sticker_name = rand.choice(sticker_list)
+        sticker_path = os.path.join(sticker_dir, sticker_name)
         sticker = cv.imread(sticker_path, cv.IMREAD_UNCHANGED)
-        
         if sticker.shape[-1] == 3:
             sticker = cv.cvtColor(sticker, cv.COLOR_RGB2RGBA)
 
-        scale_heigth = rand.randint(img.shape[0]/8, img.shape[0]/4)  # The height that the image will be scaled to
-        scale_factor = scale_heigth/sticker.shape[1] # percent of original size
+        scale_height = rand.randint(img.shape[0] / 8, img.shape[0] / 4)  # The height that the image will be scaled to
+        scale_factor = scale_height / sticker.shape[1]  # Percent of original size
+        # TODO: ^ Make use of widht/height in above 2 lines consistent just in case
         width = int(sticker.shape[1] * scale_factor)
         height = int(sticker.shape[0] * scale_factor)
         dim = (width, height)
 
         sticker_sml = cv.resize(sticker, dim, cv.INTER_AREA)
-        fg_x, fg_y = sticker_sml.shape[0:2]
+        fg_h, fg_w = sticker_sml.shape[0:2]
 
-        X_norm = get_truncated_normal(mean=bg_x/2 - fg_x, sd=bg_x/3, low=0, upp=bg_x - fg_x)
-        Y_norm = get_truncated_normal(mean=bg_y/2 - fg_y, sd=bg_y/3, low=0, upp=bg_y - fg_y)
+        X_norm = get_truncated_normal(mean=bg_w/2-fg_w, sd=bg_w/3, low=0, upp=bg_w-fg_w)
+        Y_norm = get_truncated_normal(mean=bg_h/2-fg_h, sd=bg_h/3, low=0, upp=bg_h-fg_h)
         x1 = int(X_norm.rvs(1))
-        x2 = x1 + fg_x
+        x2 = x1 + fg_w
         y1 = int(Y_norm.rvs(1))
-        y2 = y1 + fg_y
+        y2 = y1 + fg_h
 
-        slice = dmg[x1:x2, y1:y2,0:3]
+        slice = dmg[y1:y2, x1:x2, 0:3]
         slice[np.where(sticker_sml[:,:,3] != 0)] = sticker_sml[:,:,0:3][np.where(sticker_sml[:,:,3] != 0)]
-
 
     # Assign labels
     att = attributes
-    att["damage_type"]  = "sticker"
-    att["tag"]          = str(n)  # TODO: put a list of sticker names?
+    att["damage_type"]  = "stickers"
+    att["tag"]          = f"{str(num_stickers)}_{iteration}"
     att["damage_ratio"] = "{:.3f}".format(calc_damage(dmg, img, dmg_measure))
     att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
+    return dmg, att
 
+def overlay_damage(img):
+    """Overlay arbitrary images over a sign in such a way as to cover large
+    portions of the sign. This is intended for obscuring the sign with
+    objects, such as foliage, or applying textures such as cracking."""
+    dmg = validate_sign(img).copy()
+    bg_h, bg_w = img.shape[0:2]
+
+    overlay_list = []
+    overlay_dir = "Overlays"
+    for file in os.listdir(overlay_dir):
+        if file.endswith(".png"):
+            overlay_list.append(file)
+    if len(overlay_list) == 0:
+        raise ValueError(f"Error: {overlay_dir} directory must be populated to proceed. "
+                         f"A link to example data can be found in the README.\n")
+
+    def choose_overlay():
+        overlay_name = rand.choice(overlay_list)
+        overlay_path = os.path.join(overlay_dir, overlay_name)
+        overlay = cv.imread(overlay_path, cv.IMREAD_UNCHANGED)
+        if overlay.shape[-1] == 3:
+            overlay = cv.cvtColor(overlay, cv.COLOR_RGB2RGBA)
+        return overlay_name, overlay
+    overlay_name, overlay_original = choose_overlay()
+
+    # TODO: Make these first two parameters configurable
+    min_damage = 0.025
+    max_damage = 0.7
+    max_attempts = 20
+    damage = 0
+    attempts = 0
+    while damage < min_damage or damage > max_damage or attempts == 0:
+        if damage > max_damage:
+            dmg = img.copy()  # Remove any accumulated overlays
+        if attempts % max_attempts == 0 and attempts != 0:
+            print(f"Could not suitably overlay {overlay_name} after {max_attempts} attempts. Trying another overlay...")
+            overlay_name, overlay_original = choose_overlay()
+
+        scale_height = rand.randint(img.shape[0] / 4, max(img.shape[0] * 4, overlay_original.shape[0]))
+        scale_factor = scale_height / overlay_original.shape[1]  # Percent of original size
+        width = int(overlay_original.shape[1] * scale_factor)
+        height = int(overlay_original.shape[0] * scale_factor)
+        dim = (width, height)
+
+        overlay = cv.resize(overlay_original, dim, cv.INTER_AREA)
+        fg_h, fg_w = overlay.shape[0:2]
+
+        x1 = rand.randint(0, max(fg_w - bg_w - 1, bg_w))
+        x2 = x1 + bg_w
+        x1 = max(x1, 0)
+        y1 = rand.randint(0, max(fg_h - bg_h - 1, bg_h))
+        y2 = y1 + bg_h
+        y1 = max(y1, 0)
+
+        # # Pad overlay with blankspace on each side to accomodate for possible
+        # # partial placement over sign along from around perimeter of overlay
+        # new_height = fg_h + bg_h
+        # new_width = fg_w + bg_w
+        # colour = (0, 0, 0, 0)
+        # overlay_padded = np.full((new_height, new_width, 4), colour, dtype=np.uint8)
+        # # Compute offset
+        # x_offset = bg_w // 2
+        # y_offset = bg_h // 2
+        # # Copy img image into center of result image
+        # overlay_padded[y_offset:y_offset+fg_h, x_offset:x_offset+fg_w] = overlay
+        # overlay = overlay_padded
+
+        slice = dmg[:, :, 0:3]
+        slice[np.where(overlay[y1:y2,x1:x2,3] != 0)] = overlay[y1:y2,x1:x2,0:3][np.where(overlay[y1:y2,x1:x2,3] != 0)]
+
+        ## DEBUG
+        # cv.imshow("dmg", dmg)
+        # cv.waitKey(0)
+        # cv.destroyAllWindows()
+        ##
+
+        damage = calc_damage(dmg, img, dmg_measure)
+        attempts += 1
+
+    # Assign labels
+    att = attributes
+    att["damage_type"]  = "overlay"
+    att["tag"]          = f"{overlay_name}"
+    att["damage_ratio"] = "{:.3f}".format(damage)
+    att["sector_damage"] = calc_damage_sectors(dmg, img, method=dmg_measure, num_sectors=num_sectors)
     return dmg, att
 
 ### The following methods are all for the 'graffiti' damage type ###
@@ -565,7 +675,7 @@ def graffiti(img, target=0.2, color=(0,0,0), solid=True):
        :param initial: the first target level of obscurity (0-1)
        :param final: the level of obscurity to stop at (0-1)
        :returns: a list containing the damaged images, and a list with the corresponding attributes
-    """
+    """  # TODO: Change to docblockr format
     from skimage import morphology
 
     validate_sign(img)
@@ -605,7 +715,7 @@ def graffiti(img, target=0.2, color=(0,0,0), solid=True):
         grft[alpha == 255] = color + (255,)
 
     # Apply a Gaussian blur to each image, to smooth the edges
-    k = (int(round( width/30 )) // 2) * 2 + 1  # Kernel size must be odd
+    k = (int(round(width / 30)) // 2) * 2 + 1  # Kernel size must be odd
     grft = cv.GaussianBlur(grft, (k,k), 0)
     dmg = overlay(grft, img)
     
