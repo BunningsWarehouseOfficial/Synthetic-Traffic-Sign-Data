@@ -123,7 +123,9 @@ def _augment_final_image(img):
         img = cv2.GaussianBlur(img, (a_config['gaussian_kernel'], a_config['gaussian_kernel']), a_config['gaussian_sigma'])
     elif p > a_config['radial_motion_blur_p']:
         # Apply linear motion blur
-        img = apply_linear_motion_blur(img, a_config['motion_blur_intensity'], a_config['motion_blur_angle'])
+        intensity = a_config['linear_motion_blur_intensity']
+        angle = a_config['linear_motion_blur_angle']
+        img = apply_linear_motion_blur(img, intensity, angle)
     else:
         # Apply radial motion blur
         img = apply_radial_motion_blur(img)

@@ -77,8 +77,8 @@ augments:  # TODO: Config input validation for all in augments
   gaussian_kernel: 3  # Kernel size for Gaussian blur; must be odd; 1 for no blur
   gaussian_sigma: 0.7  # 0 for default as calculated by OpenCV, which should equal 0.8 only when gaussian_kernel=3
   # Motion blur parameters
-  motion_blur_intensity: 13  # Length of line in kernel
-  motion_blur_angle: 90  # In degrees; 90 for vertical, 0 for horizontal
+  linear_motion_blur_intensity: 13  # Length of line in kernel
+  linear_motion_blur_angle: 90  # In degrees; 90 for vertical, 0 for horizontal
   linear_motion_blur_p: 0.1  # Probability of applying linear motion blur instead of standard normalizing blur
   # TODO: Figure out what the two changeable values for radial actually mean, then put them here
   radial_motion_blur_p: 0.1

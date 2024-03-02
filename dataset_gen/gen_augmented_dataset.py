@@ -45,7 +45,8 @@ def extend_annotations(final_annotations, image_paths, annotations, no_damage):
     image_paths = set([os.path.basename(p) for p in image_paths])
     image_id = len(final_annotations['images'])
     annotation_id = len(final_annotations['annotations'])
-    
+
+    # TODO: Progress bar    
     for img_json in annotations['images']:
         path = os.path.basename(img_json['file_name'])
         
@@ -123,12 +124,16 @@ if __name__ == '__main__':
 
     # Randomly sample the full datasets to create a new dataset
     print('Sampling datasets...')
-    if args.extend:
-        orig_paths = random.sample(orig_paths, num_train)
-        augment_paths = random.sample(augment_paths, int(num_train / (1 - aug_factor) - num_train))
+    if aug_factor == 1.0 and args.extend:
+        random.shuffle(orig_paths)
+        random.shuffle(augment_paths)
     else:
-        orig_paths = random.sample(orig_paths, int((1 - aug_factor) * num_train))
-        augment_paths = random.sample(augment_paths, int(num_train * aug_factor))
+        if args.extend:
+            orig_paths = random.sample(orig_paths, num_train)
+            augment_paths = random.sample(augment_paths, int(num_train / (1 - aug_factor) - num_train))
+        else:
+            orig_paths = random.sample(orig_paths, int((1 - aug_factor) * num_train))
+            augment_paths = random.sample(augment_paths, int(num_train * aug_factor))
     final_paths = orig_paths + augment_paths
 
     print('Generating annotations...')

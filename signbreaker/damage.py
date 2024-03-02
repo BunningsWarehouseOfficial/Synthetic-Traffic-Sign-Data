@@ -112,8 +112,8 @@ def damage_image(synth_img, output_dir, config, backgrounds=[], single_image=Fal
             dmg, att = remove_hole(img, -1)
             return apply_damage(dmg, att)
     elif n_dmgs['big_hole'] > 0:
-        angles = rand.sample(
-            range(0, 360, 20), n_dmgs['big_hole'])
+        # TODO: Why a step of 20? Seems like a completely unnecessary restriction
+        angles = rand.sample(range(0, 360, 20), n_dmgs['big_hole'])
         for a in angles:
             dmg, att = remove_hole(img, a)
             apply_damage(dmg, att)
@@ -499,6 +499,7 @@ def sticker(img, num_stickers=1, iteration=0):
 
         scale_height = rand.randint(img.shape[0] / 8, img.shape[0] / 4)  # The height that the image will be scaled to
         scale_factor = scale_height / sticker.shape[1]  # Percent of original size
+        # TODO: ^ Make use of widht/height in above 2 lines consistent just in case
         width = int(sticker.shape[1] * scale_factor)
         height = int(sticker.shape[0] * scale_factor)
         dim = (width, height)
@@ -549,6 +550,7 @@ def overlay_damage(img):
         return overlay_name, overlay
     overlay_name, overlay_original = choose_overlay()
 
+    # TODO: Make these first two parameters configurable
     min_damage = 0.025
     max_damage = 0.7
     max_attempts = 20
