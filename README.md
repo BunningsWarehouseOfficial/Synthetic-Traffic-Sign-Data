@@ -3,13 +3,27 @@
 🚧 *Work in progress.*
 
 ## Abstract
-- [ ] TODO: Add links to and make reference to damage assessment paper and also mention upcoming paper in the works
-
 We have modified [code](https://github.com/alexandrosstergiou/Traffic-Sign-Recognition-basd-on-Synthesised-Training-Data) by Alexandros Stergiou ([2018 paper](https://www.mdpi.com/2504-2289/2/3/19)) to create synthetic traffic signs which are placed over a background image to create a holistic data that can be used to train a detection model directly rather than training for simple classification. Furthermore, we have implemented various kinds of synthetic damage that are applied to the signs. This damage is quantified by using the percentage of the sign that has been changed or obscured. The purpose of this is to train a detection model to not only detect each class of sign, but to also detect the class and assess the severity of damage that is present on the sign, if any.
  
- ![damaged_examples](https://github.com/BunningsWarehouseOfficial/Traffic-Sign-Damage-Detection-using-Synthesised-Training-Data/blob/main/Figures/Damaged_examples.png "Templates")
+ ![damaged_examples](https://github.com/BunningsWarehouseOfficial/Synthetic-Traffic-Sign-Data/blob/main/Figures/Damaged_examples.png "Templates")
  
 The above shows some close-up examples of damage applied to signs.
+
+## Citations
+### DICTA 2022 (outdated)
+Main repository (only includes an outdated portion of this repository): [End-to-End Traffic Sign Damage Assessment](https://github.com/dsphamgithub/tsda/tree/main)
+```
+@inproceedings{rados2022end,
+  title={End-to-End Traffic Sign Damage Assessment},
+  author={Radoš, Kristian and Downes, Jack and Pham, Duc-Son and Krishna, Aneesh},
+  booktitle={2022 International Conference on Digital Image Computing: Techniques and Applications (DICTA)},
+  year={2022},
+  doi={10.1109/DICTA56598.2022.10034587}
+}
+```
+<!-- - [ ] TODO: Add synthetic dataset paper bibtex citation once available
+```
+``` -->
 
 ## Installation
 Git is required to download and install the repo. If on Linux or Mac, open Terminal and follow these commands:
@@ -19,7 +33,7 @@ $ sudo apt-get install git
 $ git clone https://github.com/ai-research-students-at-curtin/Traffic-Sign-Damage-Detection-using-Synthesised-Training-Data.git
 ```
 
-- [ ] TODO: Fix `environment.yaml`
+- [ ] TODO: Fix `environment.yaml` (or just make a Dockerfile)
 
 Using an Anaconda environment is recommended. Install Miniconda (terminal only) [here](https://docs.conda.io/en/latest/miniconda.html). Once installed, run the following command while in the repo directory:
 ```sh
@@ -59,7 +73,6 @@ Please allow for sufficient storage space when running the dataset generator. Wi
 ## Contributors
 Kristian Radoš *(Primary)* \
 kristianrados40@gmail.com
-kristian.rados@student.curtin.edu.au
 
 Seana Dale \
 seana.dale@student.curtin.edu.au
@@ -72,11 +85,3 @@ prasanna.asokan@student.curtin.edu.au
 
 Jack Downes \
 jack.downes@postgrad.curtin.edu.au
-
-## Citation
-- [ ] TODO: Add damage assessment paper bibtex citation once available
-```
-```
-- [ ] TODO: Add synthetic dataset paper bibtex citation once available
-```
-```
