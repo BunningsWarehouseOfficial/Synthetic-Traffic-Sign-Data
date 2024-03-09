@@ -56,11 +56,6 @@ Please allow for sufficient storage space when running the dataset generator. Wi
 [[download]](https://drive.google.com/file/d/1dWkyX9-lGEE59odbthu3zFdZT9ksQ2nS/view?usp=sharing) | GTSDB | all 600 images from the GTSDB training set (warning: if used as is as backgrounds, synthetic data would contain unlabelled signs). \
 [[download]](https://drive.google.com/file/d/1navoOiHRhYhrIGgogp1TMoEg3QczvN85/view?usp=sharing) | Various | 1191 images taken from various sources with no visible traffic sign faces. See [here](https://github.com/dsphamgithub/tsda#synthetic-dataset-generation-code) for details.
 
-## License
-- [ ] TODO: *Properly* update LICENSE file (sublicense?), then delete this heading
-
-MIT
-
 ## Contributors
 Kristian Radoš *(Primary)* \
 kristianrados40@gmail.com
